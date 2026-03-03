@@ -1,0 +1,178 @@
+{
+    "1317429037802721280": {
+        "verify_panels": [],
+        "ticket_panels": [
+            {
+                "categories": [
+                    {
+                        "label": "sd",
+                        "value": "sd",
+                        "emoji": "\ud83e\udd7a"
+                    }
+                ],
+                "channel_id": 1478107225275895891
+            },
+            {
+                "categories": [
+                    {
+                        "label": "Support",
+                        "value": "Support",
+                        "emoji": "\ud83e\udd7a",
+                        "description": "Test"
+                    }
+                ]
+            }
+        ]
+    },
+    "1476643882342027358": {
+        "verify_panels": [],
+        "ticket_panels": [
+            {
+                "categories": [
+                    {
+                        "label": "\ufe0f Allgemeiner Support",
+                        "value": "\ufe0f Allgemeiner Support",
+                        "emoji": "\ud83d\udee0",
+                        "description": "Fragen zum Server"
+                    },
+                    {
+                        "label": "Regeln",
+                        "value": "Regeln",
+                        "emoji": null,
+                        "description": null
+                    },
+                    {
+                        "label": "Rollen",
+                        "value": "Rollen",
+                        "emoji": null,
+                        "description": null
+                    },
+                    {
+                        "label": "Commands",
+                        "value": "Commands",
+                        "emoji": null,
+                        "description": null
+                    },
+                    {
+                        "label": "Orientierung f\u00fcr neue Spieler.",
+                        "value": "Orientierung f\u00fcr neue Spieler.",
+                        "emoji": null,
+                        "description": null
+                    },
+                    {
+                        "label": "Entbannungsantrag",
+                        "value": "Entbannungsantrag",
+                        "emoji": "\ud83d\udeab",
+                        "description": "Bans"
+                    },
+                    {
+                        "label": "Kicks",
+                        "value": "Kicks",
+                        "emoji": null,
+                        "description": null
+                    },
+                    {
+                        "label": "Warns",
+                        "value": "Warns",
+                        "emoji": null,
+                        "description": null
+                    },
+                    {
+                        "label": "Mutes \u2013 alles rund um Strafen und Einspr\u00fcche.",
+                        "value": "Mutes \u2013 alles rund um Strafen und Einspr\u00fcche.",
+                        "emoji": null,
+                        "description": null
+                    },
+                    {
+                        "label": "Fraktionsticket",
+                        "value": "Fraktionsticket",
+                        "emoji": "\ud83c\udfe2",
+                        "description": "Anliegen zu Polizei"
+                    },
+                    {
+                        "label": "Sheriff",
+                        "value": "Sheriff",
+                        "emoji": null,
+                        "description": null
+                    },
+                    {
+                        "label": "Feuerwehr",
+                        "value": "Feuerwehr",
+                        "emoji": null,
+                        "description": null
+                    },
+                    {
+                        "label": "EMS",
+                        "value": "EMS",
+                        "emoji": null,
+                        "description": null
+                    },
+                    {
+                        "label": "DOT",
+                        "value": "DOT",
+                        "emoji": null,
+                        "description": null
+                    },
+                    {
+                        "label": "Dispatch",
+                        "value": "Dispatch",
+                        "emoji": null,
+                        "description": null
+                    },
+                    {
+                        "label": "Bewerbungen oder internen Problemen.",
+                        "value": "Bewerbungen oder internen Problemen.",
+                        "emoji": null,
+                        "description": null
+                    },
+                    {
+                        "label": "Partnerschaften / Kooperationen",
+                        "value": "Partnerschaften / Kooperationen",
+                        "emoji": "\ud83e\udd1d",
+                        "description": "Anfragen zu Partner-Servern"
+                    },
+                    {
+                        "label": "Werbung",
+                        "value": "Werbung",
+                        "emoji": null,
+                        "description": null
+                    },
+                    {
+                        "label": "Kooperationen oder gemeinsamen Events",
+                        "value": "Kooperationen oder gemeinsamen Events",
+                        "emoji": null,
+                        "description": null
+                    }
+                ]
+            },
+            {
+                "categories": [
+                    {
+                        "label": "\ufe0f Allgemeiner Support",
+                        "value": "\ufe0f Allgemeiner Support",
+                        "emoji": "\ud83d\udee0",
+                        "description": "Fragen zum Server, Regeln, Rollen, Commands, Orientierung f\u00fcr neue Spieler."
+                    },
+                    {
+                        "label": "Entbannungsantrag",
+                        "value": "Entbannungsantrag",
+                        "emoji": "\ud83d\udeab",
+                        "description": "Bans, Kicks, Warns, Mutes \u2013 alles rund um Strafen und Einspr\u00fcche."
+                    },
+                    {
+                        "label": "Fraktionsticket",
+                        "value": "Fraktionsticket",
+                        "emoji": "\ud83c\udfe2",
+                        "description": "Anliegen zu Polizei, Sheriff, Feuerwehr, EMS, DOT, Dispatch, Bewerbungen oder internen Problemen."
+                    },
+                    {
+                        "label": "Partnerschaften / Kooperationen",
+                        "value": "Partnerschaften / Kooperationen",
+                        "emoji": "\ud83e\udd1d",
+                        "description": "Anfragen zu Partner-Servern, Werbung, Kooperationen oder gemeinsamen Events."
+                    }
+                ]
+            }
+        ]
+    }
+}

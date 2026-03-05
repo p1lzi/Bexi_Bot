@@ -81,6 +81,18 @@
                 ],
                 "channel_id": 1478107225275895891,
                 "message_id": 1479015744464228435
+            },
+            {
+                "categories": [
+                    {
+                        "label": "Test",
+                        "value": "Test",
+                        "emoji": null,
+                        "description": null
+                    }
+                ],
+                "channel_id": 1478107225275895891,
+                "message_id": 1479031884037099534
             }
         ]
     },

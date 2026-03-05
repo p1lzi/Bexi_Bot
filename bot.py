@@ -243,6 +243,7 @@ bot = MyBot()
 # --- ADMIN COMMANDS ---
 
 @bot.tree.command(name="set_waiting_room", description="Legt den Sprachkanal für die Warteschleifenmusik fest")
+@app_commands.default_permissions(administrator=True)
 @app_commands.checks.has_permissions(administrator=True)
 async def set_waiting_room(interaction: discord.Interaction, kanal: discord.VoiceChannel):
     guild_id = str(interaction.guild_id)
@@ -252,7 +253,7 @@ async def set_waiting_room(interaction: discord.Interaction, kanal: discord.Voic
     save_config(config)
     await interaction.response.send_message(f"✅ Warteschleifen-Kanal auf **{kanal.name}** gesetzt.", ephemeral=True)
 
-ticket_roles_group = app_commands.Group(name="ticket_roles", description="Verwalte Supporter-Rollen für Tickets")
+ticket_roles_group = app_commands.Group(name="ticket_roles", description="Verwalte Supporter-Rollen für Tickets", default_permissions=discord.Permissions(administrator=True))
 
 @ticket_roles_group.command(name="add", description="Fügt eine Supporter-Rolle hinzu")
 async def add_support_role(interaction: discord.Interaction, rolle: discord.Role):
@@ -282,6 +283,7 @@ async def remove_support_role(interaction: discord.Interaction, rolle: discord.R
 bot.tree.add_command(ticket_roles_group)
 
 @bot.tree.command(name="ticket_edit", description="Bearbeite ein spezifisches Ticket-Panel via Message ID")
+@app_commands.default_permissions(administrator=True)
 @app_commands.describe(
     message_id="Die ID der Nachricht des Panels, das du bearbeiten willst",
     titel="Der neue Titel für dieses spezifische Panel",
@@ -313,7 +315,40 @@ async def ticket_edit(interaction: discord.Interaction, message_id: str, titel: 
     await message.edit(embed=embed)
     await interaction.response.send_message(f"✅ Panel aktualisiert.", ephemeral=True)
 
+@bot.tree.command(name="ticket_delete", description="Löscht ein Ticket-Panel und entfernt es aus der Konfiguration")
+@app_commands.default_permissions(administrator=True)
+@app_commands.describe(message_id="Die ID der Nachricht des zu löschenden Panels")
+@app_commands.checks.has_permissions(administrator=True)
+async def ticket_delete(interaction: discord.Interaction, message_id: str):
+    guild_id = str(interaction.guild_id)
+    config = load_config()
+    
+    try:
+        msg_id = int(message_id)
+        # Versuche die Nachricht im aktuellen Kanal zu finden und zu löschen
+        message = await interaction.channel.fetch_message(msg_id)
+        await message.delete()
+    except Exception:
+        # Falls die Nachricht nicht existiert, machen wir mit der Config weiter
+        pass
+
+    if guild_id in config and "ticket_panels" in config[guild_id]:
+        original_count = len(config[guild_id]["ticket_panels"])
+        config[guild_id]["ticket_panels"] = [
+            p for p in config[guild_id]["ticket_panels"] if str(p.get("message_id")) != message_id
+        ]
+        
+        if len(config[guild_id]["ticket_panels"]) < original_count:
+            save_config(config)
+            await interaction.response.send_message(f"✅ Ticket-Panel mit der ID {message_id} wurde gelöscht und aus der Config entfernt.", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"⚠️ Kein Panel mit der ID {message_id} in der Konfiguration gefunden.", ephemeral=True)
+    else:
+        await interaction.response.send_message("⚠️ Keine Ticket-Konfiguration für diesen Server gefunden.", ephemeral=True)
+
 @bot.tree.command(name="setup_verify", description="Erstellt ein Verify-Panel")
+@app_commands.default_permissions(administrator=True)
+@app_commands.checks.has_permissions(administrator=True)
 async def setup_verify(interaction: discord.Interaction, rolle: discord.Role):
     guild_id = str(interaction.guild_id)
     config = load_config()
@@ -327,7 +362,9 @@ async def setup_verify(interaction: discord.Interaction, rolle: discord.Role):
     await interaction.response.send_message(f"✅ Verify-Panel erstellt.", ephemeral=True)
 
 @bot.tree.command(name="setup_tickets", description="Erstellt ein Ticket-System")
+@app_commands.default_permissions(administrator=True)
 @app_commands.describe(kategorien='Format: "Emoji Name | Beschreibung", "Emoji Name | Beschreibung"')
+@app_commands.checks.has_permissions(administrator=True)
 async def setup_tickets(interaction: discord.Interaction, kategorien: str):
     guild_id = str(interaction.guild_id)
     raw_list = re.findall(r'"([^"]*)"', kategorien)

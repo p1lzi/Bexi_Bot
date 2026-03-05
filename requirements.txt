@@ -1,3 +1,5 @@
 discord.py
 PyNaCl
 ffmpeg
+discord.py[voice]
+static-ffmpeg

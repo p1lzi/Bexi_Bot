@@ -5,6 +5,15 @@ import re
 import json
 import os
 import asyncio
+import shutil
+import platform
+
+try:
+    from static_ffmpeg import run
+    ffmpeg_exe, ffprobe_exe = run.get_or_fetch_platform_executables_else_raise()
+    HAS_STATIC_FFMPEG = True
+except ImportError:
+    HAS_STATIC_FFMPEG = False
 
 # --- SETUP AUS UMGEBUNGSVARIABLEN ---
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -216,27 +225,59 @@ class MyBot(commands.Bot):
         if not voice_channel:
             return
 
+        # Wenn jemand den Warteraum betritt
         if after.channel and after.channel.id == waiting_room_id:
             vc = discord.utils.get(self.voice_clients, guild=member.guild)
-            if not vc or not vc.is_connected():
-                vc = await voice_channel.connect()
-                self.loop.create_task(self.play_looping_music(vc))
+            if not vc:
+                try:
+                    vc = await voice_channel.connect()
+                    print(f"INFO: Bot mit Warteraum {voice_channel.name} verbunden.")
+                    self.loop.create_task(self.play_looping_music(vc))
+                except Exception as e:
+                    print(f"ERROR: Voice Connection failed: {e}")
 
+        # Wenn jemand den Warteraum verlässt
         elif before.channel and before.channel.id == waiting_room_id:
             vc = discord.utils.get(self.voice_clients, guild=member.guild)
             if vc and len(voice_channel.members) <= 1:
                 await vc.disconnect()
+                print("INFO: Warteraum leer, Bot hat getrennt.")
 
     async def play_looping_music(self, vc):
-        music_file = "support_music.mp3"
+        # Nutze absoluten Pfad zur Sicherheit
+        music_file = os.path.join(os.getcwd(), "support_music.mp3")
+        
         if not os.path.exists(music_file):
-            print(f"Warnung: {music_file} nicht gefunden!")
+            print(f"CRITICAL: Musikdatei '{music_file}' wurde nicht gefunden!")
             return
+
+        # FFmpeg-Pfad Logik (Python-basiert via static-ffmpeg)
+        final_ffmpeg_exe = "ffmpeg" # Standard
+        if HAS_STATIC_FFMPEG:
+            final_ffmpeg_exe = ffmpeg_exe
+            print(f"INFO: Nutze eingebettetes FFmpeg: {final_ffmpeg_exe}")
+        else:
+            # Fallback falls static-ffmpeg nicht installiert ist
+            found = shutil.which("ffmpeg")
+            if found:
+                final_ffmpeg_exe = found
+            else:
+                print("CRITICAL: FFmpeg nicht gefunden! Bitte 'pip install static-ffmpeg' ausführen.")
+                return
 
         while vc.is_connected():
             if not vc.is_playing():
-                vc.play(discord.FFmpegPCMAudio(music_file))
-            await asyncio.sleep(1)
+                try:
+                    source = discord.FFmpegPCMAudio(
+                        music_file,
+                        executable=final_ffmpeg_exe,
+                        options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
+                    )
+                    vc.play(source)
+                except Exception as e:
+                    print(f"ERROR beim Abspielen: {e}")
+                    break
+            await asyncio.sleep(2)
 
 bot = MyBot()
 

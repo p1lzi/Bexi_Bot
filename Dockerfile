@@ -30,8 +30,8 @@ COPY bot.py .
 RUN echo "{}" > config.json
 
 # Standard-Umgebungsvariablen (werden durch docker-compose überschrieben)
-ENV DISCORD_TOKEN=""
-ENV DISCORD_GUILD_ID=""
+ENV TOKEN=""
+ENV GUILD_ID=""
 ENV TZ="Europe/Berlin"
 
 # Startbefehl für den Bot

@@ -3,3 +3,4 @@ PyNaCl
 ffmpeg
 discord.py[voice]
 static-ffmpeg
+dotenv

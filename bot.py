@@ -17,8 +17,8 @@ except ImportError:
     HAS_STATIC_FFMPEG = False
 
 # --- SETUP AUS UMGEBUNGSVARIABLEN ---
-TOKEN = "MTQ3ODEwNjEyODEyOTk4Njc0Mg.GdAnt3.4MWi8PfBt3FY2XBHm9ZyWuFXSd7-wTznEVz5Yk"
-GUILD_ID = 1317429037802721280
+TOKEN = os.getenv('DISCORD_TOKEN')
+GUILD_ID = os.getenv('DISCORD_GUILD_ID') 
 CONFIG_FILE = 'config.json'
 
 def load_config():

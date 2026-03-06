@@ -27,8 +27,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Kopiere den Bot-Quellcode in den Container
-COPY bot.py .
-COPY support_music.mp3 . 
+COPY . .
 
 # Erstelle eine leere config.json, falls sie nicht über Volumes gemountet wird
 # Das verhindert Fehler beim ersten Start

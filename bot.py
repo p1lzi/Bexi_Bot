@@ -17,7 +17,8 @@ except ImportError:
     HAS_STATIC_FFMPEG = False
 
 # --- SETUP AUS UMGEBUNGSVARIABLEN ---
-TOKEN = os.getenv('DISCORD_TOKEN')
+TOKEN = "MTQ3ODEwNjEyODEyOTk4Njc0Mg.GdAnt3.4MWi8PfBt3FY2XBHm9ZyWuFXSd7-wTznEVz5Yk"
+GUILD_ID = 1317429037802721280
 CONFIG_FILE = 'config.json'
 
 def load_config():
@@ -34,12 +35,19 @@ def save_config(config):
     with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=4)
 
-# --- HELPER: SEND DM ---
-async def send_dm(user: discord.User, message: str, embed: discord.Embed = None):
-    try:
-        await user.send(content=message, embed=embed)
-    except discord.Forbidden:
-        pass
+# --- HELPER: FORMAT TEXT ---
+def format_discord_text(text: str):
+    """
+    Formatiert den Text für Discord:
+    - /n wird zu Zeilenumbruch
+    """
+    if not text:
+        return ""
+    
+    # /n zu Zeilenumbruch wandeln
+    text = text.replace("/n", "\n")
+    
+    return text
 
 # --- TICKET CONTROL PANEL ---
 class TicketControlView(discord.ui.View):
@@ -56,8 +64,28 @@ class TicketControlView(discord.ui.View):
             pass
         return None
 
+    def is_supporter(self, interaction: discord.Interaction):
+        """Prüft, ob der Nutzer Admin ist oder die Supporter-Rolle hat."""
+        if interaction.user.guild_permissions.administrator:
+            return True
+            
+        config = load_config()
+        guild_data = config.get(str(interaction.guild_id), {})
+        panels = guild_data.get("ticket_panels", [])
+        
+        for panel in panels:
+            supp_role_id = panel.get("supporter_role_id")
+            if supp_role_id:
+                role = interaction.guild.get_role(supp_role_id)
+                if role in interaction.user.roles:
+                    return True
+        return False
+
     @discord.ui.button(label="Ticket Claimen", style=discord.ButtonStyle.blurple, custom_id="persistent_claim_ticket")
     async def claim(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.is_supporter(interaction):
+            return await interaction.response.send_message("❌ Nur Supporter können Tickets claimen.", ephemeral=True)
+
         embed = interaction.message.embeds[0]
         if any(field.name == "Bearbeiter" for field in embed.fields):
             return await interaction.response.send_message("Dieses Ticket wurde bereits übernommen!", ephemeral=True)
@@ -80,10 +108,13 @@ class TicketControlView(discord.ui.View):
                     description=f"Dein Ticket in **{interaction.guild.name}** wurde von {interaction.user.mention} übernommen.\n\n[Zum Ticket springen]({interaction.channel.jump_url})",
                     color=discord.Color.blue()
                 )
-                await send_dm(creator, "", embed=dm_embed)
+                await send_dm(creator, "", dm_embed)
 
     @discord.ui.button(label="Ticket Schließen", style=discord.ButtonStyle.red, custom_id="persistent_close_ticket")
     async def close(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.is_supporter(interaction):
+            return await interaction.response.send_message("❌ Nur Supporter können Tickets schließen.", ephemeral=True)
+
         await interaction.response.send_message("Das Ticket wird geschlossen und archiviert...")
         
         creator_id = self.get_creator_id(interaction)
@@ -95,10 +126,16 @@ class TicketControlView(discord.ui.View):
                     description=f"Dein Ticket in **{interaction.guild.name}** wurde abgeschlossen und archiviert.",
                     color=discord.Color.red()
                 )
-                await send_dm(creator, "", embed=dm_embed)
+                await send_dm(creator, "", dm_embed)
             
         thread = interaction.channel
         await thread.edit(locked=True, archived=True)
+
+async def send_dm(user: discord.User, message: str, embed: discord.Embed = None):
+    try:
+        await user.send(content=message, embed=embed)
+    except discord.Forbidden:
+        pass
 
 # --- VERIFY SYSTEM ---
 class VerifyView(discord.ui.View):
@@ -120,8 +157,9 @@ class VerifyView(discord.ui.View):
 
 # --- TICKET SYSTEM ---
 class TicketSelect(discord.ui.Select):
-    def __init__(self, options):
+    def __init__(self, options, supporter_role_id):
         super().__init__(placeholder="Wähle dein Anliegen...", options=options, custom_id="ticket_select_persistent")
+        self.supporter_role_id = supporter_role_id
 
     async def callback(self, interaction: discord.Interaction):
         await interaction.response.send_message(f"Ticket für **{self.values[0]}** wird erstellt...", ephemeral=True)
@@ -133,15 +171,11 @@ class TicketSelect(discord.ui.Select):
         
         await thread.add_user(interaction.user)
         
-        config = load_config()
-        guild_id = str(interaction.guild_id)
-        team_role_ids = config.get(guild_id, {}).get("support_roles", [])
-        
-        for role_id in team_role_ids:
-            role = interaction.guild.get_role(role_id)
-            if role:
-                for member in role.members:
-                    await thread.add_user(member)
+        # Supporter hinzufügen
+        role = interaction.guild.get_role(self.supporter_role_id)
+        if role:
+            for member in role.members:
+                await thread.add_user(member)
         
         embed = discord.Embed(
             title="Support-Ticket geöffnet",
@@ -155,11 +189,10 @@ class TicketSelect(discord.ui.Select):
             description=f"Du hast erfolgreich ein Ticket in **{interaction.guild.name}** eröffnet.\n\n[Klicke hier, um zum Ticket zu gelangen]({thread.jump_url})",
             color=discord.Color.green()
         )
-        await send_dm(interaction.user, "", embed=dm_embed)
-        await interaction.message.edit(view=self.view)
+        await send_dm(interaction.user, "", dm_embed)
 
 class TicketView(discord.ui.View):
-    def __init__(self, categories_data):
+    def __init__(self, categories_data, supporter_role_id):
         super().__init__(timeout=None)
         options = []
         for item in categories_data:
@@ -169,7 +202,7 @@ class TicketView(discord.ui.View):
                 emoji=item.get('emoji'),
                 description=item.get('description')[:100] if item.get('description') else None
             ))
-        self.add_item(TicketSelect(options))
+        self.add_item(TicketSelect(options, supporter_role_id))
 
 class MyBot(commands.Bot):
     def __init__(self):
@@ -185,19 +218,25 @@ class MyBot(commands.Bot):
             for panel in data.get("verify_panels", []):
                 self.add_view(VerifyView(panel["role_id"]))
             for t_panel in data.get("ticket_panels", []):
-                self.add_view(TicketView(t_panel["categories"]))
+                supp_role_id = t_panel.get("supporter_role_id")
+                self.add_view(TicketView(t_panel["categories"], supp_role_id))
         self.add_view(TicketControlView())
-        await self.tree.sync()
+        
+        if GUILD_ID:
+            guild = discord.Object(id=int(GUILD_ID))
+            self.tree.copy_global_to(guild=guild)
+            await self.tree.sync(guild=guild)
+            print(f"🚀 Slash Commands für Guild {GUILD_ID} synchronisiert.")
+        else:
+            await self.tree.sync()
+            print("🌐 Globale Slash Commands synchronisiert.")
 
-    # --- MODERATION: ANTI-LINK ---
     async def on_message(self, message: discord.Message):
         if message.author.bot:
             return
 
-        # Prüfe auf Links (sehr einfacher Regex)
         link_pattern = r'(https?://\S+|www\.\S+)'
         if re.search(link_pattern, message.content):
-            # Wenn der Nutzer kein Admin ist, Nachricht löschen
             if not message.author.guild_permissions.administrator:
                 try:
                     await message.delete()
@@ -208,7 +247,6 @@ class MyBot(commands.Bot):
 
         await self.process_commands(message)
 
-    # --- EVENT: WILLKOMMENSNACHRICHT ---
     async def on_member_join(self, member: discord.Member):
         guild_id = str(member.guild.id)
         config = load_config()
@@ -228,7 +266,6 @@ class MyBot(commands.Bot):
                 
                 await channel.send(content=f"Willkommen im Team, {member.mention}!", embed=embed)
 
-    # --- EVENT: WARTESCHLEIFENMUSIK ---
     async def on_voice_state_update(self, member, before, after):
         if member.bot: return
         guild_id = str(member.guild.id)
@@ -272,24 +309,64 @@ class MyBot(commands.Bot):
 
 bot = MyBot()
 
+# --- PUBLIC COMMANDS ---
+
+@bot.tree.command(name="ping", description="Überprüfe die Latenz des Bots")
+async def ping(interaction: discord.Interaction):
+    latency = round(bot.latency * 1000)
+    await interaction.response.send_message(f"🏓 Pong! Latenz: **{latency}ms**", ephemeral=True)
+
 # --- MODERATION COMMANDS ---
 
 @bot.tree.command(name="warn", description="Warne einen Nutzer per DM")
 @app_commands.default_permissions(moderate_members=True)
 async def warn(interaction: discord.Interaction, nutzer: discord.Member, grund: str):
+    guild_id = str(interaction.guild_id)
+    user_id = str(nutzer.id)
+    config = load_config()
+    
+    if guild_id not in config: config[guild_id] = {}
+    if "warnings" not in config[guild_id]: config[guild_id]["warnings"] = {}
+    
+    current_warns = config[guild_id]["warnings"].get(user_id, 0) + 1
+    config[guild_id]["warnings"][user_id] = current_warns
+    save_config(config)
+
     embed = discord.Embed(title="Verwarnung erhalten", description=f"Du wurdest auf **{interaction.guild.name}** verwarnt.", color=discord.Color.orange())
     embed.add_field(name="Grund", value=grund)
+    embed.add_field(name="Warn-Anzahl", value=str(current_warns))
     embed.add_field(name="Moderator", value=interaction.user.name)
     
-    await send_dm(nutzer, "", embed=embed)
-    await interaction.response.send_message(f"✅ {nutzer.mention} wurde verwarnt. Grund: {grund}")
+    await send_dm(nutzer, "", embed)
+    await interaction.response.send_message(f"✅ {nutzer.mention} wurde verwarnt (Warns: {current_warns}). Grund: {grund}", ephemeral=True)
+
+@bot.tree.command(name="userinfo", description="Zeigt Informationen über einen Nutzer an")
+@app_commands.default_permissions(administrator=True)
+async def userinfo(interaction: discord.Interaction, nutzer: discord.Member):
+    guild_id = str(interaction.guild_id)
+    user_id = str(nutzer.id)
+    config = load_config()
+    
+    warns = config.get(guild_id, {}).get("warnings", {}).get(user_id, 0)
+    roles = [role.mention for role in nutzer.roles if role != interaction.guild.default_role]
+    
+    embed = discord.Embed(title=f"User Info - {nutzer.name}", color=discord.Color.blue())
+    embed.set_thumbnail(url=nutzer.display_avatar.url)
+    embed.add_field(name="ID", value=nutzer.id, inline=True)
+    embed.add_field(name="Nickname", value=nutzer.nick or "Keiner", inline=True)
+    embed.add_field(name="Account erstellt", value=nutzer.created_at.strftime("%d.%m.%Y %H:%M"), inline=False)
+    embed.add_field(name="Beigetreten", value=nutzer.joined_at.strftime("%d.%m.%Y %H:%M"), inline=False)
+    embed.add_field(name="Verwarnungen", value=f"**{warns}**", inline=True)
+    embed.add_field(name="Rollen", value=" ".join(roles) if roles else "Keine", inline=False)
+    
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="kick", description="Kicke einen Nutzer vom Server")
 @app_commands.default_permissions(kick_members=True)
 async def kick(interaction: discord.Interaction, nutzer: discord.Member, grund: str = "Kein Grund angegeben"):
     try:
         await nutzer.kick(reason=grund)
-        await interaction.response.send_message(f"✅ {nutzer.mention} wurde gekickt. Grund: {grund}")
+        await interaction.response.send_message(f"✅ {nutzer.mention} wurde gekickt. Grund: {grund}", ephemeral=True)
     except Exception as e:
         await interaction.response.send_message(f"❌ Fehler: {e}", ephemeral=True)
 
@@ -298,7 +375,7 @@ async def kick(interaction: discord.Interaction, nutzer: discord.Member, grund: 
 async def ban(interaction: discord.Interaction, nutzer: discord.Member, grund: str = "Kein Grund angegeben"):
     try:
         await nutzer.ban(reason=grund)
-        await interaction.response.send_message(f"✅ {nutzer.mention} wurde gebannt. Grund: {grund}")
+        await interaction.response.send_message(f"✅ {nutzer.mention} wurde gebannt. Grund: {grund}", ephemeral=True)
     except Exception as e:
         await interaction.response.send_message(f"❌ Fehler: {e}", ephemeral=True)
 
@@ -308,7 +385,7 @@ async def timeout(interaction: discord.Interaction, nutzer: discord.Member, minu
     try:
         duration = datetime.timedelta(minutes=minuten)
         await nutzer.timeout(duration, reason=grund)
-        await interaction.response.send_message(f"✅ {nutzer.mention} ist nun für {minuten} Minuten im Timeout. Grund: {grund}")
+        await interaction.response.send_message(f"✅ {nutzer.mention} ist nun für {minuten} Minuten im Timeout. Grund: {grund}", ephemeral=True)
     except Exception as e:
         await interaction.response.send_message(f"❌ Fehler: {e}", ephemeral=True)
 
@@ -339,7 +416,7 @@ async def set_waiting_room(interaction: discord.Interaction, kanal: discord.Voic
 async def setup_verify(interaction: discord.Interaction, rolle: discord.Role):
     guild_id = str(interaction.guild_id)
     config = load_config()
-    if guild_id not in config: config[guild_id] = {"verify_panels": [], "ticket_panels": [], "support_roles": []}
+    if guild_id not in config: config[guild_id] = {}
     embed = discord.Embed(title="Server Verifizierung", description=f"Klicke auf den Button für die Rolle **{rolle.name}**.", color=discord.Color.blue())
     message = await interaction.channel.send(embed=embed, view=VerifyView(rolle.id))
     config[guild_id].setdefault("verify_panels", []).append({"role_id": rolle.id, "channel_id": interaction.channel_id, "message_id": message.id})
@@ -348,30 +425,82 @@ async def setup_verify(interaction: discord.Interaction, rolle: discord.Role):
 
 @bot.tree.command(name="setup_tickets", description="Erstellt ein Ticket-System")
 @app_commands.default_permissions(administrator=True)
-async def setup_tickets(interaction: discord.Interaction, kategorien: str):
+@app_commands.describe(kategorien='Nutze "Titel|Beschreibung", z.B. "🎫 Support|Hilfe bei Fragen", "🛠️ Technik"')
+async def setup_tickets(interaction: discord.Interaction, supporter_rolle: discord.Role, kategorien: str):
     guild_id = str(interaction.guild_id)
     raw_list = re.findall(r'"([^"]*)"', kategorien)
     if not raw_list: raw_list = [c.strip() for c in kategorien.split(",") if c.strip()]
+    
     formatted_cats = []
     for item in raw_list:
         parts = item.split("|")
         main_part = parts[0].strip()
-        description = parts[1].strip() if len(parts) > 1 else None
+        desc = format_discord_text(parts[1].strip()) if len(parts) > 1 else None
+        
         emoji, label = None, main_part
         match = re.search(r'^([^\x00-\x7F]|\W+)\s*(.*)', main_part)
         if match:
             emoji = match.group(1).strip()
             label = match.group(2).strip() if match.group(2) else emoji
-        formatted_cats.append({"label": label, "value": label, "emoji": emoji, "description": description})
+        formatted_cats.append({"label": label, "value": label, "emoji": emoji, "description": desc})
     
     config = load_config()
     if guild_id not in config: config[guild_id] = {}
-    view = TicketView(formatted_cats)
+    
+    view = TicketView(formatted_cats, supporter_rolle.id)
     embed = discord.Embed(title="Support-Tickets", description="Wähle eine Kategorie aus dem Menü unten aus.", color=discord.Color.gold())
     message = await interaction.channel.send(embed=embed, view=view)
-    config[guild_id].setdefault("ticket_panels", []).append({"categories": formatted_cats, "channel_id": interaction.channel_id, "message_id": message.id})
+    
+    config[guild_id].setdefault("ticket_panels", []).append({
+        "categories": formatted_cats, 
+        "channel_id": interaction.channel_id, 
+        "message_id": message.id,
+        "supporter_role_id": supporter_rolle.id
+    })
     save_config(config)
     await interaction.response.send_message(f"✅ Ticket-Panel erstellt (ID: {message.id}).", ephemeral=True)
+
+@bot.tree.command(
+    name="ticket_edit", 
+    description="Bearbeite ein bestehendes Ticket-Panel"
+)
+@app_commands.default_permissions(administrator=True)
+@app_commands.describe(
+    message_id="Die ID der Nachricht des Ticket-Panels",
+    titel="Neuer Titel für das Embed",
+    beschreibung="Neue Beschreibung (Nutze /n für Zeilenbruch, nutze Standard-Markdown für Formatierungen)",
+    farbe="Farbe als Hex-Code (z.B. #00ff00)"
+)
+async def ticket_edit(interaction: discord.Interaction, message_id: str, titel: str = None, beschreibung: str = None, farbe: str = None):
+    """
+    Bearbeitet ein Ticket-Embed.
+    Formatierungshilfe:
+    - Nutze '/n' für einen einfachen Zeilenumbruch.
+    - Nutze '/n/n' für eine Leerzeile.
+    - Nutze '**Text**' um Text fett zu schreiben.
+    """
+    try:
+        msg_id = int(message_id)
+        message = await interaction.channel.fetch_message(msg_id)
+    except:
+        return await interaction.response.send_message("❌ Nachricht nicht gefunden. Stelle sicher, dass du im richtigen Kanal bist.", ephemeral=True)
+
+    if not message.embeds or message.author.id != bot.user.id:
+        return await interaction.response.send_message("❌ Ungültige Nachricht (nicht vom Bot oder kein Embed).", ephemeral=True)
+
+    embed = message.embeds[0]
+    if titel: 
+        embed.title = titel
+    if beschreibung: 
+        embed.description = format_discord_text(beschreibung)
+    if farbe:
+        try:
+            embed.color = discord.Color(int(farbe.replace("#", ""), 16))
+        except:
+            return await interaction.response.send_message("❌ Ungültige Farbe (nutze Hex, z.B. #ff0000).", ephemeral=True)
+
+    await message.edit(embed=embed)
+    await interaction.response.send_message("✅ Panel erfolgreich aktualisiert!", ephemeral=True)
 
 @bot.event
 async def on_ready():

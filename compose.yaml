@@ -1,0 +1,10 @@
+services:
+  discord-bot:
+    image: pilzithegoat/bexi_bot:1.9
+    container_name: bexi-bot_beta
+    restart: unless-stopped
+    environment:
+      - DISCORD_TOKEN=${Bot_Token}
+      - DISCORD_GUILD_ID=${Guild_ID}
+      - TZ=Europe/Berlin
+    platform: linux/arm64

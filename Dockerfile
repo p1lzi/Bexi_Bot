@@ -11,9 +11,13 @@ WORKDIR /app
 
 # Installiere System-Abhängigkeiten
 # Wir halten das Image klein, indem wir den Cache nach der Installation leeren
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    libffi-dev \
+    libnacl-dev \
     python3-dev \
+    gcc \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Kopiere die requirements.txt zuerst (für besseres Caching der Layer)
@@ -24,6 +28,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Kopiere den Bot-Quellcode in den Container
 COPY bot.py .
+COPY support_music.mp3 . 
 
 # Erstelle eine leere config.json, falls sie nicht über Volumes gemountet wird
 # Das verhindert Fehler beim ersten Start

@@ -1,2 +1,5 @@
 /.venv
 config.json
+.env
+.gitignore
+.gitattributes

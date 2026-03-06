@@ -8,6 +8,8 @@ import asyncio
 import shutil
 import platform
 import datetime
+from dotenv import load_dotenv
+load_dotenv()
 
 try:
     from static_ffmpeg import run
@@ -18,6 +20,7 @@ except ImportError:
 
 # --- SETUP AUS UMGEBUNGSVARIABLEN ---
 TOKEN = os.getenv('DISCORD_TOKEN')
+# GUILD_ID für schnellen Sync (optional)
 GUILD_ID = os.getenv('DISCORD_GUILD_ID') 
 CONFIG_FILE = 'config.json'
 

@@ -161,11 +161,56 @@
                 "channel_id": 1478107225275895891,
                 "message_id": 1479436252762865756,
                 "supporter_role_id": 1479430671083634749
+            },
+            {
+                "categories": [
+                    {
+                        "label": "\ufe0fTest",
+                        "value": "\ufe0fTest",
+                        "emoji": "\ud83d\udc41",
+                        "description": "Test",
+                        "supporter_role_ids": null
+                    },
+                    {
+                        "label": "Test2",
+                        "value": "Test2",
+                        "emoji": "\ud83d\udc80",
+                        "description": "Test",
+                        "supporter_role_ids": null
+                    }
+                ],
+                "channel_id": 1478107225275895891,
+                "message_id": 1480528360147914802,
+                "supporter_role_ids": [
+                    1479430671083634749
+                ],
+                "created_at": "09.03.2026 12:31",
+                "title": "Support-Tickets"
             }
         ],
         "waiting_room_id": 1317429038318485507,
         "warnings": {
             "544942180096278563": 1
+        },
+        "log_channel_id": 1480516801610776677,
+        "warns": {
+            "544942180096278563": 1
+        },
+        "ticket_counter": 8,
+        "category_counters": {
+            "\ufe0fTest": 11,
+            "Test2": 11,
+            "Entbannungsantrag": 1
+        },
+        "category_channels": {
+            "Test2": 1480530719410356336,
+            "\ufe0fTest": 1480531526654496918,
+            "Entbannungsantrag": 1480533952061243555
+        },
+        "server_stats": {
+            "category_id": 1480533208335650837,
+            "member_channel_id": 1480533210558627972,
+            "boost_channel_id": 1480533213645639803
         }
     },
     "1476643882342027358": {
@@ -318,5 +363,11 @@
                 ]
             }
         ]
+    },
+    "bot_presence": {
+        "status": "online",
+        "type": "streaming",
+        "text": "\ud83d\udc41\ufe0f",
+        "url": "https://www.youtube.com/watch?v=hvL1339luv0"
     }
 }

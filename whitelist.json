@@ -1,0 +1,7 @@
+{
+    "allowed_domains": [
+        "cdn.discordapp.com",
+        "giphy.com",
+        "tenor.com"
+    ]
+}

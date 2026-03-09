@@ -1,12 +1,13 @@
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 import re
 import json
 import os
 import asyncio
 import shutil
 import datetime
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,9 +20,10 @@ try:
 except ImportError:
     HAS_STATIC_FFMPEG = False
 
-# --- SETUP AUS UMGEBUNGSVARIABLEN ---
+# --- SETUP DATEIEN ---
 TOKEN = os.getenv('DISCORD_TOKEN')
 CONFIG_FILE = 'config.json'
+WHITELIST_FILE = 'whitelist.json'
 
 def load_config():
     if os.path.exists(CONFIG_FILE):
@@ -37,6 +39,22 @@ def save_config(config):
     with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=4)
 
+def load_whitelist():
+    """Lädt die Liste der erlaubten Domains aus der JSON-Datei."""
+    if os.path.exists(WHITELIST_FILE):
+        try:
+            with open(WHITELIST_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return data.get("allowed_domains", ["tenor.com"])
+        except (json.JSONDecodeError, KeyError):
+            return ["tenor.com"]
+    return ["tenor.com"]
+
+def save_whitelist(domains):
+    """Speichert die Liste der erlaubten Domains in die JSON-Datei."""
+    with open(WHITELIST_FILE, 'w', encoding='utf-8') as f:
+        json.dump({"allowed_domains": list(set(domains))}, f, indent=4)
+
 def format_discord_text(text: str):
     if not text:
         return ""
@@ -46,6 +64,29 @@ def format_discord_text(text: str):
 def extract_role_ids(input_str: str):
     """Extrahiert alle Rollen-IDs aus einem String (Erwähnungen oder reine IDs)."""
     return [int(id_str) for id_str in re.findall(r'\d+', input_str)]
+
+async def send_log(guild: discord.Guild, title: str, description: str, color: discord.Color, target_user: discord.Member, moderator: discord.Member = None, reason: str = None):
+    """Hilfsfunktion zum Senden von Logs in den konfigurierten Log-Kanal."""
+    config = load_config()
+    gid = str(guild.id)
+    log_channel_id = config.get(gid, {}).get("log_channel_id")
+    
+    if log_channel_id:
+        channel = guild.get_channel(log_channel_id)
+        if channel:
+            embed = discord.Embed(title=title, description=description, color=color, timestamp=datetime.datetime.now(datetime.timezone.utc))
+            embed.add_field(name="Nutzer", value=f"{target_user.mention} ({target_user.id})", inline=True)
+            
+            if moderator:
+                embed.add_field(name="Moderator", value=f"{moderator.mention}", inline=True)
+            if reason:
+                embed.add_field(name="Grund", value=reason, inline=False)
+                
+            embed.set_footer(text=f"Server: {guild.name}")
+            try:
+                await channel.send(embed=embed)
+            except:
+                pass
 
 # --- TICKET CONTROL PANEL ---
 class TicketControlView(discord.ui.View):
@@ -166,36 +207,90 @@ class TicketSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         selected_value = self.values[0]
-        guild_id = str(interaction.guild_id)
+        guild = interaction.guild
+        guild_id = str(guild.id)
         config = load_config()
         
         if guild_id not in config: config[guild_id] = {}
-        if "ticket_counter" not in config[guild_id]:
-            config[guild_id]["ticket_counter"] = 0
+        
+        # Initialisierung der Kategorie-Counter
+        if "category_counters" not in config[guild_id]:
+            config[guild_id]["category_counters"] = {}
+        
+        if selected_value not in config[guild_id]["category_counters"]:
+            config[guild_id]["category_counters"][selected_value] = 0
             
-        config[guild_id]["ticket_counter"] += 1
-        ticket_id = config[guild_id]["ticket_counter"]
-        save_config(config)
+        config[guild_id]["category_counters"][selected_value] += 1
+        ticket_id = config[guild_id]["category_counters"][selected_value]
         
         formatted_id = f"{ticket_id:04d}"
         
+        # Supporter Rollen für diese Kategorie finden
         target_role_ids = self.supporter_role_ids
         for cat in self.categories_full_data:
             if cat['value'] == selected_value and cat.get('supporter_role_ids'):
                 target_role_ids = cat['supporter_role_ids']
                 break
 
-        clean_category = re.sub(r'[^\w\s-]', '', selected_value).strip().replace(' ', '-').lower()
-        clean_username = interaction.user.display_name.replace(' ', '-').lower()
-        thread_name = f"{clean_category}-{clean_username}-{formatted_id}"
+        # 1. Zentrale Ticket-Hauptkategorie finden oder erstellen
+        main_category_name = "TICKETS"
+        category = discord.utils.get(guild.categories, name=main_category_name)
+        
+        if not category:
+            overwrites = {
+                guild.default_role: discord.PermissionOverwrite(view_channel=False),
+                guild.me: discord.PermissionOverwrite(view_channel=True, manage_channels=True)
+            }
+            for rid in target_role_ids:
+                role = guild.get_role(rid)
+                if role: overwrites[role] = discord.PermissionOverwrite(view_channel=True)
+            category = await guild.create_category(name=main_category_name, overwrites=overwrites)
 
-        thread = await interaction.channel.create_thread(
+        # 2. Bestehenden Kategorie-Kanal aus Config laden oder suchen
+        config[guild_id].setdefault("category_channels", {})
+        cached_channel_id = config[guild_id]["category_channels"].get(selected_value)
+        target_channel = None
+
+        if cached_channel_id:
+            target_channel = guild.get_channel(cached_channel_id)
+
+        if not target_channel:
+            channel_name = f"{selected_value.lower().replace(' ', '-')}-tickets"
+            target_channel = discord.utils.get(category.text_channels, name=channel_name)
+            
+            if not target_channel:
+                overwrites = {
+                    guild.default_role: discord.PermissionOverwrite(view_channel=False),
+                    guild.me: discord.PermissionOverwrite(view_channel=True, manage_channels=True)
+                }
+                for rid in target_role_ids:
+                    role = guild.get_role(rid)
+                    if role: overwrites[role] = discord.PermissionOverwrite(view_channel=True, send_messages=True)
+
+                target_channel = await guild.create_text_channel(
+                    name=channel_name, 
+                    category=category, 
+                    overwrites=overwrites,
+                    topic=f"Zentraler Kanal für {selected_value} Anfragen."
+                )
+            
+            # Neue Channel ID in Config speichern für Persistenz nach Neustart
+            config[guild_id]["category_channels"][selected_value] = target_channel.id
+
+        # Config speichern (Zähler + evtl. Channel ID)
+        save_config(config)
+
+        # 3. Thread im Kanal erstellen
+        clean_username = interaction.user.display_name.replace(' ', '-').lower()
+        thread_name = f"{selected_value.lower()[:5]}-{formatted_id}-{clean_username}"
+
+        thread = await target_channel.create_thread(
             name=thread_name,
             type=discord.ChannelType.private_thread
         )
         
         await interaction.response.send_message(
-            f"✅ Dein Ticket **#{formatted_id}** wurde erstellt: {thread.mention}\n"
+            f"✅ Dein Ticket **#{formatted_id}** ({selected_value}) wurde erstellt: {thread.mention}\n"
             f"[Klicke hier, um zum Ticket zu springen]({thread.jump_url})", 
             ephemeral=True
         )
@@ -203,26 +298,28 @@ class TicketSelect(discord.ui.Select):
         await thread.add_user(interaction.user)
         
         for rid in target_role_ids:
-            role = interaction.guild.get_role(rid)
+            role = guild.get_role(rid)
             if role:
                 for member in role.members:
-                    await thread.add_user(member)
+                    if not member.bot:
+                        try: await thread.add_user(member)
+                        except: pass
         
         embed = discord.Embed(
-            title=f"Support-Ticket #{formatted_id}",
+            title=f"{selected_value}-Ticket #{formatted_id}",
             description=f"Hallo {interaction.user.mention}!\n\nDein Ticket wurde erfolgreich erstellt.",
             color=discord.Color.green()
         )
         embed.add_field(name="Ticket-Nummer", value=f"#{formatted_id}", inline=True)
-        embed.add_field(name="Kategorie / Grund", value=selected_value, inline=True)
+        embed.add_field(name="Kategorie", value=selected_value, inline=True)
         embed.add_field(name="Info", value="Bitte beschreibe dein Anliegen so detailliert wie möglich.", inline=False)
         embed.set_footer(text=f"User-ID: {interaction.user.id}")
         
         await thread.send(embed=embed, view=TicketControlView())
 
         dm_embed = discord.Embed(
-            title=f"Ticket #{formatted_id} erstellt",
-            description=f"Du hast erfolgreich ein Ticket in **{interaction.guild.name}** eröffnet.\n\n**Grund:** {selected_value}\n\n[Klicke hier, um zum Ticket zu gelangen]({thread.jump_url})",
+            title=f"Ticket #{formatted_id} ({selected_value}) erstellt",
+            description=f"Du hast erfolgreich ein Ticket in **{interaction.guild.name}** eröffnet.\n\n**Kategorie:** {selected_value}\n\n[Klicke hier, um zum Ticket zu gelangen]({thread.jump_url})",
             color=discord.Color.green()
         )
         await send_dm(interaction.user, "", dm_embed)
@@ -248,6 +345,7 @@ class MyBot(commands.Bot):
         intents.message_content = True
         intents.voice_states = True
         intents.presences = True
+        intents.guilds = True 
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
@@ -263,19 +361,88 @@ class MyBot(commands.Bot):
                 self.add_view(TicketView(t_panel["categories"], supp_ids))
         self.add_view(TicketControlView())
         
+        self.update_stats_task.start()
         await self.tree.sync()
         print("🌐 Slash Commands wurden global synchronisiert.")
 
+    @tasks.loop(minutes=10)
+    async def update_stats_task(self):
+        """Aktualisiert automatisch alle konfigurierten Statistik-Kanäle."""
+        config = load_config()
+        for guild_id, data in config.items():
+            if not guild_id.isdigit(): continue
+            guild = self.get_guild(int(guild_id))
+            if not guild: continue
+            
+            stats = data.get("server_stats")
+            if not stats: continue
+            
+            # Mitglieder-Kanal aktualisieren
+            m_id = stats.get("member_channel_id")
+            if m_id:
+                m_chan = guild.get_channel(m_id)
+                if m_chan:
+                    count = guild.member_count
+                    new_name = f"👱 • {count} Mitglieder"
+                    if m_chan.name != new_name:
+                        try: await m_chan.edit(name=new_name)
+                        except: pass
+            
+            # Boosts-Kanal aktualisieren
+            b_id = stats.get("boost_channel_id")
+            if b_id:
+                b_chan = guild.get_channel(b_id)
+                if b_chan:
+                    count = guild.premium_subscription_count
+                    new_name = f"💎 • {count} Boosts"
+                    if b_chan.name != new_name:
+                        try: await b_chan.edit(name=new_name)
+                        except: pass
+
+    @update_stats_task.before_loop
+    async def before_stats(self):
+        await self.wait_until_ready()
+
     async def on_message(self, message: discord.Message):
         if message.author.bot: return
+        
         link_pattern = r'(https?://\S+|www\.\S+)'
-        if re.search(link_pattern, message.content):
-            if not message.author.guild_permissions.administrator:
+        links = re.findall(link_pattern, message.content)
+        
+        if links and not message.author.guild_permissions.administrator:
+            whitelist = load_whitelist()
+            for link in links:
                 try:
-                    await message.delete()
-                    await message.channel.send(f"⚠️ {message.author.mention}, Links verboten!", delete_after=5)
-                    return
-                except discord.Forbidden: pass
+                    full_url = link if link.startswith("http") else f"http://{link}"
+                    domain = urlparse(full_url).netloc.lower()
+                    if domain.startswith("www."): domain = domain[4:]
+                    
+                    is_allowed = False
+                    for allowed in whitelist:
+                        if allowed.lower() in domain:
+                            is_allowed = True
+                            break
+                    
+                    if not is_allowed:
+                        try:
+                            await message.delete()
+                            await send_log(
+                                message.guild, 
+                                "🚫 Link gelöscht", 
+                                f"In Kanal {message.channel.mention} wurde ein unerlaubter Link entfernt.\n**Inhalt:** `{message.content[:1000]}`", 
+                                discord.Color.red(), 
+                                message.author
+                            )
+                            allowed_str = ", ".join(whitelist)
+                            await message.channel.send(
+                                f"⚠️ {message.author.mention}, dieser Link ist nicht erlaubt! Erlaubte Seiten: `{allowed_str}`", 
+                                delete_after=6
+                            )
+                            return 
+                        except discord.Forbidden: pass
+                except:
+                    continue
+                    
         await self.process_commands(message)
 
     async def on_member_join(self, member: discord.Member):
@@ -327,6 +494,87 @@ class MyBot(commands.Bot):
 
 bot = MyBot()
 
+# --- SERVER STATS COMMAND ---
+
+@bot.tree.command(name="setup_stats", description="Erstellt die automatischen Server-Statistik-Anzeigen")
+@app_commands.default_permissions(administrator=True)
+async def setup_stats(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    guild = interaction.guild
+    gid = str(guild.id)
+    config = load_config()
+    if gid not in config: config[gid] = {}
+    
+    # 1. Kategorie erstellen/finden
+    category_name = "📊 Server Statistik"
+    category = discord.utils.get(guild.categories, name=category_name)
+    if not category:
+        category = await guild.create_category(name=category_name)
+        await category.edit(position=0)
+    
+    # Permissions für die Kanäle (Keiner darf beitreten)
+    overwrites = {
+        guild.default_role: discord.PermissionOverwrite(connect=False, view_channel=True),
+        guild.me: discord.PermissionOverwrite(connect=True, view_channel=True, manage_channels=True)
+    }
+
+    # 2. Mitglieder Kanal
+    m_name = f"👱 • {guild.member_count} Mitglieder"
+    m_chan = await guild.create_voice_channel(name=m_name, category=category, overwrites=overwrites)
+    
+    # 3. Boost Kanal
+    b_name = f"💎 • {guild.premium_subscription_count} Boosts"
+    b_chan = await guild.create_voice_channel(name=b_name, category=category, overwrites=overwrites)
+    
+    # 4. In Config speichern
+    config[gid]["server_stats"] = {
+        "category_id": category.id,
+        "member_channel_id": m_chan.id,
+        "boost_channel_id": b_chan.id
+    }
+    save_config(config)
+    
+    await interaction.followup.send("✅ Server-Statistiken wurden erstellt und werden nun regelmäßig aktualisiert.", ephemeral=True)
+
+# --- WHITELIST MANAGEMENT COMMAND ---
+
+@bot.tree.command(name="whitelist", description="Verwaltet die Liste der erlaubten Link-Domains")
+@app_commands.default_permissions(administrator=True)
+@app_commands.choices(aktion=[
+    app_commands.Choice(name="Hinzufügen", value="add"),
+    app_commands.Choice(name="Entfernen", value="remove"),
+    app_commands.Choice(name="Liste anzeigen", value="list")
+])
+@app_commands.describe(domain="Die Domain (z.B. youtube.com oder google.com)")
+async def whitelist_cmd(interaction: discord.Interaction, aktion: app_commands.Choice[str], domain: str = None):
+    whitelist = load_whitelist()
+    
+    if aktion.value == "list":
+        domains_str = "\n".join([f"• {d}" for d in whitelist]) if whitelist else "Keine Domains erlaubt."
+        embed = discord.Embed(title="🛡️ Erlaubte Domains", description=domains_str, color=discord.Color.blue())
+        return await interaction.response.send_message(embed=embed, ephemeral=True)
+    
+    if not domain:
+        return await interaction.response.send_message("❌ Bitte gib eine Domain an.", ephemeral=True)
+    
+    clean_domain = domain.lower().replace("https://", "").replace("http://", "").replace("www.", "").split("/")[0]
+
+    if aktion.value == "add":
+        if clean_domain in whitelist:
+            await interaction.response.send_message(f"ℹ️ `{clean_domain}` ist bereits auf der Whitelist.", ephemeral=True)
+        else:
+            whitelist.append(clean_domain)
+            save_whitelist(whitelist)
+            await interaction.response.send_message(f"✅ `{clean_domain}` wurde zur Whitelist hinzugefügt.", ephemeral=True)
+            
+    elif aktion.value == "remove":
+        if clean_domain in whitelist:
+            whitelist.remove(clean_domain)
+            save_whitelist(whitelist)
+            await interaction.response.send_message(f"✅ `{clean_domain}` wurde von der Whitelist entfernt.", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"❌ `{clean_domain}` ist nicht in der Whitelist.", ephemeral=True)
+
 # --- MODERATION COMMANDS ---
 
 @bot.tree.command(name="ban", description="Bannt ein Mitglied permanent vom Server")
@@ -336,6 +584,7 @@ async def ban(interaction: discord.Interaction, nutzer: discord.Member, grund: s
     try:
         await nutzer.ban(reason=grund)
         await interaction.response.send_message(f"✅ **{nutzer}** wurde gebannt. Grund: {grund}", ephemeral=True)
+        await send_log(interaction.guild, "🔨 Mitglied Gebannt", f"Ein Nutzer wurde permanent vom Server ausgeschlossen.", discord.Color.red(), nutzer, interaction.user, grund)
     except:
         await interaction.response.send_message("❌ Fehler beim Bannen.", ephemeral=True)
 
@@ -346,6 +595,7 @@ async def kick(interaction: discord.Interaction, nutzer: discord.Member, grund: 
     try:
         await nutzer.kick(reason=grund)
         await interaction.response.send_message(f"✅ **{nutzer}** wurde gekickt. Grund: {grund}", ephemeral=True)
+        await send_log(interaction.guild, "👢 Mitglied Gekickt", f"Ein Nutzer wurde vom Server gekickt.", discord.Color.orange(), nutzer, interaction.user, grund)
     except:
         await interaction.response.send_message("❌ Fehler beim Kicken.", ephemeral=True)
 
@@ -357,6 +607,7 @@ async def timeout(interaction: discord.Interaction, nutzer: discord.Member, minu
         duration = datetime.timedelta(minutes=minuten)
         await nutzer.timeout(duration, reason=grund)
         await interaction.response.send_message(f"✅ **{nutzer}** ist nun für {minuten} Minuten im Timeout. Grund: {grund}", ephemeral=True)
+        await send_log(interaction.guild, "⏳ Timeout Verhängt", f"Ein Nutzer wurde stummgeschaltet (Timeout für {minuten} Min).", discord.Color.light_grey(), nutzer, interaction.user, grund)
     except:
         await interaction.response.send_message("❌ Fehler beim Timeout.", ephemeral=True)
 
@@ -372,12 +623,39 @@ async def warn(interaction: discord.Interaction, nutzer: discord.Member, grund: 
     if "warns" not in config[gid]: config[gid]["warns"] = {}
     
     current_warns = config[gid]["warns"].get(uid, 0)
-    config[gid]["warns"][uid] = current_warns + 1
+    new_warn_count = current_warns + 1
+    config[gid]["warns"][uid] = new_warn_count
     save_config(config)
 
-    embed = discord.Embed(title="Verwarnung", description=f"Du wurdest auf **{interaction.guild.name}** verwarnt.\n\n**Grund:** {grund}\n**Gesamt-Warns:** {current_warns + 1}", color=discord.Color.orange())
+    embed = discord.Embed(title="Verwarnung", description=f"Du wurdest auf **{interaction.guild.name}** verwarnt.\n\n**Grund:** {grund}\n**Gesamt-Warns:** {new_warn_count}", color=discord.Color.orange())
     await send_dm(nutzer, "", embed)
-    await interaction.response.send_message(f"✅ {nutzer.mention} wurde verwarnt. Grund: {grund} (Warns: {current_warns + 1})", ephemeral=True)
+    await interaction.response.send_message(f"✅ {nutzer.mention} wurde verwarnt. Grund: {grund} (Warns: {new_warn_count})", ephemeral=True)
+    await send_log(interaction.guild, "⚠️ Verwarnung ausgesprochen", f"Ein Nutzer wurde verwarnt. (Warnung #{new_warn_count})", discord.Color.gold(), nutzer, interaction.user, grund)
+
+@bot.tree.command(name="warn_edit", description="Bearbeitet oder löscht die Anzahl der Verwarnungen eines Nutzers")
+@app_commands.default_permissions(moderate_members=True)
+@app_commands.describe(nutzer="Das Mitglied", anzahl="Die neue Anzahl an Verwarnungen (0 zum Löschen)")
+async def warn_edit(interaction: discord.Interaction, nutzer: discord.Member, anzahl: int):
+    if anzahl < 0:
+        return await interaction.response.send_message("❌ Die Anzahl darf nicht negativ sein.", ephemeral=True)
+        
+    config = load_config()
+    gid = str(interaction.guild_id)
+    uid = str(nutzer.id)
+    
+    if gid not in config: config[gid] = {}
+    if "warns" not in config[gid]: config[gid]["warns"] = {}
+    
+    alte_anzahl = config[gid]["warns"].get(uid, 0)
+    config[gid]["warns"][uid] = anzahl
+    save_config(config)
+    
+    msg = f"✅ Warns für {nutzer.mention} angepasst: **{alte_anzahl}** ➔ **{anzahl}**."
+    if anzahl == 0:
+        msg = f"✅ Alle Warns für {nutzer.mention} wurden gelöscht (auf 0 gesetzt)."
+        
+    await interaction.response.send_message(msg, ephemeral=True)
+    await send_log(interaction.guild, "🔧 Warns bearbeitet", f"Die Anzahl der Verwarnungen wurde manuell geändert.", discord.Color.blue(), nutzer, interaction.user, f"Geändert von {alte_anzahl} auf {anzahl}")
 
 @bot.tree.command(name="userinfo", description="Zeigt detaillierte Informationen über ein Mitglied an")
 @app_commands.describe(nutzer="Das Mitglied (leer lassen für dich selbst)")
@@ -401,6 +679,17 @@ async def userinfo(interaction: discord.Interaction, nutzer: discord.Member = No
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # --- CONFIG COMMANDS ---
+
+@bot.tree.command(name="set_log_channel", description="Legt den Kanal für Moderations-Logs fest")
+@app_commands.default_permissions(administrator=True)
+@app_commands.describe(kanal="Der Kanal, in dem Logs gesendet werden sollen")
+async def set_log_channel(interaction: discord.Interaction, kanal: discord.TextChannel):
+    config = load_config()
+    gid = str(interaction.guild_id)
+    if gid not in config: config[gid] = {}
+    config[gid]["log_channel_id"] = kanal.id
+    save_config(config)
+    await interaction.response.send_message(f"✅ Log-Kanal wurde auf {kanal.mention} gesetzt.", ephemeral=True)
 
 @bot.tree.command(name="set_welcome_channel", description="Legt den Kanal für Willkommensnachrichten fest")
 @app_commands.default_permissions(administrator=True)
@@ -453,48 +742,21 @@ async def setup_verify(interaction: discord.Interaction, titel: str, beschreibun
     app_commands.Choice(name="Hört zu", value="listening"),
     app_commands.Choice(name="Schaut", value="watching")
 ])
-@app_commands.describe(
-    status="Wähle den Online-Status",
-    aktivitaet_typ="Was macht der Bot?",
-    text="Der Text, der angezeigt werden soll",
-    stream_url="Nur nötig, wenn 'Streamt' gewählt wurde"
-)
-async def status_config(
-    interaction: discord.Interaction, 
-    status: app_commands.Choice[str], 
-    aktivitaet_typ: app_commands.Choice[str], 
-    text: str, 
-    stream_url: str = "https://twitch.tv/discord"
-):
-    discord_status = discord.Status.online
-    if status.value == "idle": discord_status = discord.Status.idle
-    elif status.value == "dnd": discord_status = discord.Status.dnd
-    elif status.value == "invisible": discord_status = discord.Status.invisible
-
+@app_commands.describe(status="Online-Status", aktivitaet_typ="Aktivitätstyp", text="Status-Text", stream_url="Stream URL")
+async def status_config(interaction: discord.Interaction, status: app_commands.Choice[str], aktivitaet_typ: app_commands.Choice[str], text: str, stream_url: str = "https://twitch.tv/discord"):
+    discord_status = getattr(discord.Status, status.value, discord.Status.online)
     activity = None
-    if aktivitaet_typ.value == "playing":
-        activity = discord.Game(name=text)
-    elif aktivitaet_typ.value == "streaming":
-        activity = discord.Streaming(name=text, url=stream_url)
-    elif aktivitaet_typ.value == "listening":
-        activity = discord.Activity(type=discord.ActivityType.listening, name=text)
-    elif aktivitaet_typ.value == "watching":
-        activity = discord.Activity(type=discord.ActivityType.watching, name=text)
-
+    if aktivitaet_typ.value == "playing": activity = discord.Game(name=text)
+    elif aktivitaet_typ.value == "streaming": activity = discord.Streaming(name=text, url=stream_url)
+    elif aktivitaet_typ.value == "listening": activity = discord.Activity(type=discord.ActivityType.listening, name=text)
+    elif aktivitaet_typ.value == "watching": activity = discord.Activity(type=discord.ActivityType.watching, name=text)
     await bot.change_presence(status=discord_status, activity=activity)
-    
     config = load_config()
-    config["bot_presence"] = {
-        "status": status.value,
-        "type": aktivitaet_typ.value,
-        "text": text,
-        "url": stream_url
-    }
+    config["bot_presence"] = {"status": status.value, "type": aktivitaet_typ.value, "text": text, "url": stream_url}
     save_config(config)
+    await interaction.response.send_message(f"✅ Status aktualisiert.", ephemeral=True)
 
-    await interaction.response.send_message(f"✅ Bot-Status aktualisiert auf: **{status.name}** | **{aktivitaet_typ.name} {text}**", ephemeral=True)
-
-# --- TICKET COMMANDS ---
+# --- TICKET SETUP COMMANDS ---
 
 @bot.tree.command(name="setup_tickets", description="Erstellt ein neues Support-Ticket-Panel")
 @app_commands.default_permissions(administrator=True)
@@ -542,141 +804,59 @@ async def setup_tickets(interaction: discord.Interaction, supporter_rollen: str,
     save_config(config)
     await interaction.response.send_message(f"✅ Ticket-Panel erstellt (ID: {message.id}).", ephemeral=True)
 
-@bot.tree.command(name="ticket_edit", description="Bearbeitet ein bestehendes Ticket-Panel (Titel, Text, Farbe)")
+@bot.tree.command(name="ticket_edit", description="Bearbeitet ein bestehendes Ticket-Panel")
 @app_commands.default_permissions(administrator=True)
-@app_commands.describe(
-    message_id="Wähle das Panel aus der Liste", 
-    titel="Neuer Titel (leer lassen für keine Änderung)", 
-    beschreibung="Neue Beschreibung (leer lassen für keine Änderung)", 
-    farbe="Farbe als Hex-Code (z.B. #ff0000)"
-)
 async def ticket_edit(interaction: discord.Interaction, message_id: str, titel: str = None, beschreibung: str = None, farbe: str = None):
     guild_id = str(interaction.guild_id)
     config = load_config()
-    
-    target_panel = None
-    if guild_id in config and "ticket_panels" in config[guild_id]:
-        for p in config[guild_id]["ticket_panels"]:
-            if str(p["message_id"]) == message_id:
-                target_panel = p
-                break
-
-    try:
-        target_channel_id = target_panel["channel_id"] if target_panel else interaction.channel_id
-        channel = interaction.guild.get_channel(target_channel_id) or await interaction.guild.fetch_channel(target_channel_id)
-        msg = await channel.fetch_message(int(message_id))
-        
-        embed = msg.embeds[0]
-        if titel: 
-            embed.title = titel
-            if target_panel: 
-                target_panel["title"] = titel # Synchronisiert Titel in Config
-        if beschreibung: 
-            embed.description = format_discord_text(beschreibung)
-        if farbe:
-            try:
-                farbe = farbe.replace("#", "")
-                embed.color = discord.Color(int(farbe, 16))
-            except ValueError:
-                return await interaction.response.send_message("❌ Ungültiger Hex-Code für die Farbe!", ephemeral=True)
-        
-        await msg.edit(embed=embed)
-        save_config(config)
-        await interaction.response.send_message("✅ Panel und Konfiguration aktualisiert.", ephemeral=True)
-    except Exception as e:
-        await interaction.response.send_message(f"❌ Fehler beim Bearbeiten: {e}", ephemeral=True)
-
-@bot.tree.command(name="ticket_delete", description="Löscht ein Ticket-Panel permanent aus Discord und der Konfiguration")
-@app_commands.default_permissions(administrator=True)
-@app_commands.describe(message_id="Wähle das Panel zum Löschen aus")
-async def ticket_delete(interaction: discord.Interaction, message_id: str):
-    guild_id = str(interaction.guild_id)
-    config = load_config()
-    
-    if guild_id not in config or "ticket_panels" not in config[guild_id]:
-        return await interaction.response.send_message("❌ Keine Ticket-Panels gefunden.", ephemeral=True)
-    
-    panels = config[guild_id]["ticket_panels"]
-    target_panel = None
-    target_index = -1
-    
-    for i, p in enumerate(panels):
-        if str(p["message_id"]) == message_id:
-            target_panel = p
-            target_index = i
-            break
-            
-    if target_index == -1:
-        return await interaction.response.send_message("❌ Dieses Panel existiert nicht in der Konfiguration.", ephemeral=True)
-    
-    # 1. Aus Config entfernen
-    panels.pop(target_index)
-    save_config(config)
-    
-    # 2. Nachricht in Discord löschen
+    target_panel = next((p for p in config.get(guild_id, {}).get("ticket_panels", []) if str(p["message_id"]) == message_id), None)
+    if not target_panel: return await interaction.response.send_message("❌ Panel nicht gefunden.", ephemeral=True)
     try:
         channel = interaction.guild.get_channel(target_panel["channel_id"]) or await interaction.guild.fetch_channel(target_panel["channel_id"])
         msg = await channel.fetch_message(int(message_id))
+        embed = msg.embeds[0]
+        if titel: embed.title = titel; target_panel["title"] = titel
+        if beschreibung: embed.description = format_discord_text(beschreibung)
+        if farbe: embed.color = discord.Color(int(farbe.replace("#", ""), 16))
+        await msg.edit(embed=embed)
+        save_config(config)
+        await interaction.response.send_message("✅ Panel aktualisiert.", ephemeral=True)
+    except Exception as e: await interaction.response.send_message(f"❌ Fehler: {e}", ephemeral=True)
+
+@bot.tree.command(name="ticket_delete", description="Löscht ein Ticket-Panel")
+@app_commands.default_permissions(administrator=True)
+async def ticket_delete(interaction: discord.Interaction, message_id: str):
+    guild_id = str(interaction.guild_id)
+    config = load_config()
+    panels = config.get(guild_id, {}).get("ticket_panels", [])
+    target = next((p for p in panels if str(p["message_id"]) == message_id), None)
+    if not target: return await interaction.response.send_message("❌ Nicht in Config.", ephemeral=True)
+    panels.remove(target); save_config(config)
+    try:
+        channel = interaction.guild.get_channel(target["channel_id"]) or await interaction.guild.fetch_channel(target["channel_id"])
+        msg = await channel.fetch_message(int(message_id))
         await msg.delete()
-        await interaction.response.send_message(f"✅ Ticket-Panel (ID: {message_id}) wurde gelöscht.", ephemeral=True)
-    except discord.NotFound:
-        await interaction.response.send_message("✅ Panel wurde aus der Config gelöscht (Nachricht wurde bereits gelöscht).", ephemeral=True)
-    except Exception as e:
-        await interaction.response.send_message(f"⚠️ Aus Config gelöscht, aber Fehler beim Löschen der Discord-Nachricht: {e}", ephemeral=True)
+        await interaction.response.send_message("✅ Gelöscht.", ephemeral=True)
+    except: await interaction.response.send_message("✅ Aus Config entfernt.", ephemeral=True)
 
 @bot.tree.command(name="ticket_category_edit", description="Weist einer Ticket-Kategorie spezifische Supporter-Rollen zu")
 @app_commands.default_permissions(administrator=True)
-@app_commands.describe(
-    message_id="Wähle das Panel aus der Liste",
-    kategorie_name="Wähle die Kategorie aus der Liste",
-    neue_rollen="Rollen, die NUR diese Kategorie sehen sollen (z.B. @Technik)"
-)
 async def ticket_category_edit(interaction: discord.Interaction, message_id: str, kategorie_name: str, neue_rollen: str):
     guild_id = str(interaction.guild_id)
     config = load_config()
     role_ids = extract_role_ids(neue_rollen)
-    
-    if not role_ids:
-        return await interaction.response.send_message("❌ Bitte gib mindestens eine gültige Rolle an.", ephemeral=True)
-
-    if guild_id not in config or "ticket_panels" not in config[guild_id]:
-        return await interaction.response.send_message("❌ Keine Ticket-Panels für diesen Server konfiguriert.", ephemeral=True)
-    
-    target_panel = None
-    for panel in config[guild_id]["ticket_panels"]:
-        if str(panel["message_id"]) == message_id:
-            target_panel = panel
-            break
-            
-    if not target_panel:
-        return await interaction.response.send_message("❌ Panel nicht gefunden.", ephemeral=True)
-    
-    found = False
-    for cat in target_panel["categories"]:
-        if cat["value"].lower() == kategorie_name.lower():
-            cat["supporter_role_ids"] = role_ids
-            found = True
-            break
-            
-    if not found:
-        return await interaction.response.send_message(f"❌ Kategorie '{kategorie_name}' nicht im Panel gefunden.", ephemeral=True)
-    
-    save_config(config)
-    
+    panel = next((p for p in config.get(guild_id, {}).get("ticket_panels", []) if str(p["message_id"]) == message_id), None)
+    if not panel: return await interaction.response.send_message("❌ Panel nicht gefunden.", ephemeral=True)
+    cat = next((c for c in panel["categories"] if c["value"].lower() == kategorie_name.lower()), None)
+    if not cat: return await interaction.response.send_message("❌ Kategorie nicht gefunden.", ephemeral=True)
+    cat["supporter_role_ids"] = role_ids; save_config(config)
     try:
-        channel = interaction.guild.get_channel(target_panel["channel_id"]) or await interaction.guild.fetch_channel(target_panel["channel_id"])
-        message = await channel.fetch_message(int(message_id))
-        panel_supp_ids = target_panel.get("supporter_role_ids", [])
-        new_view = TicketView(target_panel["categories"], panel_supp_ids)
-        
-        await message.edit(view=new_view)
-        bot.add_view(new_view)
-        
-        await interaction.response.send_message(f"✅ Kategorie **{kategorie_name}** wurde aktualisiert.", ephemeral=True)
-    except Exception as e:
-        await interaction.response.send_message(f"❌ Fehler beim Aktualisieren der Nachricht: {e}", ephemeral=True)
+        channel = interaction.guild.get_channel(panel["channel_id"]) or await interaction.guild.fetch_channel(panel["channel_id"])
+        msg = await channel.fetch_message(int(message_id))
+        await msg.edit(view=TicketView(panel["categories"], panel.get("supporter_role_ids", [])))
+        await interaction.response.send_message("✅ Kategorie-Rollen aktualisiert.", ephemeral=True)
+    except Exception as e: await interaction.response.send_message(f"❌ Fehler: {e}", ephemeral=True)
 
-# Autocomplete für Panel-Auswahl
 @ticket_category_edit.autocomplete("message_id")
 @ticket_edit.autocomplete("message_id")
 @ticket_delete.autocomplete("message_id")
@@ -684,77 +864,46 @@ async def ticket_panel_autocomplete(interaction: discord.Interaction, current: s
     guild_id = str(interaction.guild_id)
     config = load_config()
     panels = config.get(guild_id, {}).get("ticket_panels", [])
-    
-    choices = []
-    for p in panels:
-        mid = str(p["message_id"])
-        created = p.get("created_at", "Unbekannt")
-        channel = interaction.guild.get_channel(p["channel_id"])
-        channel_name = channel.name if channel else "???"
-        title = p.get("title", "Support")
-        
-        label = f"{mid} | {created} | {title} | #{channel_name}"
-        
-        if current.lower() in label.lower():
-            choices.append(app_commands.Choice(name=label[:100], value=mid))
-            
+    choices = [app_commands.Choice(name=f"{p['message_id']} | {p.get('title', 'Ticket')}", value=str(p["message_id"])) for p in panels if current.lower() in str(p["message_id"]).lower() or current.lower() in p.get('title', '').lower()]
     return choices[:25]
 
 @ticket_category_edit.autocomplete("kategorie_name")
 async def ticket_cat_autocomplete(interaction: discord.Interaction, current: str):
     guild_id = str(interaction.guild_id)
     config = load_config()
+    mid = interaction.namespace.message_id
     panels = config.get(guild_id, {}).get("ticket_panels", [])
-    selected_mid = interaction.namespace.message_id
-    
     choices = []
     for p in panels:
-        if selected_mid and str(p["message_id"]) != selected_mid:
-            continue
-            
-        for cat in p.get("categories", []):
-            name = cat["value"]
-            if current.lower() in name.lower():
-                choices.append(app_commands.Choice(name=name[:100], value=name))
-    
-    final_choices = []
-    seen = set()
-    for c in choices:
-        if c.name not in seen:
-            final_choices.append(c)
-            seen.add(c.name)
-
-    return final_choices[:25]
+        if not mid or str(p["message_id"]) == mid:
+            for cat in p.get("categories", []):
+                if current.lower() in cat["value"].lower():
+                    choices.append(app_commands.Choice(name=cat["value"], value=cat["value"]))
+    return choices[:25]
 
 # --- BASIS COMMANDS ---
 
-@bot.tree.command(name="ping", description="Zeigt die aktuelle Verbindungslatenz des Bots an")
+@bot.tree.command(name="ping", description="Zeigt die Latenz an")
 async def ping(interaction: discord.Interaction):
     await interaction.response.send_message(f"🏓 Pong! {round(bot.latency * 1000)}ms", ephemeral=True)
 
 @bot.event
 async def on_ready():
     print(f'✅ Bot online als {bot.user}')
-    
+    if not os.path.exists(WHITELIST_FILE): save_whitelist(["tenor.com", "giphy.com"])
     config = load_config()
     pres = config.get("bot_presence")
     if pres:
         status_val = pres.get("status", "online")
-        d_status = discord.Status.online
-        if status_val == "idle": d_status = discord.Status.idle
-        elif status_val == "dnd": d_status = discord.Status.dnd
-        elif status_val == "invisible": d_status = discord.Status.invisible
-        
+        d_status = getattr(discord.Status, status_val, discord.Status.online)
         t_val = pres.get("type", "playing")
         text = pres.get("text", "")
         url = pres.get("url", "https://twitch.tv/discord")
-        
         act = None
         if t_val == "playing": act = discord.Game(name=text)
         elif t_val == "streaming": act = discord.Streaming(name=text, url=url)
         elif t_val == "listening": act = discord.Activity(type=discord.ActivityType.listening, name=text)
         elif t_val == "watching": act = discord.Activity(type=discord.ActivityType.watching, name=text)
-        
         await bot.change_presence(status=d_status, activity=act)
 
 if __name__ == "__main__":

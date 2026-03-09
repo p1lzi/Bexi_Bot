@@ -213,7 +213,6 @@ class TicketSelect(discord.ui.Select):
         
         if guild_id not in config: config[guild_id] = {}
         
-        # Initialisierung der Kategorie-Counter
         if "category_counters" not in config[guild_id]:
             config[guild_id]["category_counters"] = {}
         
@@ -225,28 +224,31 @@ class TicketSelect(discord.ui.Select):
         
         formatted_id = f"{ticket_id:04d}"
         
-        # Supporter Rollen für diese Kategorie finden
+        # Bestimme die Ziel-Rollen für diese Kategorie
         target_role_ids = self.supporter_role_ids
         for cat in self.categories_full_data:
             if cat['value'] == selected_value and cat.get('supporter_role_ids'):
                 target_role_ids = cat['supporter_role_ids']
                 break
 
-        # 1. Zentrale Ticket-Hauptkategorie finden oder erstellen
         main_category_name = "TICKETS"
         category = discord.utils.get(guild.categories, name=main_category_name)
         
         if not category:
+            # Kategorie-Permissions: Jeder darf sehen, aber nicht interagieren
             overwrites = {
-                guild.default_role: discord.PermissionOverwrite(view_channel=False),
-                guild.me: discord.PermissionOverwrite(view_channel=True, manage_channels=True)
+                guild.default_role: discord.PermissionOverwrite(
+                    view_channel=True, 
+                    send_messages=False, 
+                    add_reactions=False, 
+                    create_public_threads=False, 
+                    create_private_threads=False,
+                    send_messages_in_threads=True # Wichtig für den Thread-Ersteller
+                ),
+                guild.me: discord.PermissionOverwrite(view_channel=True, manage_channels=True, manage_roles=True)
             }
-            for rid in target_role_ids:
-                role = guild.get_role(rid)
-                if role: overwrites[role] = discord.PermissionOverwrite(view_channel=True)
             category = await guild.create_category(name=main_category_name, overwrites=overwrites)
 
-        # 2. Bestehenden Kategorie-Kanal aus Config laden oder suchen
         config[guild_id].setdefault("category_channels", {})
         cached_channel_id = config[guild_id]["category_channels"].get(selected_value)
         target_channel = None
@@ -259,13 +261,20 @@ class TicketSelect(discord.ui.Select):
             target_channel = discord.utils.get(category.text_channels, name=channel_name)
             
             if not target_channel:
+                # Channel-Permissions: Jeder darf sehen, aber nicht schreiben/reagieren
                 overwrites = {
-                    guild.default_role: discord.PermissionOverwrite(view_channel=False),
-                    guild.me: discord.PermissionOverwrite(view_channel=True, manage_channels=True)
+                    guild.default_role: discord.PermissionOverwrite(
+                        view_channel=True, 
+                        send_messages=False, 
+                        add_reactions=False,
+                        use_application_commands=False
+                    ),
+                    guild.me: discord.PermissionOverwrite(view_channel=True, manage_channels=True, send_messages=True)
                 }
+                # Supporter-Rollen erhalten Schreibrechte
                 for rid in target_role_ids:
                     role = guild.get_role(rid)
-                    if role: overwrites[role] = discord.PermissionOverwrite(view_channel=True, send_messages=True)
+                    if role: overwrites[role] = discord.PermissionOverwrite(view_channel=True, send_messages=True, manage_threads=True)
 
                 target_channel = await guild.create_text_channel(
                     name=channel_name, 
@@ -273,17 +282,27 @@ class TicketSelect(discord.ui.Select):
                     overwrites=overwrites,
                     topic=f"Zentraler Kanal für {selected_value} Anfragen."
                 )
+                
+                # Info-Embed senden
+                info_embed = discord.Embed(
+                    title=f"Ticket-Kanal: {selected_value}",
+                    description=(
+                        f"In diesem Kanal werden alle Tickets der Kategorie **{selected_value}** erstellt.\n\n"
+                        "⚠️ **Hinweis:** Hier kann nicht geschrieben werden. Dein Ticket wird als privater Thread unterhalb "
+                        "einer Nachricht in diesem Kanal erstellt."
+                    ),
+                    color=discord.Color.blue()
+                )
+                await target_channel.send(embed=info_embed)
             
-            # Neue Channel ID in Config speichern für Persistenz nach Neustart
             config[guild_id]["category_channels"][selected_value] = target_channel.id
 
-        # Config speichern (Zähler + evtl. Channel ID)
         save_config(config)
 
-        # 3. Thread im Kanal erstellen
         clean_username = interaction.user.display_name.replace(' ', '-').lower()
         thread_name = f"{selected_value.lower()[:5]}-{formatted_id}-{clean_username}"
 
+        # Privaten Thread erstellen
         thread = await target_channel.create_thread(
             name=thread_name,
             type=discord.ChannelType.private_thread
@@ -297,13 +316,23 @@ class TicketSelect(discord.ui.Select):
         
         await thread.add_user(interaction.user)
         
+        # Supporter-Logik: Füge die Zielrollen UND alle Rollen darüber hinzu
+        added_members = set()
         for rid in target_role_ids:
-            role = guild.get_role(rid)
-            if role:
-                for member in role.members:
-                    if not member.bot:
-                        try: await thread.add_user(member)
-                        except: pass
+            base_role = guild.get_role(rid)
+            if base_role:
+                # Suche alle Mitglieder, die die Rolle ODER eine höhere Rolle haben
+                for member in guild.members:
+                    if member.bot or member.id in added_members:
+                        continue
+                    
+                    # Wenn das Mitglied eine Rolle hat, deren Position >= der Supporter-Rolle ist
+                    if any(r.position >= base_role.position for r in member.roles):
+                        try:
+                            await thread.add_user(member)
+                            added_members.add(member.id)
+                        except:
+                            pass
         
         embed = discord.Embed(
             title=f"{selected_value}-Ticket #{formatted_id}",
@@ -361,47 +390,8 @@ class MyBot(commands.Bot):
                 self.add_view(TicketView(t_panel["categories"], supp_ids))
         self.add_view(TicketControlView())
         
-        self.update_stats_task.start()
         await self.tree.sync()
         print("🌐 Slash Commands wurden global synchronisiert.")
-
-    @tasks.loop(minutes=10)
-    async def update_stats_task(self):
-        """Aktualisiert automatisch alle konfigurierten Statistik-Kanäle."""
-        config = load_config()
-        for guild_id, data in config.items():
-            if not guild_id.isdigit(): continue
-            guild = self.get_guild(int(guild_id))
-            if not guild: continue
-            
-            stats = data.get("server_stats")
-            if not stats: continue
-            
-            # Mitglieder-Kanal aktualisieren
-            m_id = stats.get("member_channel_id")
-            if m_id:
-                m_chan = guild.get_channel(m_id)
-                if m_chan:
-                    count = guild.member_count
-                    new_name = f"👱 • {count} Mitglieder"
-                    if m_chan.name != new_name:
-                        try: await m_chan.edit(name=new_name)
-                        except: pass
-            
-            # Boosts-Kanal aktualisieren
-            b_id = stats.get("boost_channel_id")
-            if b_id:
-                b_chan = guild.get_channel(b_id)
-                if b_chan:
-                    count = guild.premium_subscription_count
-                    new_name = f"💎 • {count} Boosts"
-                    if b_chan.name != new_name:
-                        try: await b_chan.edit(name=new_name)
-                        except: pass
-
-    @update_stats_task.before_loop
-    async def before_stats(self):
-        await self.wait_until_ready()
 
     async def on_message(self, message: discord.Message):
         if message.author.bot: return
@@ -493,48 +483,6 @@ class MyBot(commands.Bot):
             await asyncio.sleep(2)
 
 bot = MyBot()
-
-# --- SERVER STATS COMMAND ---
-
-@bot.tree.command(name="setup_stats", description="Erstellt die automatischen Server-Statistik-Anzeigen")
-@app_commands.default_permissions(administrator=True)
-async def setup_stats(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=True)
-    guild = interaction.guild
-    gid = str(guild.id)
-    config = load_config()
-    if gid not in config: config[gid] = {}
-    
-    # 1. Kategorie erstellen/finden
-    category_name = "📊 Server Statistik"
-    category = discord.utils.get(guild.categories, name=category_name)
-    if not category:
-        category = await guild.create_category(name=category_name)
-        await category.edit(position=0)
-    
-    # Permissions für die Kanäle (Keiner darf beitreten)
-    overwrites = {
-        guild.default_role: discord.PermissionOverwrite(connect=False, view_channel=True),
-        guild.me: discord.PermissionOverwrite(connect=True, view_channel=True, manage_channels=True)
-    }
-
-    # 2. Mitglieder Kanal
-    m_name = f"👱 • {guild.member_count} Mitglieder"
-    m_chan = await guild.create_voice_channel(name=m_name, category=category, overwrites=overwrites)
-    
-    # 3. Boost Kanal
-    b_name = f"💎 • {guild.premium_subscription_count} Boosts"
-    b_chan = await guild.create_voice_channel(name=b_name, category=category, overwrites=overwrites)
-    
-    # 4. In Config speichern
-    config[gid]["server_stats"] = {
-        "category_id": category.id,
-        "member_channel_id": m_chan.id,
-        "boost_channel_id": b_chan.id
-    }
-    save_config(config)
-    
-    await interaction.followup.send("✅ Server-Statistiken wurden erstellt und werden nun regelmäßig aktualisiert.", ephemeral=True)
 
 # --- WHITELIST MANAGEMENT COMMAND ---
 

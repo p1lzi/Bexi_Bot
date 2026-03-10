@@ -104,19 +104,26 @@ async def send_log(guild: discord.Guild, title: str, description: str, color: di
     config = load_config()
     gid = str(guild.id)
     log_channel_id = config.get(gid, {}).get("log_channel_id")
-    
+
     if log_channel_id:
         channel = guild.get_channel(log_channel_id)
         if channel:
-            embed = discord.Embed(title=title, description=description, color=color, timestamp=datetime.datetime.now(datetime.timezone.utc))
-            embed.add_field(name="Nutzer", value=f"{target_user.mention} ({target_user.id})", inline=True)
-            
+            embed = discord.Embed(title=title, color=color, timestamp=datetime.datetime.now(datetime.timezone.utc))
+            embed.description = description
+            embed.set_author(
+                name=f"{target_user.display_name} ({target_user})",
+                icon_url=target_user.display_avatar.url
+            )
+            embed.add_field(name="👤 Nutzer",   value=f"{target_user.mention}\n`ID: {target_user.id}`", inline=True)
             if moderator:
-                embed.add_field(name="Moderator", value=f"{moderator.mention}", inline=True)
+                embed.add_field(name="🛡️ Moderator", value=f"{moderator.mention}", inline=True)
             if reason:
-                embed.add_field(name="Grund", value=reason, inline=False)
-                
-            embed.set_footer(text=f"Server: {guild.name}")
+                embed.add_field(name="📋 Grund", value=reason, inline=False)
+            embed.set_thumbnail(url=target_user.display_avatar.url)
+            embed.set_footer(
+                text=f"Bexi-Bot • {guild.name}",
+                icon_url=guild.icon.url if guild.icon else None
+            )
             try:
                 await channel.send(embed=embed)
             except:
@@ -149,6 +156,65 @@ class SelfRoleView(discord.ui.View):
         super().__init__(timeout=None)
         for data in roles_data:
             self.add_item(SelfRoleButton(label=data['label'], role_id=data['role_id'], emoji=data.get('emoji')))
+
+# --- TICKET CLOSE MODAL ---
+class CloseReasonModal(discord.ui.Modal, title="Ticket schließen"):
+    grund = discord.ui.TextInput(
+        label="Grund für das Schließen",
+        placeholder="z.B. Problem gelöst, Keine Antwort, Spam...",
+        style=discord.TextStyle.paragraph,
+        min_length=3,
+        max_length=500
+    )
+
+    def __init__(self, ticket_control_view):
+        super().__init__()
+        self.ticket_control_view = ticket_control_view
+
+    async def on_submit(self, interaction: discord.Interaction):
+        thread = interaction.channel
+        closer = interaction.user
+        grund_text = self.grund.value
+
+        # Abschluss-Embed in den Thread posten
+        close_embed = discord.Embed(
+            title="🔒 Ticket geschlossen",
+            color=0xED4245
+        )
+        close_embed.description = (
+            f"Dieses Ticket wurde von {closer.mention} geschlossen."
+        )
+        close_embed.add_field(name="📋 Grund",          value=grund_text,      inline=False)
+        close_embed.add_field(name="👤 Geschlossen von", value=closer.mention, inline=True)
+        close_embed.set_footer(text="Bexi-Bot • Ticket-System", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
+        close_embed.timestamp = discord.utils.utcnow()
+        await thread.send(embed=close_embed)
+
+        # DM an Ticket-Ersteller
+        creator_id = self.ticket_control_view.get_creator_id(interaction)
+        if creator_id:
+            creator = interaction.guild.get_member(creator_id)
+            if creator:
+                dm_embed = discord.Embed(
+                    title="🔒 Dein Ticket wurde geschlossen",
+                    color=0xED4245
+                )
+                dm_embed.description = (
+                    f"Hallo {creator.mention},\n\n"
+                    f"dein Ticket wurde geschlossen und archiviert. "
+                    f"Falls du weiteren Support benötigst, kannst du jederzeit ein neues Ticket öffnen."
+                )
+                dm_embed.add_field(name="🏠 Server",          value=interaction.guild.name,                inline=True)
+                dm_embed.add_field(name="🔐 Geschlossen von", value=closer.mention,                        inline=True)
+                dm_embed.add_field(name="📋 Grund",           value=grund_text,                            inline=False)
+                dm_embed.add_field(name="🎫 Ticket",          value=f"[{thread.name}]({thread.jump_url})", inline=False)
+                dm_embed.set_thumbnail(url=closer.display_avatar.url)
+                dm_embed.set_footer(text="Bexi-Bot • Ticket-System", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
+                dm_embed.timestamp = discord.utils.utcnow()
+                await send_dm(creator, "", dm_embed)
+
+        await interaction.response.send_message("✅ Ticket wird archiviert...", ephemeral=True)
+        await thread.edit(locked=True, archived=True)
 
 # --- TICKET CONTROL PANEL ---
 class TicketControlView(discord.ui.View):
@@ -209,40 +275,27 @@ class TicketControlView(discord.ui.View):
             creator = interaction.guild.get_member(creator_id)
             if creator:
                 dm_embed = discord.Embed(
-                    title="Ticket Update",
-                    description=f"Dein Ticket in **{interaction.guild.name}** wurde von {interaction.user.mention} übernommen.\n\n[Zum Ticket springen]({interaction.channel.jump_url})",
-                    color=discord.Color.blue()
+                    title="📬 Dein Ticket wurde übernommen",
+                    color=0x5865F2
                 )
+                dm_embed.description = (
+                    f"Hallo {creator.mention},\n\n"
+                    f"ein Supporter hat sich deinem Ticket angenommen und wird sich gleich um dein Anliegen kümmern."
+                )
+                dm_embed.add_field(name="🏠 Server",       value=interaction.guild.name,          inline=True)
+                dm_embed.add_field(name="👤 Bearbeiter",   value=interaction.user.mention,        inline=True)
+                dm_embed.add_field(name="🎫 Ticket",       value=f"[Zum Ticket springen]({interaction.channel.jump_url})", inline=False)
+                dm_embed.set_thumbnail(url=interaction.user.display_avatar.url)
+                dm_embed.set_footer(text="Bexi-Bot • Ticket-System", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
+                dm_embed.timestamp = discord.utils.utcnow()
                 await send_dm(creator, "", dm_embed)
 
     @discord.ui.button(label="Ticket Schließen", style=discord.ButtonStyle.red, custom_id="persistent_close_ticket")
     async def close(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self.is_supporter(interaction):
             return await interaction.response.send_message("❌ Nur Supporter können Tickets schließen.", ephemeral=True)
-
-        await interaction.response.send_message("Das Ticket wird geschlossen und archiviert...")
-        
-        thread = interaction.channel
-        closer = interaction.user
-
-        creator_id = self.get_creator_id(interaction)
-        if creator_id:
-            creator = interaction.guild.get_member(creator_id)
-            if creator:
-                dm_embed = discord.Embed(
-                    title="🔒 Ticket Geschlossen",
-                    description=(
-                        f"Dein Ticket in **{interaction.guild.name}** wurde geschlossen und archiviert.\n\n"
-                        f"**Geschlossen von:** {closer.mention} ({closer})\n"
-                        f"**Ticket:** [{thread.name}]({thread.jump_url})"
-                    ),
-                    color=discord.Color.red()
-                )
-                dm_embed.set_footer(text=f"Server: {interaction.guild.name}")
-                dm_embed.timestamp = discord.utils.utcnow()
-                await send_dm(creator, "", dm_embed)
-
-        await thread.edit(locked=True, archived=True)
+        # Modal öffnen → Supporter muss Grund eingeben
+        await interaction.response.send_modal(CloseReasonModal(self))
 
 async def send_dm(user: discord.User, message: str, embed: discord.Embed = None):
     try:
@@ -325,31 +378,35 @@ class TicketSelect(discord.ui.Select):
         if cached_channel_id:
             target_channel = guild.get_channel(cached_channel_id)
 
+        # Kanal-Overwrites für die aktuellen Supporter-Rollen aufbauen
+        role_overwrites = {
+            guild.default_role: discord.PermissionOverwrite(
+                view_channel=True,
+                send_messages=False,
+                add_reactions=False,
+                use_application_commands=False
+            ),
+            guild.me: discord.PermissionOverwrite(view_channel=True, manage_channels=True, send_messages=True)
+        }
+        for rid in target_role_ids:
+            role = guild.get_role(rid)
+            if role:
+                role_overwrites[role] = discord.PermissionOverwrite(
+                    view_channel=True, send_messages=True, manage_threads=True
+                )
+
         if not target_channel:
             channel_name = f"{selected_value.lower().replace(' ', '-')}-tickets"
             target_channel = discord.utils.get(category.text_channels, name=channel_name)
-            
-            if not target_channel:
-                overwrites = {
-                    guild.default_role: discord.PermissionOverwrite(
-                        view_channel=True, 
-                        send_messages=False, 
-                        add_reactions=False,
-                        use_application_commands=False
-                    ),
-                    guild.me: discord.PermissionOverwrite(view_channel=True, manage_channels=True, send_messages=True)
-                }
-                for rid in target_role_ids:
-                    role = guild.get_role(rid)
-                    if role: overwrites[role] = discord.PermissionOverwrite(view_channel=True, send_messages=True, manage_threads=True)
 
+            if not target_channel:
+                # Neuen Kanal erstellen
                 target_channel = await guild.create_text_channel(
-                    name=channel_name, 
-                    category=category, 
-                    overwrites=overwrites,
+                    name=channel_name,
+                    category=category,
+                    overwrites=role_overwrites,
                     topic=f"Zentraler Kanal für {selected_value} Anfragen."
                 )
-                
                 info_embed = discord.Embed(
                     title=f"Ticket-Kanal: {selected_value}",
                     description=(
@@ -360,39 +417,63 @@ class TicketSelect(discord.ui.Select):
                     color=discord.Color.blue()
                 )
                 await target_channel.send(embed=info_embed)
-            
+            else:
+                # Existierenden Kanal mit aktuellen Rollen-Overwrites aktualisieren
+                await target_channel.edit(overwrites=role_overwrites)
+
             config[guild_id]["category_channels"][selected_value] = target_channel.id
+        else:
+            # Auch gecachten Kanal aktualisieren, damit neue/geänderte Rollen wirksam werden
+            await target_channel.edit(overwrites=role_overwrites)
 
         save_config(config)
 
         clean_username = interaction.user.display_name.replace(' ', '-').lower()
         thread_name = f"{selected_value.lower()[:5]}-{formatted_id}-{clean_username}"
 
+        # invitable=False: nur explizit hinzugefügte User sehen den Thread
         thread = await target_channel.create_thread(
             name=thread_name,
-            type=discord.ChannelType.private_thread
+            type=discord.ChannelType.private_thread,
+            invitable=False
         )
-        
+
         await interaction.response.send_message(
             f"✅ Dein Ticket **#{formatted_id}** ({selected_value}) wurde erstellt: {thread.mention}\n"
-            f"[Klicke hier, um zum Ticket zu springen]({thread.jump_url})", 
+            f"[Klicke hier, um zum Ticket zu springen]({thread.jump_url})",
             ephemeral=True
         )
-        
+
+        # Ticket-Ersteller hinzufügen
         await thread.add_user(interaction.user)
-        
+
+        # Supporter-Rollen-Mitglieder zum Thread hinzufügen
+        # Member-Cache auffrischen damit base_role.members vollständig ist
+        try:
+            await guild.chunk()
+        except Exception:
+            pass
+
         added_members = set()
+        failed_members = []
         for rid in target_role_ids:
             base_role = guild.get_role(rid)
-            if base_role:
-                for member in base_role.members:
-                    if member.bot or member.id in added_members:
-                        continue
-                    try:
-                        await thread.add_user(member)
-                        added_members.add(member.id)
-                    except:
-                        pass
+            if not base_role:
+                print(f"[Ticket] ⚠️ Rolle {rid} nicht gefunden auf {guild.name}")
+                continue
+            print(f"[Ticket] Füge {len(base_role.members)} Member mit Rolle '{base_role.name}' hinzu...")
+            for member in base_role.members:
+                if member.bot or member.id in added_members:
+                    continue
+                try:
+                    await thread.add_user(member)
+                    added_members.add(member.id)
+                    print(f"[Ticket] ✅ {member} hinzugefügt")
+                except Exception as e:
+                    failed_members.append(f"{member} ({e})")
+                    print(f"[Ticket] ❌ Fehler bei {member}: {e}")
+        if failed_members:
+            print(f"[Ticket] Fehlgeschlagene Hinzufügungen: {failed_members}")
         
         embed = discord.Embed(
             title=f"{selected_value}-Ticket #{formatted_id}",
@@ -407,10 +488,20 @@ class TicketSelect(discord.ui.Select):
         await thread.send(embed=embed, view=TicketControlView())
 
         dm_embed = discord.Embed(
-            title=f"Ticket #{formatted_id} ({selected_value}) erstellt",
-            description=f"Du hast erfolgreich ein Ticket in **{interaction.guild.name}** eröffnet.\n\n**Kategorie:** {selected_value}\n\n[Klicke hier, um zum Ticket zu gelangen]({thread.jump_url})",
-            color=discord.Color.green()
+            title="🎫 Ticket erfolgreich erstellt",
+            color=0x57F287
         )
+        dm_embed.description = (
+            f"Hallo {interaction.user.mention},\n\n"
+            f"dein Ticket wurde erfolgreich erstellt. Ein Supporter wird sich bald bei dir melden."
+        )
+        dm_embed.add_field(name="🏠 Server",        value=interaction.guild.name,                    inline=True)
+        dm_embed.add_field(name="📂 Kategorie",     value=selected_value,                            inline=True)
+        dm_embed.add_field(name="🔢 Ticket-Nr.",    value=f"#{formatted_id}",                        inline=True)
+        dm_embed.add_field(name="🔗 Link",          value=f"[Zum Ticket springen]({thread.jump_url})", inline=False)
+        dm_embed.set_thumbnail(url=interaction.guild.icon.url if interaction.guild.icon else interaction.user.display_avatar.url)
+        dm_embed.set_footer(text="Bexi-Bot • Ticket-System", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
+        dm_embed.timestamp = discord.utils.utcnow()
         await send_dm(interaction.user, "", dm_embed)
 
 class TicketView(discord.ui.View):
@@ -508,7 +599,25 @@ class MyBot(commands.Bot):
         if welcome_channel_id:
             channel = member.guild.get_channel(welcome_channel_id)
             if channel:
-                embed = discord.Embed(title="Willkommen!", description=f"Hallo {member.mention} auf {member.guild.name}!", color=0x2ecc71)
+                member_count = member.guild.member_count
+                embed = discord.Embed(
+                    title=f"👋 Willkommen auf {member.guild.name}!",
+                    color=0x57F287
+                )
+                embed.description = (
+                    f"Hallo {member.mention}, schön dass du da bist!\n\n"
+                    f"Schau dir die Regeln und Kanäle an 🏠"
+                )
+                embed.add_field(name="👤 Nutzer",          value=f"{member.mention}",                                    inline=True)
+                embed.add_field(name="🪪 Account erstellt", value=f"<t:{int(member.created_at.timestamp())}:R>",         inline=True)
+                embed.add_field(name="👥 Mitglied Nr.",     value=f"**#{member_count}**",                                inline=True)
+                embed.set_thumbnail(url=member.display_avatar.url)
+                embed.set_image(url=member.guild.banner.url if member.guild.banner else None)
+                embed.set_footer(
+                    text=f"Bexi-Bot • {member.guild.name}",
+                    icon_url=member.guild.icon.url if member.guild.icon else None
+                )
+                embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
                 await channel.send(embed=embed)
 
     async def on_voice_state_update(self, member, before, after):
@@ -693,9 +802,21 @@ async def whitelist_cmd(interaction: discord.Interaction, aktion: app_commands.C
 @app_commands.describe(nutzer="Das Mitglied, das gebannt werden soll – per @Erwähnung oder Klick auswählen", grund="Sichtbarer Grund im Log-Kanal, z.B. 'Spam', 'Toxisches Verhalten' (optional)")
 async def ban(interaction: discord.Interaction, nutzer: discord.Member, grund: str = "Kein Grund angegeben"):
     try:
+        dm_embed = discord.Embed(title="🔨 Du wurdest gebannt", color=0xED4245)
+        dm_embed.description = (
+            f"Hallo {nutzer.mention},\n\n"
+            f"du wurdest permanent von **{interaction.guild.name}** ausgeschlossen."
+        )
+        dm_embed.add_field(name="🏠 Server",      value=interaction.guild.name,    inline=True)
+        dm_embed.add_field(name="🛡️ Moderator",   value=str(interaction.user),     inline=True)
+        dm_embed.add_field(name="📋 Grund",       value=grund,                     inline=False)
+        dm_embed.set_thumbnail(url=interaction.guild.icon.url if interaction.guild.icon else nutzer.display_avatar.url)
+        dm_embed.set_footer(text="Bexi-Bot • Moderations-System", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
+        dm_embed.timestamp = discord.utils.utcnow()
+        await send_dm(nutzer, "", dm_embed)
         await nutzer.ban(reason=grund)
         await interaction.response.send_message(f"✅ **{nutzer}** wurde gebannt. Grund: {grund}", ephemeral=True)
-        await send_log(interaction.guild, "🔨 Mitglied Gebannt", f"Ein Nutzer wurde permanent vom Server ausgeschlossen.", discord.Color.red(), nutzer, interaction.user, grund)
+        await send_log(interaction.guild, "🔨 Mitglied Gebannt", "Ein Nutzer wurde permanent vom Server ausgeschlossen.", discord.Color.red(), nutzer, interaction.user, grund)
     except:
         await interaction.response.send_message("❌ Fehler beim Bannen.", ephemeral=True)
 
@@ -704,9 +825,22 @@ async def ban(interaction: discord.Interaction, nutzer: discord.Member, grund: s
 @app_commands.describe(nutzer="Das Mitglied, das gekickt werden soll – per @Erwähnung oder Klick auswählen", grund="Sichtbarer Grund im Log-Kanal, z.B. 'Regelverstoß' (optional)")
 async def kick(interaction: discord.Interaction, nutzer: discord.Member, grund: str = "Kein Grund angegeben"):
     try:
+        dm_embed = discord.Embed(title="👢 Du wurdest gekickt", color=0xE67E22)
+        dm_embed.description = (
+            f"Hallo {nutzer.mention},\n\n"
+            f"du wurdest von **{interaction.guild.name}** gekickt. "
+            f"Du kannst dem Server mit einem neuen Einladungslink wieder beitreten."
+        )
+        dm_embed.add_field(name="🏠 Server",      value=interaction.guild.name,    inline=True)
+        dm_embed.add_field(name="🛡️ Moderator",   value=str(interaction.user),     inline=True)
+        dm_embed.add_field(name="📋 Grund",       value=grund,                     inline=False)
+        dm_embed.set_thumbnail(url=interaction.guild.icon.url if interaction.guild.icon else nutzer.display_avatar.url)
+        dm_embed.set_footer(text="Bexi-Bot • Moderations-System", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
+        dm_embed.timestamp = discord.utils.utcnow()
+        await send_dm(nutzer, "", dm_embed)
         await nutzer.kick(reason=grund)
         await interaction.response.send_message(f"✅ **{nutzer}** wurde gekickt. Grund: {grund}", ephemeral=True)
-        await send_log(interaction.guild, "👢 Mitglied Gekickt", f"Ein Nutzer wurde vom Server gekickt.", discord.Color.orange(), nutzer, interaction.user, grund)
+        await send_log(interaction.guild, "👢 Mitglied Gekickt", "Ein Nutzer wurde vom Server gekickt.", discord.Color.orange(), nutzer, interaction.user, grund)
     except:
         await interaction.response.send_message("❌ Fehler beim Kicken.", ephemeral=True)
 
@@ -716,6 +850,22 @@ async def kick(interaction: discord.Interaction, nutzer: discord.Member, grund: 
 async def timeout(interaction: discord.Interaction, nutzer: discord.Member, minuten: int, grund: str = "Kein Grund angegeben"):
     try:
         duration = datetime.timedelta(minutes=minuten)
+        until_ts = int((datetime.datetime.now(datetime.timezone.utc) + duration).timestamp())
+        dm_embed = discord.Embed(title="⏳ Du wurdest in den Timeout versetzt", color=0x99AAB5)
+        dm_embed.description = (
+            f"Hallo {nutzer.mention},\n\n"
+            f"du wurdest vorübergehend stummgeschaltet und kannst auf **{interaction.guild.name}** "
+            f"bis <t:{until_ts}:F> nicht schreiben."
+        )
+        dm_embed.add_field(name="🏠 Server",      value=interaction.guild.name,    inline=True)
+        dm_embed.add_field(name="🛡️ Moderator",   value=str(interaction.user),     inline=True)
+        dm_embed.add_field(name="⏱️ Dauer",       value=f"**{minuten} Minuten**",  inline=True)
+        dm_embed.add_field(name="🔓 Endet",       value=f"<t:{until_ts}:R>",       inline=True)
+        dm_embed.add_field(name="📋 Grund",       value=grund,                     inline=False)
+        dm_embed.set_thumbnail(url=interaction.guild.icon.url if interaction.guild.icon else nutzer.display_avatar.url)
+        dm_embed.set_footer(text="Bexi-Bot • Moderations-System", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
+        dm_embed.timestamp = discord.utils.utcnow()
+        await send_dm(nutzer, "", dm_embed)
         await nutzer.timeout(duration, reason=grund)
         await interaction.response.send_message(f"✅ **{nutzer}** ist nun für {minuten} Minuten im Timeout. Grund: {grund}", ephemeral=True)
         await send_log(interaction.guild, "⏳ Timeout Verhängt", f"Ein Nutzer wurde stummgeschaltet (Timeout für {minuten} Min).", discord.Color.light_grey(), nutzer, interaction.user, grund)
@@ -738,8 +888,23 @@ async def warn(interaction: discord.Interaction, nutzer: discord.Member, grund: 
     config[gid]["warns"][uid] = new_warn_count
     save_config(config)
 
-    embed = discord.Embed(title="Verwarnung", description=f"Du wurdest auf **{interaction.guild.name}** verwarnt.\n\n**Grund:** {grund}\n**Gesamt-Warns:** {new_warn_count}", color=discord.Color.orange())
-    await send_dm(nutzer, "", embed)
+    warn_embed = discord.Embed(
+        title="⚠️ Du hast eine Verwarnung erhalten",
+        color=0xFEE75C
+    )
+    warn_embed.description = (
+        f"Hallo {nutzer.mention},\n\n"
+        f"du hast eine offizielle Verwarnung auf **{interaction.guild.name}** erhalten. "
+        f"Bitte beachte in Zukunft die Serverregeln."
+    )
+    warn_embed.add_field(name="🏠 Server",          value=interaction.guild.name,                       inline=True)
+    warn_embed.add_field(name="🛡️ Moderator",       value=interaction.user.mention,                    inline=True)
+    warn_embed.add_field(name="📋 Grund",           value=grund,                                        inline=False)
+    warn_embed.add_field(name="🔢 Gesamt-Warns",    value=f"**{new_warn_count}**",                      inline=True)
+    warn_embed.set_thumbnail(url=interaction.guild.icon.url if interaction.guild.icon else nutzer.display_avatar.url)
+    warn_embed.set_footer(text="Bexi-Bot • Moderations-System", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
+    warn_embed.timestamp = discord.utils.utcnow()
+    await send_dm(nutzer, "", warn_embed)
     await interaction.response.send_message(f"✅ {nutzer.mention} wurde verwarnt. Grund: {grund} (Warns: {new_warn_count})", ephemeral=True)
     await send_log(interaction.guild, "⚠️ Verwarnung ausgesprochen", f"Ein Nutzer wurde verwarnt. (Warnung #{new_warn_count})", discord.Color.gold(), nutzer, interaction.user, grund)
 

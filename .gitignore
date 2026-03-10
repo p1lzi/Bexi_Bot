@@ -6,6 +6,7 @@ __pycache__/
 # C extensions
 *.so
 
+./config_backups/
 # Distribution / packaging
 .Python
 build/
@@ -53,6 +54,8 @@ coverage.xml
 .pytest_cache/
 cover/
 
+config.json
+config_backups
 # Translations
 *.mo
 *.pot

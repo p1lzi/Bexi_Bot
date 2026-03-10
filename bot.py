@@ -24,6 +24,40 @@ except ImportError:
 TOKEN = os.getenv('DISCORD_TOKEN')
 CONFIG_FILE = 'config.json'
 WHITELIST_FILE = 'whitelist.json'
+BACKUP_DIR = 'config_backups'
+MAX_BACKUPS = 3
+
+def create_config_backup(user: discord.User = None, guild: discord.Guild = None):
+    """Erstellt ein Backup der config.json im Backup-Ordner (max. 3 Backups) und loggt die Änderung."""
+    if not os.path.exists(CONFIG_FILE):
+        return
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp_readable = datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+
+    backup_path = os.path.join(BACKUP_DIR, f"config_backup_{timestamp}.json")
+    shutil.copy2(CONFIG_FILE, backup_path)
+
+    # Alte Backups löschen, nur die neuesten MAX_BACKUPS behalten
+    backups = sorted(
+        [f for f in os.listdir(BACKUP_DIR) if f.startswith("config_backup_") and f.endswith(".json")]
+    )
+    while len(backups) > MAX_BACKUPS:
+        os.remove(os.path.join(BACKUP_DIR, backups.pop(0)))
+
+    # Changelog schreiben
+    log_path = os.path.join(BACKUP_DIR, "changelog.log")
+    user_info = f"{user} (ID: {user.id})" if user else "Unbekannt"
+    guild_info = f"{guild.name} (ID: {guild.id})" if guild else "Unbekannt"
+    log_entry = (
+        f"[{timestamp_readable}]\n"
+        f"  Geändert von : {user_info}\n"
+        f"  Server       : {guild_info}\n"
+        f"  Backup-Datei : config_backup_{timestamp}.json\n"
+        f"{'-' * 50}\n"
+    )
+    with open(log_path, 'a', encoding='utf-8') as log_file:
+        log_file.write(log_entry)
 
 def load_config():
     if os.path.exists(CONFIG_FILE):
@@ -188,18 +222,26 @@ class TicketControlView(discord.ui.View):
 
         await interaction.response.send_message("Das Ticket wird geschlossen und archiviert...")
         
+        thread = interaction.channel
+        closer = interaction.user
+
         creator_id = self.get_creator_id(interaction)
         if creator_id:
             creator = interaction.guild.get_member(creator_id)
             if creator:
                 dm_embed = discord.Embed(
-                    title="Ticket Geschlossen",
-                    description=f"Dein Ticket in **{interaction.guild.name}** wurde abgeschlossen und archiviert.",
+                    title="🔒 Ticket Geschlossen",
+                    description=(
+                        f"Dein Ticket in **{interaction.guild.name}** wurde geschlossen und archiviert.\n\n"
+                        f"**Geschlossen von:** {closer.mention} ({closer})\n"
+                        f"**Ticket:** [{thread.name}]({thread.jump_url})"
+                    ),
                     color=discord.Color.red()
                 )
+                dm_embed.set_footer(text=f"Server: {interaction.guild.name}")
+                dm_embed.timestamp = discord.utils.utcnow()
                 await send_dm(creator, "", dm_embed)
-            
-        thread = interaction.channel
+
         await thread.edit(locked=True, archived=True)
 
 async def send_dm(user: discord.User, message: str, embed: discord.Embed = None):
@@ -343,15 +385,14 @@ class TicketSelect(discord.ui.Select):
         for rid in target_role_ids:
             base_role = guild.get_role(rid)
             if base_role:
-                for member in guild.members:
+                for member in base_role.members:
                     if member.bot or member.id in added_members:
                         continue
-                    if any(r.position >= base_role.position for r in member.roles):
-                        try:
-                            await thread.add_user(member)
-                            added_members.add(member.id)
-                        except:
-                            pass
+                    try:
+                        await thread.add_user(member)
+                        added_members.add(member.id)
+                    except:
+                        pass
         
         embed = discord.Embed(
             title=f"{selected_value}-Ticket #{formatted_id}",
@@ -513,7 +554,7 @@ bot = MyBot()
 
 @bot.tree.command(name="setup_pioneer_role", description="Vergibt eine Rolle an die ersten 100 Mitglieder des Servers")
 @app_commands.default_permissions(administrator=True)
-@app_commands.describe(rolle="Die Rolle für die Top 100 Mitglieder")
+@app_commands.describe(rolle="Die Rolle, die den ersten 100 Mitgliedern (nach Beitrittsdatum) vergeben wird – z.B. @Pioneer")
 async def setup_pioneer_role(interaction: discord.Interaction, rolle: discord.Role):
     """Ermittelt die ersten 100 Mitglieder und weist ihnen die gewählte Rolle zu."""
     await interaction.response.defer(ephemeral=True)
@@ -547,9 +588,9 @@ async def setup_pioneer_role(interaction: discord.Interaction, rolle: discord.Ro
 @bot.tree.command(name="setup_selfrole", description="Erstellt ein Panel, an dem Nutzer sich selbst Rollen geben können")
 @app_commands.default_permissions(administrator=True)
 @app_commands.describe(
-    titel="Titel des Panels",
-    beschreibung="Anleitung für die Nutzer",
-    rollen_config="Format: \"Emoji Name|RollenID\", \"Emoji Name|RollenID\"..."
+    titel="Überschrift des Self-Role Panels, z.B. 'Wähle deine Rollen'",
+    beschreibung="Erklärungstext unter dem Titel. Zeilenumbruch mit /n möglich, z.B. 'Klicke einen Button/nfür deine Rolle.'",
+    rollen_config="Format: \"Emoji Label|RollenID\", \"Emoji Label|RollenID\" – Beispiel: \"🎮 Gamer|123456789\", \"🎵 Musik|987654321\""
 )
 async def setup_selfrole(interaction: discord.Interaction, titel: str, beschreibung: str, rollen_config: str):
     """Erstellt ein Panel mit Buttons für Self-Roles."""
@@ -611,11 +652,11 @@ async def setup_selfrole(interaction: discord.Interaction, titel: str, beschreib
 @bot.tree.command(name="whitelist", description="Verwaltet die Liste der erlaubten Link-Domains")
 @app_commands.default_permissions(administrator=True)
 @app_commands.choices(aktion=[
-    app_commands.Choice(name="Hinzufügen", value="add"),
-    app_commands.Choice(name="Entfernen", value="remove"),
-    app_commands.Choice(name="Liste anzeigen", value="list")
+    app_commands.Choice(name="➕ Hinzufügen – Domain zur Whitelist hinzufügen", value="add"),
+    app_commands.Choice(name="➖ Entfernen – Domain von der Whitelist löschen", value="remove"),
+    app_commands.Choice(name="📋 Liste anzeigen – Alle erlaubten Domains anzeigen", value="list")
 ])
-@app_commands.describe(domain="Die Domain (z.B. youtube.com oder google.com)")
+@app_commands.describe(domain="Domain ohne https:// und www – Beispiel: youtube.com | Bei 'Liste anzeigen' kann leer gelassen werden")
 async def whitelist_cmd(interaction: discord.Interaction, aktion: app_commands.Choice[str], domain: str = None):
     whitelist = load_whitelist()
     
@@ -649,7 +690,7 @@ async def whitelist_cmd(interaction: discord.Interaction, aktion: app_commands.C
 
 @bot.tree.command(name="ban", description="Bannt ein Mitglied permanent vom Server")
 @app_commands.default_permissions(ban_members=True)
-@app_commands.describe(nutzer="Das zu bannende Mitglied", grund="Der Grund für den Bann")
+@app_commands.describe(nutzer="Das Mitglied, das gebannt werden soll – per @Erwähnung oder Klick auswählen", grund="Sichtbarer Grund im Log-Kanal, z.B. 'Spam', 'Toxisches Verhalten' (optional)")
 async def ban(interaction: discord.Interaction, nutzer: discord.Member, grund: str = "Kein Grund angegeben"):
     try:
         await nutzer.ban(reason=grund)
@@ -660,7 +701,7 @@ async def ban(interaction: discord.Interaction, nutzer: discord.Member, grund: s
 
 @bot.tree.command(name="kick", description="Kickt ein Mitglied vom Server")
 @app_commands.default_permissions(kick_members=True)
-@app_commands.describe(nutzer="Das zu kickende Mitglied", grund="Der Grund für den Kick")
+@app_commands.describe(nutzer="Das Mitglied, das gekickt werden soll – per @Erwähnung oder Klick auswählen", grund="Sichtbarer Grund im Log-Kanal, z.B. 'Regelverstoß' (optional)")
 async def kick(interaction: discord.Interaction, nutzer: discord.Member, grund: str = "Kein Grund angegeben"):
     try:
         await nutzer.kick(reason=grund)
@@ -671,7 +712,7 @@ async def kick(interaction: discord.Interaction, nutzer: discord.Member, grund: 
 
 @bot.tree.command(name="timeout", description="Versetzt ein Mitglied für eine bestimmte Zeit in den Timeout")
 @app_commands.default_permissions(moderate_members=True)
-@app_commands.describe(nutzer="Das Mitglied", minuten="Dauer in Minuten", grund="Grund für den Timeout")
+@app_commands.describe(nutzer="Das Mitglied, das stumm gestellt werden soll – per @Erwähnung auswählen", minuten="Dauer in Minuten – z.B. 10, 60, 1440 (= 1 Tag), max. 40320 (28 Tage)", grund="Sichtbarer Grund im Log-Kanal (optional)")
 async def timeout(interaction: discord.Interaction, nutzer: discord.Member, minuten: int, grund: str = "Kein Grund angegeben"):
     try:
         duration = datetime.timedelta(minutes=minuten)
@@ -683,7 +724,7 @@ async def timeout(interaction: discord.Interaction, nutzer: discord.Member, minu
 
 @bot.tree.command(name="warn", description="Verwarnt ein Mitglied und speichert den Warn")
 @app_commands.default_permissions(moderate_members=True)
-@app_commands.describe(nutzer="Das Mitglied", grund="Grund der Verwarnung")
+@app_commands.describe(nutzer="Das Mitglied, das verwarnt werden soll – per @Erwähnung auswählen", grund="Grund der Verwarnung – wird dem Nutzer per DM und im Log angezeigt")
 async def warn(interaction: discord.Interaction, nutzer: discord.Member, grund: str):
     config = load_config()
     gid = str(interaction.guild_id)
@@ -704,7 +745,7 @@ async def warn(interaction: discord.Interaction, nutzer: discord.Member, grund: 
 
 @bot.tree.command(name="warn_edit", description="Bearbeitet oder löscht die Anzahl der Verwarnungen eines Nutzers")
 @app_commands.default_permissions(moderate_members=True)
-@app_commands.describe(nutzer="Das Mitglied", anzahl="Die neue Anzahl an Verwarnungen (0 zum Löschen)")
+@app_commands.describe(nutzer="Das Mitglied, dessen Warns angepasst werden sollen – per @Erwähnung auswählen", anzahl="Neue Gesamtanzahl der Warns – z.B. 2 zum Setzen oder 0 zum vollständigen Löschen")
 async def warn_edit(interaction: discord.Interaction, nutzer: discord.Member, anzahl: int):
     if anzahl < 0:
         return await interaction.response.send_message("❌ Die Anzahl darf nicht negativ sein.", ephemeral=True)
@@ -728,7 +769,7 @@ async def warn_edit(interaction: discord.Interaction, nutzer: discord.Member, an
     await send_log(interaction.guild, "🔧 Warns bearbeitet", f"Die Anzahl der Verwarnungen wurde manuell geändert.", discord.Color.blue(), nutzer, interaction.user, f"Geändert von {alte_anzahl} auf {anzahl}")
 
 @bot.tree.command(name="userinfo", description="Zeigt detaillierte Informationen über ein Mitglied an")
-@app_commands.describe(nutzer="Das Mitglied (leer lassen für dich selbst)")
+@app_commands.describe(nutzer="Das Mitglied, über das Infos angezeigt werden sollen – leer lassen für eigene Infos")
 async def userinfo(interaction: discord.Interaction, nutzer: discord.Member = None):
     target = nutzer or interaction.user
     gid = str(interaction.guild_id)
@@ -752,7 +793,7 @@ async def userinfo(interaction: discord.Interaction, nutzer: discord.Member = No
 
 @bot.tree.command(name="set_log_channel", description="Legt den Kanal für Moderations-Logs fest")
 @app_commands.default_permissions(administrator=True)
-@app_commands.describe(kanal="Der Kanal, in dem Logs gesendet werden sollen")
+@app_commands.describe(kanal="Der Textkanal, in dem alle Moderations-Logs erscheinen sollen – z.B. #mod-logs")
 async def set_log_channel(interaction: discord.Interaction, kanal: discord.TextChannel):
     config = load_config()
     gid = str(interaction.guild_id)
@@ -763,7 +804,7 @@ async def set_log_channel(interaction: discord.Interaction, kanal: discord.TextC
 
 @bot.tree.command(name="set_welcome_channel", description="Legt den Kanal für Willkommensnachrichten fest")
 @app_commands.default_permissions(administrator=True)
-@app_commands.describe(kanal="Der Textkanal für die Nachrichten")
+@app_commands.describe(kanal="Der Textkanal, in dem neue Mitglieder begrüßt werden sollen – z.B. #willkommen")
 async def set_welcome_channel(interaction: discord.Interaction, kanal: discord.TextChannel):
     config = load_config()
     gid = str(interaction.guild_id)
@@ -774,7 +815,7 @@ async def set_welcome_channel(interaction: discord.Interaction, kanal: discord.T
 
 @bot.tree.command(name="set_waiting_room", description="Konfiguriert den Warteraum für die Support-Musik")
 @app_commands.default_permissions(administrator=True)
-@app_commands.describe(kanal="Der Sprachkanal, der als Warteraum dient")
+@app_commands.describe(kanal="Der Sprachkanal, in dem Support-Musik abgespielt wird, wenn jemand wartet – z.B. 'Warteraum'")
 async def set_waiting_room(interaction: discord.Interaction, kanal: discord.VoiceChannel):
     config = load_config()
     gid = str(interaction.guild_id)
@@ -785,7 +826,7 @@ async def set_waiting_room(interaction: discord.Interaction, kanal: discord.Voic
 
 @bot.tree.command(name="setup_verify", description="Erstellt eine Nachricht mit einem Verifizierungs-Button")
 @app_commands.default_permissions(administrator=True)
-@app_commands.describe(titel="Überschrift des Panels", beschreibung="Anleitungstext", rolle="Rolle, die vergeben wird")
+@app_commands.describe(titel="Überschrift des Panels, z.B. 'Verifizierung'", beschreibung="Erklärungstext, z.B. 'Klicke den Button um Zugang zu erhalten.' Zeilenumbruch mit /n", rolle="Die Rolle, die beim Klick auf den Button vergeben wird – z.B. @Verifiziert")
 async def setup_verify(interaction: discord.Interaction, titel: str, beschreibung: str, rolle: discord.Role):
     embed = discord.Embed(title=titel, description=format_discord_text(beschreibung), color=discord.Color.blue())
     view = VerifyView(rolle.id)
@@ -800,17 +841,23 @@ async def setup_verify(interaction: discord.Interaction, titel: str, beschreibun
 
 @bot.tree.command(name="status_config", description="Ändert den Online-Status und die Aktivität des Bots")
 @app_commands.default_permissions(administrator=True)
+@app_commands.describe(
+    status="Online-Status des Bots – z.B. Online, Idle, DnD oder Unsichtbar",
+    aktivitaet_typ="Art der Aktivität – Spielt / Streamt / Hört zu / Schaut",
+    text="Anzeigetext der Aktivität – z.B. 'Minecraft' oder 'euren Server'",
+    stream_url="Nur bei 'Streamt' nötig – vollständige Twitch-URL, z.B. https://twitch.tv/deinname"
+)
 @app_commands.choices(status=[
-    app_commands.Choice(name="Online", value="online"),
-    app_commands.Choice(name="Abwesend (Idle)", value="idle"),
-    app_commands.Choice(name="Bitte nicht stören (DnD)", value="dnd"),
-    app_commands.Choice(name="Unsichtbar (Offline)", value="invisible")
+    app_commands.Choice(name="🟢 Online – Bot erscheint als verfügbar", value="online"),
+    app_commands.Choice(name="🌙 Abwesend (Idle) – Bot erscheint als abwesend", value="idle"),
+    app_commands.Choice(name="🔴 Bitte nicht stören (DnD) – rotes Symbol, keine Benachrichtigungen", value="dnd"),
+    app_commands.Choice(name="⚫ Unsichtbar (Offline) – Bot wirkt offline, läuft aber", value="invisible")
 ])
 @app_commands.choices(aktivitaet_typ=[
-    app_commands.Choice(name="Spielt", value="playing"),
-    app_commands.Choice(name="Streamt", value="streaming"),
-    app_commands.Choice(name="Hört zu", value="listening"),
-    app_commands.Choice(name="Schaut", value="watching")
+    app_commands.Choice(name="🎮 Spielt – zeigt 'Spielt [Text]' unter dem Namen", value="playing"),
+    app_commands.Choice(name="🎥 Streamt – zeigt 'Streamt [Text]' mit Link (Stream-URL pflichtfeld)", value="streaming"),
+    app_commands.Choice(name="🎵 Hört zu – zeigt 'Hört [Text]' unter dem Namen", value="listening"),
+    app_commands.Choice(name="📺 Schaut – zeigt 'Schaut [Text]' unter dem Namen", value="watching")
 ])
 async def status_config(interaction: discord.Interaction, status: app_commands.Choice[str], aktivitaet_typ: app_commands.Choice[str], text: str, stream_url: str = "https://twitch.tv/discord"):
     discord_status = getattr(discord.Status, status.value, discord.Status.online)
@@ -829,6 +876,10 @@ async def status_config(interaction: discord.Interaction, status: app_commands.C
 
 @bot.tree.command(name="setup_tickets", description="Erstellt ein neues Support-Ticket-Panel")
 @app_commands.default_permissions(administrator=True)
+@app_commands.describe(
+    supporter_rollen="Rollen, die alle Tickets sehen dürfen – als @Erwähnung oder ID, mehrere mit Leerzeichen trennen, z.B. @Support @Moderator",
+    kategorien="Ticket-Kategorien – Format: \"Emoji Name|Beschreibung\", \"Emoji Name\" – Beispiel: \"🔧 Technik|Technische Probleme\", \"💬 Allgemein\""
+)
 async def setup_tickets(interaction: discord.Interaction, supporter_rollen: str, kategorien: str):
     guild_id = str(interaction.guild_id)
     role_ids = extract_role_ids(supporter_rollen)
@@ -871,10 +922,16 @@ async def setup_tickets(interaction: discord.Interaction, supporter_rollen: str,
 
 @bot.tree.command(name="ticket_edit", description="Bearbeitet ein bestehendes Ticket-Panel")
 @app_commands.default_permissions(administrator=True)
+@app_commands.describe(
+    message_id="ID der Panel-Nachricht – wird nach Eingabe als Autocomplete-Liste angezeigt",
+    titel="Neuer Titel des Panels (optional) – leer lassen um nicht zu ändern",
+    beschreibung="Neuer Beschreibungstext (optional) – Zeilenumbruch mit /n",
+    farbe="Neue Randfarbe als Hex-Code (optional) – Beispiel: #FF0000 für Rot"
+)
 async def ticket_edit(interaction: discord.Interaction, message_id: str, titel: str = None, beschreibung: str = None, farbe: str = None):
     guild_id = str(interaction.guild_id)
     config = load_config()
-    target_panel = next((p for p in config.get(guild_id, {}).get("ticket_panels", []) if str(p["message_id"]) == message_id), None)
+    target_panel = next((p for p in config.get(guild_id, {}).get("ticket_panels", []) if str(p.get("message_id", "")) == message_id), None)
     if not target_panel: return await interaction.response.send_message("❌ Panel nicht gefunden.", ephemeral=True)
     try:
         channel = interaction.guild.get_channel(target_panel["channel_id"]) or await interaction.guild.fetch_channel(target_panel["channel_id"])
@@ -890,11 +947,12 @@ async def ticket_edit(interaction: discord.Interaction, message_id: str, titel: 
 
 @bot.tree.command(name="ticket_delete", description="Löscht ein Ticket-Panel")
 @app_commands.default_permissions(administrator=True)
+@app_commands.describe(message_id="ID des zu löschenden Panels – wird als Autocomplete-Liste angezeigt")
 async def ticket_delete(interaction: discord.Interaction, message_id: str):
     guild_id = str(interaction.guild_id)
     config = load_config()
     panels = config.get(guild_id, {}).get("ticket_panels", [])
-    target = next((p for p in panels if str(p["message_id"]) == message_id), None)
+    target = next((p for p in panels if str(p.get("message_id", "")) == message_id), None)
     if not target: return await interaction.response.send_message("❌ Nicht in Config.", ephemeral=True)
     panels.remove(target); save_config(config)
     try:
@@ -906,11 +964,16 @@ async def ticket_delete(interaction: discord.Interaction, message_id: str):
 
 @bot.tree.command(name="ticket_category_edit", description="Weist einer Ticket-Kategorie spezifische Supporter-Rollen zu")
 @app_commands.default_permissions(administrator=True)
+@app_commands.describe(
+    message_id="ID des Ticket-Panels – wird als Autocomplete-Liste angezeigt",
+    kategorie_name="Name der Kategorie, die bearbeitet werden soll – wird als Autocomplete-Liste angezeigt",
+    neue_rollen="Neue Supporter-Rollen für diese Kategorie – als @Erwähnung oder ID, mehrere mit Leerzeichen, z.B. @Support @Admin"
+)
 async def ticket_category_edit(interaction: discord.Interaction, message_id: str, kategorie_name: str, neue_rollen: str):
     guild_id = str(interaction.guild_id)
     config = load_config()
     role_ids = extract_role_ids(neue_rollen)
-    panel = next((p for p in config.get(guild_id, {}).get("ticket_panels", []) if str(p["message_id"]) == message_id), None)
+    panel = next((p for p in config.get(guild_id, {}).get("ticket_panels", []) if str(p.get("message_id", "")) == message_id), None)
     if not panel: return await interaction.response.send_message("❌ Panel nicht gefunden.", ephemeral=True)
     cat = next((c for c in panel["categories"] if c["value"].lower() == kategorie_name.lower()), None)
     if not cat: return await interaction.response.send_message("❌ Kategorie nicht gefunden.", ephemeral=True)
@@ -929,7 +992,15 @@ async def ticket_panel_autocomplete(interaction: discord.Interaction, current: s
     guild_id = str(interaction.guild_id)
     config = load_config()
     panels = config.get(guild_id, {}).get("ticket_panels", [])
-    choices = [app_commands.Choice(name=f"{p['message_id']} | {p.get('title', 'Ticket')}", value=str(p["message_id"])) for p in panels if current.lower() in str(p["message_id"]).lower() or current.lower() in p.get('title', '').lower()]
+    choices = []
+    for p in panels:
+        mid = p.get("message_id")
+        if not mid:
+            continue  # Überspringe fehlerhafte Einträge ohne message_id
+        title = p.get("title", "Ticket")
+        mid_str = str(mid)
+        if current.lower() in mid_str.lower() or current.lower() in title.lower():
+            choices.append(app_commands.Choice(name=f"{mid_str} | {title}", value=mid_str))
     return choices[:25]
 
 @ticket_category_edit.autocomplete("kategorie_name")
@@ -940,10 +1011,14 @@ async def ticket_cat_autocomplete(interaction: discord.Interaction, current: str
     panels = config.get(guild_id, {}).get("ticket_panels", [])
     choices = []
     for p in panels:
-        if not mid or str(p["message_id"]) == mid:
+        panel_mid = p.get("message_id")
+        if not panel_mid:
+            continue  # Überspringe fehlerhafte Einträge ohne message_id
+        if not mid or str(panel_mid) == mid:
             for cat in p.get("categories", []):
-                if current.lower() in cat["value"].lower():
-                    choices.append(app_commands.Choice(name=cat["value"], value=cat["value"]))
+                cat_value = cat.get("value", "")
+                if cat_value and current.lower() in cat_value.lower():
+                    choices.append(app_commands.Choice(name=cat_value, value=cat_value))
     return choices[:25]
 
 # --- BASIS COMMANDS ---
@@ -970,6 +1045,81 @@ async def on_ready():
         elif t_val == "listening": act = discord.Activity(type=discord.ActivityType.listening, name=text)
         elif t_val == "watching": act = discord.Activity(type=discord.ActivityType.watching, name=text)
         await bot.change_presence(status=d_status, activity=act)
+
+
+# --- CONFIG EXPORT / IMPORT ---
+
+@bot.tree.command(name="config_export", description="Sendet die aktuelle config.json als Datei zum Herunterladen")
+@app_commands.default_permissions(administrator=True)
+async def config_export(interaction: discord.Interaction):
+    if not os.path.exists(CONFIG_FILE):
+        return await interaction.response.send_message("❌ Keine config.json gefunden.", ephemeral=True)
+    await interaction.response.send_message(
+        "📤 Hier ist die aktuelle `config.json`:",
+        file=discord.File(CONFIG_FILE),
+        ephemeral=True
+    )
+
+@bot.tree.command(name="config_import", description="Lädt eine neue config.json hoch und wendet sie sofort an")
+@app_commands.default_permissions(administrator=True)
+@app_commands.describe(datei="Die neue config.json Datei – vorher per /config_export herunterladen, bearbeiten und hier hochladen")
+async def config_import(interaction: discord.Interaction, datei: discord.Attachment):
+    if not datei.filename.endswith(".json"):
+        return await interaction.response.send_message("❌ Bitte lade eine `.json`-Datei hoch.", ephemeral=True)
+
+    await interaction.response.defer(ephemeral=True)
+
+    try:
+        content = await datei.read()
+        new_config = json.loads(content)
+    except json.JSONDecodeError:
+        return await interaction.followup.send("❌ Die Datei enthält kein gültiges JSON.", ephemeral=True)
+
+    # Backup der alten Config anlegen (mit Nutzer & Server-Info)
+    create_config_backup(user=interaction.user, guild=interaction.guild)
+
+    # Neue Config speichern
+    with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+        json.dump(new_config, f, indent=4)
+
+
+    # --- Live-Reload aller Config-abhängigen Bereiche ---
+    applied = []
+
+    # 1. Bot-Presence / Status aktualisieren
+    pres = new_config.get("bot_presence")
+    if pres:
+        status_val = pres.get("status", "online")
+        d_status = getattr(discord.Status, status_val, discord.Status.online)
+        t_val = pres.get("type", "playing")
+        text = pres.get("text", "")
+        url = pres.get("url", "https://twitch.tv/discord")
+        act = None
+        if t_val == "playing":    act = discord.Game(name=text)
+        elif t_val == "streaming": act = discord.Streaming(name=text, url=url)
+        elif t_val == "listening": act = discord.Activity(type=discord.ActivityType.listening, name=text)
+        elif t_val == "watching":  act = discord.Activity(type=discord.ActivityType.watching, name=text)
+        await bot.change_presence(status=d_status, activity=act)
+        applied.append("✅ Bot-Status")
+
+    # 2. Persistent Views neu registrieren (Verify, Tickets, Self-Roles)
+    for guild_id_str, data in new_config.items():
+        if not isinstance(data, dict):
+            continue
+        for panel in data.get("verify_panels", []):
+            bot.add_view(VerifyView(panel["role_id"]))
+        for t_panel in data.get("ticket_panels", []):
+            supp_ids = t_panel.get("supporter_role_ids") or ([t_panel["supporter_role_id"]] if t_panel.get("supporter_role_id") else [])
+            bot.add_view(TicketView(t_panel["categories"], supp_ids))
+        for s_panel in data.get("selfrole_panels", []):
+            bot.add_view(SelfRoleView(s_panel["roles"]))
+    applied.append("✅ Persistent Views")
+
+    applied_str = "\n".join(applied)
+    await interaction.followup.send(
+        f"✅ Neue `config.json` wurde gespeichert & live angewendet (Backup angelegt).\n\n{applied_str}",
+        ephemeral=True
+    )
 
 if __name__ == "__main__":
     if TOKEN: bot.run(TOKEN)

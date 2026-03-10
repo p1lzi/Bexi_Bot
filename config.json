@@ -186,6 +186,76 @@
                 ],
                 "created_at": "09.03.2026 12:31",
                 "title": "Support-Tickets"
+            },
+            {
+                "categories": [
+                    {
+                        "label": "Test",
+                        "value": "Test",
+                        "emoji": null,
+                        "description": null,
+                        "supporter_role_ids": null
+                    }
+                ],
+                "channel_id": 1478107225275895891,
+                "message_id": 1480893408615862294,
+                "supporter_role_ids": [
+                    1480517570988609638
+                ],
+                "created_at": "10.03.2026 12:41",
+                "title": "Support-Tickets"
+            },
+            {
+                "categories": [
+                    {
+                        "label": "Test",
+                        "value": "Test",
+                        "emoji": "\ud83c\udfe0",
+                        "description": "Test",
+                        "supporter_role_ids": [
+                            1479430671083634749
+                        ]
+                    },
+                    {
+                        "label": "\ufe0fTest3",
+                        "value": "\ufe0fTest3",
+                        "emoji": "\ud83d\uddbc",
+                        "description": "Anderer Test",
+                        "supporter_role_ids": null
+                    }
+                ],
+                "channel_id": 1478107225275895891,
+                "message_id": 1480894946335658065,
+                "supporter_role_ids": [
+                    1479430671083634749
+                ],
+                "created_at": "10.03.2026 12:47",
+                "title": "Support-Tickets"
+            },
+            {
+                "categories": [
+                    {
+                        "label": "Test4",
+                        "value": "Test4",
+                        "emoji": null,
+                        "description": "tet",
+                        "supporter_role_ids": null
+                    },
+                    {
+                        "label": "Test5df",
+                        "value": "Test5df",
+                        "emoji": null,
+                        "description": null,
+                        "supporter_role_ids": null
+                    }
+                ],
+                "channel_id": 1478107225275895891,
+                "message_id": 1480896105561718948,
+                "supporter_role_ids": [
+                    1479430671083634749
+                ],
+                "created_at": "10.03.2026 12:52",
+                "title": "Support-Tickets"
             }
         ],
         "waiting_room_id": 1317429038318485507,
@@ -200,18 +270,43 @@
         "category_counters": {
             "\ufe0fTest": 11,
             "Test2": 11,
-            "Entbannungsantrag": 1
+            "Entbannungsantrag": 1,
+            "Test": 4,
+            "\ufe0fTest3": 3,
+            "Test4": 3,
+            "Test5df": 4
         },
         "category_channels": {
             "Test2": 1480530719410356336,
             "\ufe0fTest": 1480531526654496918,
-            "Entbannungsantrag": 1480533952061243555
+            "Entbannungsantrag": 1480533952061243555,
+            "Test": 1480894957962264607,
+            "\ufe0fTest3": 1480894977319108629,
+            "Test4": 1480896118710866133,
+            "Test5df": 1480896124867838042
         },
         "server_stats": {
             "category_id": 1480533208335650837,
             "member_channel_id": 1480533210558627972,
             "boost_channel_id": 1480533213645639803
-        }
+        },
+        "selfrole_panels": [
+            {
+                "message_id": 1480860947953488003,
+                "roles": [
+                    {
+                        "label": "Test",
+                        "role_id": 1480517570988609638,
+                        "emoji": "\ud83d\udc80"
+                    },
+                    {
+                        "label": "Test2",
+                        "role_id": 1480646367469764608,
+                        "emoji": "\ud83d\udccb"
+                    }
+                ]
+            }
+        ]
     },
     "1476643882342027358": {
         "verify_panels": [],
@@ -366,8 +461,8 @@
     },
     "bot_presence": {
         "status": "online",
-        "type": "streaming",
-        "text": "\ud83d\udc41\ufe0f",
+        "type": "playing",
+        "text": "Test",
         "url": "https://www.youtube.com/watch?v=hvL1339luv0"
     }
 }

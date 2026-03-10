@@ -88,6 +88,34 @@ async def send_log(guild: discord.Guild, title: str, description: str, color: di
             except:
                 pass
 
+# --- NEU: SELF ROLE SYSTEM ---
+class SelfRoleButton(discord.ui.Button):
+    def __init__(self, label, role_id, emoji=None):
+        # Wir nutzen die role_id als custom_id, um sie beim Neustart zu identifizieren
+        super().__init__(label=label, style=discord.ButtonStyle.secondary, emoji=emoji, custom_id=f"selfrole_{role_id}")
+        self.role_id = role_id
+
+    async def callback(self, interaction: discord.Interaction):
+        role = interaction.guild.get_role(self.role_id)
+        if not role:
+            return await interaction.response.send_message("❌ Diese Rolle existiert nicht mehr.", ephemeral=True)
+        
+        if role in interaction.user.roles:
+            await interaction.user.remove_roles(role)
+            await interaction.response.send_message(f"✅ Rolle **{role.name}** wurde entfernt.", ephemeral=True)
+        else:
+            try:
+                await interaction.user.add_roles(role)
+                await interaction.response.send_message(f"✅ Rolle **{role.name}** wurde hinzugefügt.", ephemeral=True)
+            except discord.Forbidden:
+                await interaction.response.send_message("❌ Ich habe nicht genug Rechte, um diese Rolle zu vergeben.", ephemeral=True)
+
+class SelfRoleView(discord.ui.View):
+    def __init__(self, roles_data):
+        super().__init__(timeout=None)
+        for data in roles_data:
+            self.add_item(SelfRoleButton(label=data['label'], role_id=data['role_id'], emoji=data.get('emoji')))
+
 # --- TICKET CONTROL PANEL ---
 class TicketControlView(discord.ui.View):
     def __init__(self):
@@ -235,7 +263,6 @@ class TicketSelect(discord.ui.Select):
         category = discord.utils.get(guild.categories, name=main_category_name)
         
         if not category:
-            # Kategorie-Permissions: Jeder darf sehen, aber nicht interagieren
             overwrites = {
                 guild.default_role: discord.PermissionOverwrite(
                     view_channel=True, 
@@ -243,7 +270,7 @@ class TicketSelect(discord.ui.Select):
                     add_reactions=False, 
                     create_public_threads=False, 
                     create_private_threads=False,
-                    send_messages_in_threads=True # Wichtig für den Thread-Ersteller
+                    send_messages_in_threads=True 
                 ),
                 guild.me: discord.PermissionOverwrite(view_channel=True, manage_channels=True, manage_roles=True)
             }
@@ -261,7 +288,6 @@ class TicketSelect(discord.ui.Select):
             target_channel = discord.utils.get(category.text_channels, name=channel_name)
             
             if not target_channel:
-                # Channel-Permissions: Jeder darf sehen, aber nicht schreiben/reagieren
                 overwrites = {
                     guild.default_role: discord.PermissionOverwrite(
                         view_channel=True, 
@@ -271,7 +297,6 @@ class TicketSelect(discord.ui.Select):
                     ),
                     guild.me: discord.PermissionOverwrite(view_channel=True, manage_channels=True, send_messages=True)
                 }
-                # Supporter-Rollen erhalten Schreibrechte
                 for rid in target_role_ids:
                     role = guild.get_role(rid)
                     if role: overwrites[role] = discord.PermissionOverwrite(view_channel=True, send_messages=True, manage_threads=True)
@@ -283,7 +308,6 @@ class TicketSelect(discord.ui.Select):
                     topic=f"Zentraler Kanal für {selected_value} Anfragen."
                 )
                 
-                # Info-Embed senden
                 info_embed = discord.Embed(
                     title=f"Ticket-Kanal: {selected_value}",
                     description=(
@@ -302,7 +326,6 @@ class TicketSelect(discord.ui.Select):
         clean_username = interaction.user.display_name.replace(' ', '-').lower()
         thread_name = f"{selected_value.lower()[:5]}-{formatted_id}-{clean_username}"
 
-        # Privaten Thread erstellen
         thread = await target_channel.create_thread(
             name=thread_name,
             type=discord.ChannelType.private_thread
@@ -316,17 +339,13 @@ class TicketSelect(discord.ui.Select):
         
         await thread.add_user(interaction.user)
         
-        # Supporter-Logik: Füge die Zielrollen UND alle Rollen darüber hinzu
         added_members = set()
         for rid in target_role_ids:
             base_role = guild.get_role(rid)
             if base_role:
-                # Suche alle Mitglieder, die die Rolle ODER eine höhere Rolle haben
                 for member in guild.members:
                     if member.bot or member.id in added_members:
                         continue
-                    
-                    # Wenn das Mitglied eine Rolle hat, deren Position >= der Supporter-Rolle ist
                     if any(r.position >= base_role.position for r in member.roles):
                         try:
                             await thread.add_user(member)
@@ -380,14 +399,20 @@ class MyBot(commands.Bot):
     async def setup_hook(self):
         config = load_config()
         for guild_id_str, data in config.items():
+            # Persistent Verify Views
             for panel in data.get("verify_panels", []):
                 self.add_view(VerifyView(panel["role_id"]))
+            # Persistent Ticket Views
             for t_panel in data.get("ticket_panels", []):
                 supp_ids = t_panel.get("supporter_role_ids")
                 if not supp_ids:
                     old_id = t_panel.get("supporter_role_id")
                     supp_ids = [old_id] if old_id else []
                 self.add_view(TicketView(t_panel["categories"], supp_ids))
+            # Persistent Self-Role Views
+            for s_panel in data.get("selfrole_panels", []):
+                self.add_view(SelfRoleView(s_panel["roles"]))
+                
         self.add_view(TicketControlView())
         
         await self.tree.sync()
@@ -483,6 +508,103 @@ class MyBot(commands.Bot):
             await asyncio.sleep(2)
 
 bot = MyBot()
+
+# --- PIONIER ROLLE COMMAND ---
+
+@bot.tree.command(name="setup_pioneer_role", description="Vergibt eine Rolle an die ersten 100 Mitglieder des Servers")
+@app_commands.default_permissions(administrator=True)
+@app_commands.describe(rolle="Die Rolle für die Top 100 Mitglieder")
+async def setup_pioneer_role(interaction: discord.Interaction, rolle: discord.Role):
+    """Ermittelt die ersten 100 Mitglieder und weist ihnen die gewählte Rolle zu."""
+    await interaction.response.defer(ephemeral=True)
+    all_members = [m for m in interaction.guild.members if not m.bot]
+    all_members.sort(key=lambda m: m.joined_at if m.joined_at else datetime.datetime.now())
+    
+    pioneers = all_members[:100]
+    assigned_count = 0
+    errors = 0
+    
+    for member in pioneers:
+        if rolle not in member.roles:
+            try:
+                await member.add_roles(rolle, reason="Top 100 Pioneer Role Setup")
+                assigned_count += 1
+            except discord.Forbidden:
+                errors += 1
+            except Exception:
+                errors += 1
+                
+    await interaction.followup.send(
+        f"✅ Analyse abgeschlossen!\n"
+        f"• Rolle: {rolle.mention}\n"
+        f"• Neu zugewiesen: **{assigned_count}**\n"
+        f"• Fehler (z.B. fehlende Rechte): **{errors}**\n\n", 
+        ephemeral=True
+    )
+
+# --- NEU: SELFROLE SETUP COMMAND ---
+
+@bot.tree.command(name="setup_selfrole", description="Erstellt ein Panel, an dem Nutzer sich selbst Rollen geben können")
+@app_commands.default_permissions(administrator=True)
+@app_commands.describe(
+    titel="Titel des Panels",
+    beschreibung="Anleitung für die Nutzer",
+    rollen_config="Format: \"Emoji Name|RollenID\", \"Emoji Name|RollenID\"..."
+)
+async def setup_selfrole(interaction: discord.Interaction, titel: str, beschreibung: str, rollen_config: str):
+    """Erstellt ein Panel mit Buttons für Self-Roles."""
+    guild_id = str(interaction.guild_id)
+    
+    # Extrahiere Konfiguration (ähnl. wie Ticket-Setup)
+    raw_list = re.findall(r'"([^"]*)"', rollen_config)
+    if not raw_list: raw_list = [c.strip() for c in rollen_config.split(",") if c.strip()]
+    
+    formatted_roles = []
+    for item in raw_list:
+        parts = item.split("|")
+        label_part = parts[0].strip()
+        role_id_part = parts[1].strip() if len(parts) > 1 else None
+        
+        if not role_id_part: continue
+        
+        role_id = int(re.search(r'\d+', role_id_part).group())
+        
+        emoji = None
+        match = re.search(r'^([^\x00-\x7F]|\W+)\s*(.*)', label_part)
+        if match:
+            emoji = match.group(1).strip()
+            label = match.group(2).strip() if match.group(2) else emoji
+        else:
+            label = label_part
+
+        formatted_roles.append({
+            "label": label,
+            "role_id": role_id,
+            "emoji": emoji
+        })
+
+    if not formatted_roles:
+        return await interaction.response.send_message("❌ Ungültiges Format. Beispiel: `\"⭐ Star|12345\", \"🎮 Gamer|67890\"`", ephemeral=True)
+
+    embed = discord.Embed(
+        title=titel, 
+        description=format_discord_text(beschreibung), 
+        color=discord.Color.blue()
+    )
+    
+    view = SelfRoleView(formatted_roles)
+    message = await interaction.channel.send(embed=embed, view=view)
+    
+    # In Config speichern für Persistenz
+    config = load_config()
+    if guild_id not in config: config[guild_id] = {}
+    config[guild_id].setdefault("selfrole_panels", []).append({
+        "message_id": message.id,
+        "roles": formatted_roles
+    })
+    save_config(config)
+    
+    await interaction.response.send_message("✅ Self-Role Panel wurde erstellt!", ephemeral=True)
 
 # --- WHITELIST MANAGEMENT COMMAND ---
 
@@ -690,7 +812,6 @@ async def setup_verify(interaction: discord.Interaction, titel: str, beschreibun
     app_commands.Choice(name="Hört zu", value="listening"),
     app_commands.Choice(name="Schaut", value="watching")
 ])
-@app_commands.describe(status="Online-Status", aktivitaet_typ="Aktivitätstyp", text="Status-Text", stream_url="Stream URL")
 async def status_config(interaction: discord.Interaction, status: app_commands.Choice[str], aktivitaet_typ: app_commands.Choice[str], text: str, stream_url: str = "https://twitch.tv/discord"):
     discord_status = getattr(discord.Status, status.value, discord.Status.online)
     activity = None
@@ -708,10 +829,6 @@ async def status_config(interaction: discord.Interaction, status: app_commands.C
 
 @bot.tree.command(name="setup_tickets", description="Erstellt ein neues Support-Ticket-Panel")
 @app_commands.default_permissions(administrator=True)
-@app_commands.describe(
-    supporter_rollen="Erwähne Rollen, die alle Tickets sehen dürfen (z.B. @Admin @Supporter)",
-    kategorien="Format: \"Emoji Name|Beschreibung\", \"Emoji Name|Beschreibung\"..."
-)
 async def setup_tickets(interaction: discord.Interaction, supporter_rollen: str, kategorien: str):
     guild_id = str(interaction.guild_id)
     role_ids = extract_role_ids(supporter_rollen)

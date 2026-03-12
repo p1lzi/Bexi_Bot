@@ -194,7 +194,8 @@
         },
         "log_channel_id": 1480516801610776677,
         "warns": {
-            "544942180096278563": 1
+            "544942180096278563": 1,
+            "1341343247150354493": 1
         },
         "ticket_counter": 8,
         "category_counters": {
@@ -369,5 +370,117 @@
         "type": "streaming",
         "text": "\ud83d\udc41\ufe0f",
         "url": "https://www.youtube.com/watch?v=hvL1339luv0"
-    }
+    },
+    "1317429074058154084": {
+        "warns": {
+            "1372631743504318645": 2,
+            "1341343247150354493": 1
+        },
+        "log_channel_id": 1480966878091542570,
+        "category_counters": {
+            "Test": 9,
+            "Tesstts": 2,
+            "asf": 3
+        },
+        "category_channels": {
+            "Test": 1480966499958001736,
+            "Tesstts": 1480967505118892074,
+            "asf": 1481205607519486003
+        },
+        "ticket_panels": [
+            {
+                "categories": [
+                    {
+                        "label": "Test",
+                        "value": "Test",
+                        "emoji": "\ud83d\udccb",
+                        "description": "sd",
+                        "supporter_role_ids": null
+                    },
+                    {
+                        "label": "asf",
+                        "value": "asf",
+                        "emoji": "\ud83d\udc80",
+                        "description": "ss",
+                        "supporter_role_ids": null
+                    }
+                ],
+                "channel_id": 1317429074544562208,
+                "message_id": 1481205249170604127,
+                "supporter_role_ids": [
+                    1480965772603031848
+                ],
+                "created_at": "11.03.2026 09:20",
+                "title": "Tsst"
+            },
+            {
+                "categories": [
+                    {
+                        "label": "Test",
+                        "value": "Test",
+                        "emoji": "\ud83d\udc80",
+                        "description": "test",
+                        "supporter_role_ids": null
+                    }
+                ],
+                "channel_id": 1317429074544562208,
+                "message_id": 1481557228761780354,
+                "supporter_role_ids": [
+                    1480965772603031848
+                ],
+                "created_at": "12.03.2026 08:39",
+                "title": "\ud83c\udfab Support Tickets"
+            },
+            {
+                "categories": [
+                    {
+                        "label": "\ud83d\udc11",
+                        "value": "\ud83d\udc11",
+                        "emoji": "\ud83d\udc11",
+                        "description": "Goat",
+                        "supporter_role_ids": null
+                    },
+                    {
+                        "label": "\ud83c\udf44",
+                        "value": "\ud83c\udf44",
+                        "emoji": "\ud83c\udf44",
+                        "description": "Msuh",
+                        "supporter_role_ids": null
+                    }
+                ],
+                "channel_id": 1317429074544562208,
+                "message_id": 1481559660547932161,
+                "supporter_role_ids": [
+                    1480965772603031848
+                ],
+                "created_at": "12.03.2026 08:49",
+                "title": "\ud83c\udfab Support Tickets"
+            }
+        ],
+        "selfrole_panels": [
+            {
+                "message_id": 1481260051434831944,
+                "channel_id": 1317429074544562208,
+                "panel_id": "1481260048138371164",
+                "title": "W\u00e4hle deine Rollen",
+                "roles": [
+                    {
+                        "label": "Test",
+                        "role_id": 1373586602827321454,
+                        "emoji": "\ud83d\udccb",
+                        "description": "sdsds"
+                    },
+                    {
+                        "label": "sd",
+                        "role_id": 1480965772603031848,
+                        "emoji": "\ud83d\udc11",
+                        "description": "sdsds"
+                    }
+                ]
+            }
+        ],
+        "welcome_channel_id": 1317429074544562208,
+        "language": "en"
+    },
+    "language": "en"
 }

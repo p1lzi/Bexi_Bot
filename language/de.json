@@ -1,0 +1,403 @@
+{
+    "_info": {
+        "language": "Deutsch",
+        "code": "de",
+        "author": "Bexi-Bot"
+    },
+    "commands": {
+        "setup_pioneer_role": {
+            "description": "Vergibt automatisch eine Pionier-Rolle an die ersten 100 Mitglieder",
+            "params": {
+                "rolle": "Die Rolle, die an die ersten 100 beigetretenen Mitglieder vergeben wird"
+            }
+        },
+        "selfrole_erstellen": {
+            "description": "Erstellt ein Panel, über das Nutzer sich selbst Rollen vergeben können",
+            "params": {
+                "titel": "Titel des Panels, z.B. 'Wähle deine Rollen'",
+                "beschreibung": "Erklärungstext für die Nutzer unter dem Titel",
+                "rollen": "Format: 🎮 Name|RollenID|Beschreibung — mehrere mit Komma trennen",
+                "farbe": "Hex-Farbe, z.B. #5865F2 (optional)"
+            }
+        },
+        "selfrole_loeschen": {
+            "description": "Löscht ein bestehendes Self-Role Panel anhand der Nachrichten-ID",
+            "params": {
+                "panel_id": "Nachrichten-ID des Panels (Rechtsklick → ID kopieren)"
+            }
+        },
+        "selfrole_liste": {
+            "description": "Zeigt alle aktiven Self-Role Panels dieses Servers",
+            "params": {}
+        },
+        "whitelist": {
+            "description": "Verwaltet die Liste der erlaubten Link-Domains",
+            "params": {
+                "aktion": "Aktion auswählen: Hinzufügen, Entfernen oder Liste anzeigen",
+                "domain": "Domain ohne https://, z.B. youtube.com"
+            },
+            "choices": {
+                "aktion": {
+                    "add": "Hinzufügen",
+                    "remove": "Entfernen",
+                    "list": "Liste anzeigen"
+                }
+            }
+        },
+        "ban": {
+            "description": "Bannt ein Mitglied permanent vom Server",
+            "params": {
+                "nutzer": "Das Mitglied, das gebannt werden soll",
+                "grund": "Grund für den Bann (wird per DM mitgeteilt)"
+            }
+        },
+        "kick": {
+            "description": "Kickt ein Mitglied vom Server",
+            "params": {
+                "nutzer": "Das Mitglied, das gekickt werden soll",
+                "grund": "Grund für den Kick (wird per DM mitgeteilt)"
+            }
+        },
+        "timeout": {
+            "description": "Versetzt ein Mitglied für eine bestimmte Zeit in den Timeout",
+            "params": {
+                "nutzer": "Das Mitglied, das in den Timeout versetzt werden soll",
+                "minuten": "Dauer in Minuten, z.B. 10",
+                "grund": "Grund für den Timeout (wird per DM mitgeteilt)"
+            }
+        },
+        "warn": {
+            "description": "Verwarnt ein Mitglied und speichert den Warn",
+            "params": {
+                "nutzer": "Das Mitglied, das verwarnt werden soll",
+                "grund": "Grund für die Verwarnung (wird per DM mitgeteilt)"
+            }
+        },
+        "warn_edit": {
+            "description": "Bearbeitet oder löscht die Verwarnungen eines Nutzers",
+            "params": {
+                "nutzer": "Das Mitglied, dessen Warns bearbeitet werden",
+                "anzahl": "Neue Gesamtanzahl der Verwarnungen (0 = alle löschen)"
+            }
+        },
+        "userinfo": {
+            "description": "Zeigt Infos zu einem Mitglied — Admins können andere einsehen",
+            "params": {
+                "nutzer": "Nur Admins: Mitglied einsehen (leer = eigene Infos)"
+            }
+        },
+        "set_log_channel": {
+            "description": "Legt den Kanal für Moderations-Logs fest",
+            "params": {
+                "kanal": "Textkanal, in dem alle Moderationsaktionen protokolliert werden"
+            }
+        },
+        "set_welcome_channel": {
+            "description": "Legt den Kanal für Willkommensnachrichten fest",
+            "params": {
+                "kanal": "Textkanal, in dem neue Mitglieder begrüßt werden"
+            }
+        },
+        "set_waiting_room": {
+            "description": "Konfiguriert den Warteraum für die Support-Musik",
+            "params": {
+                "kanal": "Sprachkanal, in dem Support-Musik abgespielt wird"
+            }
+        },
+        "setup_verify": {
+            "description": "Erstellt eine Nachricht mit einem Verifizierungs-Button",
+            "params": {
+                "titel": "Überschrift des Verifizierungs-Panels",
+                "beschreibung": "Erklärungstext für die Nutzer",
+                "rolle": "Rolle, die nach der Verifizierung vergeben wird"
+            }
+        },
+        "status_config": {
+            "description": "Ändert den Online-Status und die Aktivität des Bots",
+            "params": {
+                "status": "Online-Status des Bots",
+                "typ": "Art der angezeigten Aktivität",
+                "text": "Aktivitätstext unter dem Bot-Namen",
+                "stream_url": "Stream-URL (nur bei Typ 'Streamt' relevant)"
+            },
+            "choices": {
+                "status": {
+                    "online": "Online",
+                    "idle": "Abwesend (Idle)",
+                    "dnd": "Bitte nicht stören (DnD)",
+                    "invisible": "Unsichtbar (Offline)"
+                },
+                "aktivitaet_typ": {
+                    "playing": "Spielt",
+                    "streaming": "Streamt",
+                    "listening": "Hört zu",
+                    "watching": "Schaut"
+                }
+            }
+        },
+        "setup_tickets": {
+            "description": "Erstellt ein neues Support-Ticket-Panel",
+            "params": {
+                "supporter_rollen": "Rollen, die Tickets bearbeiten dürfen (Erwähnung oder ID)",
+                "kategorien": "Kategorien im Format: 'Name|Beschreibung', mehrere in Anführungszeichen"
+            }
+        },
+        "ticket_edit": {
+            "description": "Bearbeitet ein bestehendes Ticket-Panel",
+            "params": {
+                "message_id": "ID der Panel-Nachricht (Autocomplete verfügbar)",
+                "titel": "Neuer Titel (leer = unverändert)",
+                "beschreibung": "Neuer Beschreibungstext (leer = unverändert)",
+                "farbe": "Neue Farbe als Hex-Code, z.B. #FF0000 (leer = unverändert)"
+            }
+        },
+        "ticket_delete": {
+            "description": "Löscht ein Ticket-Panel",
+            "params": {
+                "message_id": "ID der Panel-Nachricht (Autocomplete verfügbar)"
+            }
+        },
+        "set_language": {
+            "description": "Ändert die Sprache aller Bot-Texte und Embeds",
+            "params": {
+                "sprache": "Sprachcode: 'de' für Deutsch, 'en' für Englisch"
+            }
+        },
+        "ping": {
+            "description": "Zeigt die aktuelle Bot-Latenz an",
+            "params": {}
+        }
+    },
+    "buttons": {
+        "claim_ticket": "Ticket übernehmen",
+        "close_ticket": "Ticket schließen",
+        "verify": "Jetzt verifizieren",
+        "claimed_done": "Übernommen"
+    },
+    "modals": {
+        "ticket_close_title": "Ticket schließen",
+        "ticket_close_label": "Grund für das Schließen",
+        "ticket_close_placeholder": "z.B. Problem gelöst, keine Antwort erhalten..."
+    },
+    "selects": {
+        "ticket_placeholder": "📂 Wähle dein Anliegen..."
+    },
+    "errors": {
+        "role_not_found": "❌ Diese Rolle existiert nicht mehr.",
+        "no_permission_give_role": "❌ Ich habe nicht genug Rechte, um diese Rolle zu vergeben.",
+        "supporter_only_claim": "❌ Nur Supporter können Tickets übernehmen.",
+        "supporter_only_close": "❌ Nur Supporter können Tickets schließen.",
+        "already_claimed": "⚠️ Dieses Ticket wurde bereits übernommen!",
+        "verify_no_permission": "❌ Mir fehlen die Rechte, um Rollen zu vergeben.",
+        "no_valid_role": "❌ Bitte gib mindestens eine gültige Rolle an.",
+        "panel_not_found": "❌ Panel nicht gefunden.",
+        "selfrole_panel_not_found": "❌ Kein Self-Role Panel mit dieser ID gefunden.",
+        "no_panels": "ℹ️ Keine Self-Role Panels auf diesem Server.",
+        "userinfo_no_permission": "❌ Du kannst nur deine eigenen Informationen abrufen.",
+        "warn_negative": "❌ Die Anzahl darf nicht negativ sein.",
+        "whitelist_no_domain": "❌ Bitte gib eine Domain an.",
+        "whitelist_already_in": "ℹ️ `{domain}` ist bereits auf der Whitelist.",
+        "whitelist_not_in": "❌ `{domain}` ist nicht in der Whitelist.",
+        "ban_error": "❌ Fehler beim Bannen.",
+        "kick_error": "❌ Fehler beim Kicken.",
+        "timeout_error": "❌ Fehler beim Timeout.",
+        "panel_removed_only": "✅ Aus Config entfernt (Nachricht konnte nicht gelöscht werden).",
+        "link_not_allowed": "⚠️ {mention}, dieser Link ist nicht erlaubt!\nErlaubte Seiten: {domains}",
+        "selfrole_no_roles": "❌ Keine gültigen Rollen gefunden.\n\n**Fehler:**\n{errors}",
+        "selfrole_bad_format": "`{entry}` — fehlendes Format (Name|RollenID)",
+        "selfrole_no_id": "`{entry}` — keine gültige Rollen-ID gefunden",
+        "selfrole_role_missing": "`{entry}` — Rolle mit ID `{role_id}` nicht gefunden",
+        "no_default_reason": "Kein Grund angegeben",
+        "unknown_language": "❌ Unbekannte Sprache. Verfügbar: `de`, `en`"
+    },
+    "success": {
+        "log_channel_set": "✅ Log-Kanal wurde auf {channel} gesetzt.",
+        "welcome_channel_set": "✅ Willkommens-Kanal auf {channel} gesetzt.",
+        "waiting_room_set": "✅ Warteraum auf {channel} gesetzt.",
+        "verify_panel_created": "✅ Verifizierungs-Panel erstellt.",
+        "status_updated": "✅ Status aktualisiert.",
+        "ticket_panel_created": "✅ Ticket-Panel erstellt (ID: `{id}`).",
+        "ticket_panel_updated": "✅ Panel aktualisiert.",
+        "ticket_panel_deleted": "✅ Panel gelöscht.",
+        "selfrole_panel_created": "✅ Self-Role Panel **{title}** erstellt mit **{count}** Rolle(n).{skipped}",
+        "selfrole_panel_deleted": "✅ Panel gelöscht.",
+        "selfrole_skipped": "\n\n⚠️ **Übersprungene Einträge:**\n{errors}",
+        "whitelist_added": "✅ `{domain}` wurde zur Whitelist hinzugefügt.",
+        "whitelist_removed": "✅ `{domain}` wurde von der Whitelist entfernt.",
+        "ticket_created_reply": "✅ Dein Ticket **#{id}** ({category}) wurde erstellt: {mention}\n[Klicke hier, um zum Ticket zu springen]({url})",
+        "ticket_claimed_followup": "✅ {mention} hat dieses Ticket übernommen und wird sich kümmern.",
+        "role_added": "🟢 Die Rolle **{role}** wurde dir hinzugefügt.",
+        "role_removed": "🔴 Die Rolle **{role}** wurde dir entfernt.",
+        "verify_success": "✅ Du wurdest verifiziert und hast die Rolle **{role}** erhalten!",
+        "ban_success": "✅ **{user}** wurde gebannt.",
+        "kick_success": "✅ **{user}** wurde gekickt.",
+        "timeout_success": "✅ **{user}** ist nun für {minutes} Minute(n) im Timeout.",
+        "warn_success": "✅ {mention} wurde verwarnt. (Warns gesamt: {count})",
+        "warn_edit_changed": "✅ Warns für {mention}: **{old}** ➔ **{new}**.",
+        "warn_edit_reset": "✅ Alle Warns für {mention} wurden zurückgesetzt.",
+        "pioneer_summary": "Die Analyse wurde abgeschlossen. Hier ist die Zusammenfassung:",
+        "language_set": "✅ Sprache wurde auf **Deutsch** gesetzt."
+    },
+    "embeds": {
+        "shared": {
+            "footer_ticket": "Ticket-System",
+            "footer_mod": "Moderations-System",
+            "footer_support": "Support-System",
+            "footer_bot": "Bexi-Bot",
+            "link_jump": "Zum Ticket springen",
+            "f_server": "🏠 Server",
+            "f_user": "👤 Nutzer",
+            "f_moderator": "🛡️ Moderator",
+            "f_reason": "📋 Grund"
+        },
+        "ticket_channel": {
+            "title": "📂 Ticket-Kanal: {category}",
+            "desc": "In diesem Kanal werden alle Tickets der Kategorie **{category}** verwaltet.\n\n⚠️ **Hinweis:** Hier kann nicht direkt geschrieben werden. Dein Ticket wird als privater Thread erstellt."
+        },
+        "ticket_thread": {
+            "title": "🎫 Ticket #{id} — {category}",
+            "desc": "Willkommen {mention}!\n\nDein Ticket wurde erstellt. Bitte schildere dein Anliegen so **detailliert wie möglich**.",
+            "f_number": "🔢 Ticket-Nummer",
+            "f_category": "📂 Kategorie",
+            "f_created_by": "👤 Erstellt von",
+            "f_next_steps": "📝 Nächste Schritte",
+            "next_steps_val": "**1.** Beschreibe dein Anliegen\n**2.** Füge Screenshots hinzu\n**3.** Warte auf einen Supporter"
+        },
+        "ticket_panel": {
+            "title": "🎫 Support-Tickets",
+            "desc": "Brauchst du Hilfe?\n\nWähle eine Kategorie aus dem Dropdown-Menü und wir helfen dir so schnell wie möglich! 🙂",
+            "footer": "{name} • Support-System"
+        },
+        "ticket_closed": {
+            "title": "🔒 Ticket geschlossen",
+            "desc": "Dieses Ticket wurde von {mention} geschlossen.",
+            "f_by": "🛡️ Geschlossen von",
+            "f_date": "📅 Geschlossen am",
+            "f_reason": "📋 Grund",
+            "f_agent": "⚙️ Bearbeiter"
+        },
+        "dm_ticket_created": {
+            "title": "🎫 Ticket erfolgreich erstellt",
+            "desc": "dein Ticket wurde erstellt. Ein Supporter meldet sich so bald wie möglich. Bitte habe etwas Geduld. 🙂",
+            "f_server": "🏠 Server",
+            "f_cat": "📂 Kategorie",
+            "f_nr": "🔢 Ticket-Nr."
+        },
+        "dm_ticket_claimed": {
+            "title": "📋 Ticket übernommen",
+            "desc": "dein Ticket wurde von einem Supporter übernommen. Du erhältst in Kürze eine Antwort. 🙂",
+            "f_server": "🏠 Server",
+            "f_agent": "⚙️ Bearbeiter",
+            "f_date": "📅 Übernommen am"
+        },
+        "dm_ticket_closed": {
+            "title": "🔒 Ticket geschlossen",
+            "desc": "dein Ticket wurde geschlossen und archiviert. Du kannst jederzeit ein neues Ticket öffnen.",
+            "f_server": "🏠 Server",
+            "f_by": "🛡️ Geschlossen von",
+            "f_date": "📅 Geschlossen am",
+            "f_reason": "📋 Grund"
+        },
+        "log_link": {
+            "title": "🚫 Link gelöscht",
+            "desc": "In {channel} wurde ein nicht erlaubter Link entfernt.",
+            "f_content": "💬 Nachrichteninhalt"
+        },
+        "log_ban": {
+            "title": "🔨 Mitglied gebannt",
+            "desc": "Ein Mitglied wurde permanent vom Server ausgeschlossen."
+        },
+        "log_kick": {
+            "title": "👢 Mitglied gekickt",
+            "desc": "Ein Mitglied wurde vom Server gekickt."
+        },
+        "log_timeout": {
+            "title": "⏳ Timeout verhängt",
+            "desc": "Ein Mitglied wurde stummgeschaltet.",
+            "f_dur": "⏱️ Dauer"
+        },
+        "log_warn": {
+            "title": "⚠️ Verwarnung #{count}",
+            "desc": "Ein Mitglied wurde offiziell verwarnt.",
+            "f_total": "🔢 Gesamte Verwarnungen"
+        },
+        "log_warn_edit": {
+            "title": "🔧 Verwarnungen bearbeitet",
+            "desc": "Die Anzahl der Verwarnungen wurde manuell angepasst.",
+            "f_change": "📊 Änderung"
+        },
+        "dm_ban": {
+            "title": "🔨 Du wurdest gebannt",
+            "desc": "du wurdest permanent vom Server ausgeschlossen. Wenn du glaubst, dass dies ein Fehler ist, wende dich an einen Administrator.",
+            "f_server": "🏠 Server",
+            "f_mod": "🛡️ Moderator",
+            "f_date": "📅 Datum",
+            "f_reason": "📋 Grund"
+        },
+        "dm_kick": {
+            "title": "👢 Du wurdest gekickt",
+            "desc": "du wurdest vom Server gekickt. Du kannst jederzeit über einen Einladungslink wieder beitreten.",
+            "f_server": "🏠 Server",
+            "f_mod": "🛡️ Moderator",
+            "f_date": "📅 Datum",
+            "f_reason": "📋 Grund"
+        },
+        "dm_timeout": {
+            "title": "⏳ Du wurdest in den Timeout versetzt",
+            "desc": "du wurdest vorübergehend stummgeschaltet und kannst auf **{server}** bis {until} nicht schreiben.",
+            "f_server": "🏠 Server",
+            "f_mod": "🛡️ Moderator",
+            "f_dur": "⏱️ Dauer",
+            "f_ends": "🔓 Endet",
+            "f_reason": "📋 Grund",
+            "dur_val": "{minutes} Minute(n)"
+        },
+        "dm_warn": {
+            "title": "⚠️ Du hast eine Verwarnung erhalten",
+            "desc": "du wurdest offiziell verwarnt. Bitte beachte die Serverregeln, um weitere Konsequenzen zu vermeiden.",
+            "f_server": "🏠 Server",
+            "f_mod": "🛡️ Moderator",
+            "f_total": "🔢 Verwarnungen gesamt",
+            "f_reason": "📋 Grund"
+        },
+        "welcome": {
+            "title": "👋 Willkommen auf {server}!",
+            "desc": "Hallo {mention}, schön dass du da bist!\n\nSchau dir die Regeln und Kanäle an und mach dich zu Hause. 🏠",
+            "f_user": "👤 Nutzer",
+            "f_acc": "🪪 Account erstellt",
+            "f_member": "👥 Mitglied Nr."
+        },
+        "whitelist": {
+            "title": "🛡️ Erlaubte Domains",
+            "empty": "_Keine Domains erlaubt._",
+            "footer": "{count} Domain(s) auf der Whitelist"
+        },
+        "pioneer": {
+            "title": "🏆 Pioneer-Rolle vergeben",
+            "f_role": "🎖️ Rolle",
+            "f_new": "✅ Neu zugewiesen",
+            "f_errors": "❌ Fehler"
+        },
+        "userinfo": {
+            "f_id": "🪪 ID",
+            "f_warns": "⚠️ Verwarnungen",
+            "f_bot": "🤖 Bot",
+            "bot_yes": "Ja",
+            "bot_no": "Nein",
+            "f_joined": "📅 Server beigetreten",
+            "joined_unk": "Unbekannt",
+            "f_created": "🎂 Discord-Konto erstellt",
+            "f_roles": "🎨 Rollen",
+            "roles_none": "_Keine_"
+        },
+        "ping": {
+            "title": "🏓 Pong!",
+            "desc": "Aktuelle Latenz: **{ms}ms**"
+        },
+        "selfrole": {
+            "list_title": "🎭 Self-Role Panels",
+            "list_desc": "Es gibt **{count}** Panel(s) auf diesem Server.",
+            "panel_footer": "{name} • {count} Rolle(n) verfügbar"
+        }
+    }
+}

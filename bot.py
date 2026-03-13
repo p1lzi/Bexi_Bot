@@ -595,7 +595,7 @@ class TicketSelect(discord.ui.Select):
                 target_role_ids = cat['supporter_role_ids']
                 break
 
-        main_category_name = "TICKETS"
+        main_category_name = "▄▬▬「Tickets」▬▬▄"
         category = discord.utils.get(guild.categories, name=main_category_name)
 
         if not category:
@@ -872,7 +872,7 @@ class MyBot(commands.Bot):
                     value=f"**#{member_number}**",
                     inline=True
                 )
-                footer_text = f"{t('embeds','footer_bot_name')} • {member.guild.name}"
+                footer_text = f"{member.guild.name}"
                 if member.guild.icon:
                     embed.set_footer(text=footer_text, icon_url=member.guild.icon.url)
                 else:

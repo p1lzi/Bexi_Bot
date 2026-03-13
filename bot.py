@@ -65,8 +65,125 @@ def extract_role_ids(input_str: str):
     """Extrahiert alle Rollen-IDs aus einem String (Erwähnungen oder reine IDs)."""
     return [int(id_str) for id_str in re.findall(r'\d+', input_str)]
 
+<<<<<<< Updated upstream
 async def send_log(guild: discord.Guild, title: str, description: str, color: discord.Color, target_user: discord.Member, moderator: discord.Member = None, reason: str = None):
     """Hilfsfunktion zum Senden von Logs in den konfigurierten Log-Kanal."""
+=======
+def now_timestamp():
+    return datetime.datetime.now(datetime.timezone.utc)
+
+def short_time():
+    return discord.utils.format_dt(datetime.datetime.now(datetime.timezone.utc), style="f")
+
+# ─────────────────────────────────────────────
+#  EMBED BUILDER HELPERS
+# ─────────────────────────────────────────────
+
+def make_dm_embed(
+    title: str,
+    description: str,
+    color: discord.Color,
+    guild: discord.Guild = None,
+    mention_name: str = None,
+    fields: list = None,
+    jump_url: str = None,
+    footer_system: str = None
+) -> discord.Embed:
+    """
+    Erstellt ein DM-Embed im Stil des Screenshots:
+    - Server-Icon als Thumbnail
+    - Felder nebeneinander (inline=True)
+    - Footer: BotName • System • Datum
+    """
+    embed = discord.Embed(
+        title=title,
+        description=f"Hallo {mention_name},\n\n{description}" if mention_name else description,
+        color=color,
+        timestamp=now_timestamp()
+    )
+
+    if guild and guild.icon:
+        embed.set_thumbnail(url=guild.icon.url)
+
+    if fields:
+        for name, value, inline in fields:
+            embed.add_field(name=name, value=value, inline=inline)
+
+    if jump_url:
+        embed.add_field(name="🔗 Link", value=f"[{t('embeds','shared','link_jump')}]({jump_url})", inline=False)
+
+    system_label = footer_system or t("embeds","shared","footer_bot")
+    footer_text = f"{guild.name if guild else 'Bot'} • {system_label}"
+    if guild and guild.icon:
+        embed.set_footer(text=footer_text, icon_url=guild.icon.url)
+    else:
+        embed.set_footer(text=footer_text)
+
+    return embed
+
+
+def make_log_embed(
+    title: str,
+    description: str,
+    color: discord.Color,
+    target_user: discord.Member,
+    moderator: discord.Member = None,
+    reason: str = None,
+    guild: discord.Guild = None,
+    extra_fields: list = None
+) -> discord.Embed:
+    """
+    Erstellt ein Log-Embed im Stil des Screenshots:
+    - Nutzer-Avatar als Thumbnail
+    - Felder: Nutzer, Moderator, Grund etc. inline nebeneinander
+    - Footer: ServerName • Moderations-System • Datum
+    """
+    embed = discord.Embed(
+        title=title,
+        description=description,
+        color=color,
+        timestamp=now_timestamp()
+    )
+
+    embed.set_thumbnail(url=target_user.display_avatar.url)
+
+    embed.add_field(name=t("embeds","shared","f_server"), value=guild.name if guild else "?", inline=True)
+    embed.add_field(name=t("embeds","shared","f_user"), value=f"{target_user.mention}\n`{target_user.id}`", inline=True)
+
+    if moderator:
+        embed.add_field(name=t("embeds","shared","f_moderator"), value=moderator.mention, inline=True)
+
+    if extra_fields:
+        for name, value, inline in extra_fields:
+            embed.add_field(name=name, value=value, inline=inline)
+
+    if reason:
+        embed.add_field(name=t("embeds","shared","f_reason"), value=reason, inline=False)
+
+    footer_text = f"{guild.name if guild else 'Bot'} • {t('embeds','shared','footer_mod')}"
+    if guild and guild.icon:
+        embed.set_footer(text=footer_text, icon_url=guild.icon.url)
+    else:
+        embed.set_footer(text=footer_text)
+
+    return embed
+
+
+# ─────────────────────────────────────────────
+#  SEND LOG HELPER
+# ─────────────────────────────────────────────
+
+async def send_log(
+    guild: discord.Guild,
+    title: str,
+    description: str,
+    color: discord.Color,
+    target_user: discord.Member,
+    moderator: discord.Member = None,
+    reason: str = None,
+    extra_fields: list = None
+):
+>>>>>>> Stashed changes
     config = load_config()
     gid = str(guild.id)
     log_channel_id = config.get(gid, {}).get("log_channel_id")
@@ -113,13 +230,92 @@ class SelfRoleButton(discord.ui.Button):
 class SelfRoleView(discord.ui.View):
     def __init__(self, roles_data):
         super().__init__(timeout=None)
+<<<<<<< Updated upstream
         for data in roles_data:
             self.add_item(SelfRoleButton(label=data['label'], role_id=data['role_id'], emoji=data.get('emoji')))
+=======
+        self.roles_data = roles_data
+        self.panel_id = panel_id
+        member_role_ids = {r.id for r in member.roles} if member else set()
+        for role_data in roles_data[:25]:
+            has_role = role_data['role_id'] in member_role_ids
+            self.add_item(SelfRoleButton(role_data, has_role))
+
+
+# ─────────────────────────────────────────────
+#  TICKET CLOSE MODAL
+# ─────────────────────────────────────────────
+
+class TicketCloseModal(discord.ui.Modal):
+    def __init__(self, creator_id: int = None):
+        super().__init__(title=t("modals","ticket_close_title"))
+        self.creator_id = creator_id
+        self.grund = discord.ui.TextInput(
+            label=t("modals","ticket_close_label"),
+            placeholder=t("modals","ticket_close_placeholder"),
+            style=discord.TextStyle.paragraph,
+            required=True,
+            max_length=500
+        )
+        self.add_item(self.grund)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        grund_text = self.grund.value
+        thread = interaction.channel
+        guild = interaction.guild
+
+        # Abschluss-Embed im Ticket
+        close_embed = discord.Embed(
+            title=t("embeds","ticket_closed","title"),
+            description=t("embeds","ticket_closed","desc", mention=interaction.user.mention),
+            color=discord.Color.red(),
+            timestamp=now_timestamp()
+        )
+        close_embed.add_field(name=t("embeds","ticket_closed","f_by"), value=interaction.user.mention, inline=True)
+        close_embed.add_field(name=t("embeds","ticket_closed","f_date"), value=short_time(), inline=True)
+        close_embed.add_field(name=t("embeds","ticket_closed","f_reason"), value=grund_text, inline=False)
+        footer_txt = f"{guild.name} • {t('embeds','shared','footer_ticket')}"
+        if guild.icon:
+            close_embed.set_footer(text=footer_txt, icon_url=guild.icon.url)
+        else:
+            close_embed.set_footer(text=footer_txt)
+
+        await interaction.response.send_message(embed=close_embed)
+
+        # DM an Ticket-Ersteller
+        if self.creator_id:
+            creator = guild.get_member(self.creator_id)
+            if creator:
+                dm_embed = make_dm_embed(
+                    title=t("embeds","dm_ticket_closed","title"),
+                    description=t("embeds","dm_ticket_closed","desc"),
+                    color=discord.Color.red(),
+                    guild=guild,
+                    fields=[
+                        (t("embeds","dm_ticket_closed","f_server"), guild.name, True),
+                        (t("embeds","dm_ticket_closed","f_by"), str(interaction.user), True),
+                        (t("embeds","dm_ticket_closed","f_date"), short_time(), True),
+                        (t("embeds","dm_ticket_closed","f_reason"), grund_text, False),
+                    ],
+                    footer_system=t("embeds","shared","footer_ticket")
+                )
+                await send_dm(creator, embed=dm_embed)
+
+        await thread.edit(locked=True, archived=True)
+
+
+# ─────────────────────────────────────────────
+#  TICKET CONTROL PANEL
+# ─────────────────────────────────────────────
+>>>>>>> Stashed changes
 
 # --- TICKET CONTROL PANEL ---
 class TicketControlView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
+        # Button-Labels dynamisch aus Sprachdatei laden
+        self.claim.label = t("buttons", "claim_ticket")
+        self.close.label = t("buttons", "close_ticket")
 
     def get_creator_id(self, interaction: discord.Interaction):
         try:
@@ -152,18 +348,42 @@ class TicketControlView(discord.ui.View):
                     return True
         return False
 
+<<<<<<< Updated upstream
     @discord.ui.button(label="Ticket Claimen", style=discord.ButtonStyle.blurple, custom_id="persistent_claim_ticket")
+=======
+    @discord.ui.button(
+        label="Claim Ticket",
+        style=discord.ButtonStyle.blurple,
+        emoji="📋",
+        custom_id="persistent_claim_ticket"
+    )
+>>>>>>> Stashed changes
     async def claim(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self.is_supporter(interaction):
             return await interaction.response.send_message("❌ Nur Supporter können Tickets claimen.", ephemeral=True)
 
         embed = interaction.message.embeds[0]
+<<<<<<< Updated upstream
         if any(field.name == "Bearbeiter" for field in embed.fields):
             return await interaction.response.send_message("Dieses Ticket wurde bereits übernommen!", ephemeral=True)
             
         embed.add_field(name="Bearbeiter", value=interaction.user.mention, inline=False)
         embed.color = discord.Color.blue()
         
+=======
+        if any(field.name == t("embeds","ticket_closed","f_agent") for field in embed.fields):
+            return await interaction.response.send_message(
+                t("errors","already_claimed"), ephemeral=True
+            )
+
+        embed.add_field(name=t("embeds","ticket_closed","f_agent"), value=interaction.user.mention, inline=True)
+        embed.color = discord.Color.blue()
+        if interaction.guild and interaction.guild.icon:
+            embed.set_footer(text=f"{interaction.guild.name} • {t('embeds','shared','footer_ticket')}", icon_url=interaction.guild.icon.url)
+        else:
+            embed.set_footer(text=t("embeds","shared","footer_ticket"))
+
+>>>>>>> Stashed changes
         button.disabled = True
         button.label = "Ticket beansprucht"
         
@@ -181,7 +401,16 @@ class TicketControlView(discord.ui.View):
                 )
                 await send_dm(creator, "", dm_embed)
 
+<<<<<<< Updated upstream
     @discord.ui.button(label="Ticket Schließen", style=discord.ButtonStyle.red, custom_id="persistent_close_ticket")
+=======
+    @discord.ui.button(
+        label="Close Ticket",
+        style=discord.ButtonStyle.red,
+        emoji="🔒",
+        custom_id="persistent_close_ticket"
+    )
+>>>>>>> Stashed changes
     async def close(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self.is_supporter(interaction):
             return await interaction.response.send_message("❌ Nur Supporter können Tickets schließen.", ephemeral=True)
@@ -213,6 +442,7 @@ class VerifyView(discord.ui.View):
     def __init__(self, role_id: int):
         super().__init__(timeout=None)
         self.role_id = role_id
+        self.verify.label = t("buttons", "verify")
 
     @discord.ui.button(label="Verifizieren", style=discord.ButtonStyle.green, custom_id="verify_btn_persistent")
     async def verify(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -370,7 +600,41 @@ class TicketSelect(discord.ui.Select):
             description=f"Du hast erfolgreich ein Ticket in **{interaction.guild.name}** eröffnet.\n\n**Kategorie:** {selected_value}\n\n[Klicke hier, um zum Ticket zu gelangen]({thread.jump_url})",
             color=discord.Color.green()
         )
+<<<<<<< Updated upstream
         await send_dm(interaction.user, "", dm_embed)
+=======
+        footer_txt = f"{guild.name}  •  {t('embeds','shared','footer_ticket')}"
+        if guild.icon:
+            ticket_embed.set_footer(text=footer_txt, icon_url=guild.icon.url)
+        else:
+            ticket_embed.set_footer(text=footer_txt)
+
+        await thread.send(embed=ticket_embed, view=TicketControlView())
+
+        # DM an Nutzer
+        dm_embed = make_dm_embed(
+            title=t("embeds","dm_ticket_created","title"),
+            description=t("embeds","dm_ticket_created","desc"),
+            color=discord.Color.green(),
+            guild=guild,
+            fields=[
+                (t("embeds","dm_ticket_created","f_server"), guild.name, True),
+                (t("embeds","dm_ticket_created","f_cat"), selected_value, True),
+                (t("embeds","dm_ticket_created","f_nr"), f"#{formatted_id}", True),
+            ],
+            jump_url=thread.jump_url,
+            footer_system=t("embeds","shared","footer_ticket")
+        )
+        await send_dm(interaction.user, embed=dm_embed)
+
+        # Select zurücksetzen: Panel-Nachricht mit frischer View editieren
+        try:
+            fresh_view = TicketView(self.categories_full_data, self.supporter_role_ids)
+            await interaction.message.edit(view=fresh_view)
+        except Exception:
+            pass
+
+>>>>>>> Stashed changes
 
 class TicketView(discord.ui.View):
     def __init__(self, categories_data, supporter_role_ids):
@@ -544,12 +808,30 @@ async def setup_pioneer_role(interaction: discord.Interaction, rolle: discord.Ro
 
 # --- NEU: SELFROLE SETUP COMMAND ---
 
+<<<<<<< Updated upstream
 @bot.tree.command(name="setup_selfrole", description="Erstellt ein Panel, an dem Nutzer sich selbst Rollen geben können")
 @app_commands.default_permissions(administrator=True)
 @app_commands.describe(
     titel="Titel des Panels",
     beschreibung="Anleitung für die Nutzer",
     rollen_config="Format: \"Emoji Name|RollenID\", \"Emoji Name|RollenID\"..."
+=======
+
+# ─────────────────────────────────────────────
+#  SELFROLE COMMANDS
+# ─────────────────────────────────────────────
+
+@bot.tree.command(
+    name="selfrole_erstellen",
+    description=td("selfrole_erstellen")
+)
+@app_commands.default_permissions(administrator=True)
+@app_commands.describe(
+    titel=tp("selfrole_erstellen","titel"),
+    beschreibung=tp("selfrole_erstellen","beschreibung"),
+    farbe=tp("selfrole_erstellen","farbe"),
+    rollen=tp("selfrole_erstellen","rollen")
+>>>>>>> Stashed changes
 )
 async def setup_selfrole(interaction: discord.Interaction, titel: str, beschreibung: str, rollen_config: str):
     """Erstellt ein Panel mit Buttons für Self-Roles."""
@@ -570,12 +852,32 @@ async def setup_selfrole(interaction: discord.Interaction, titel: str, beschreib
         role_id = int(re.search(r'\d+', role_id_part).group())
         
         emoji = None
+<<<<<<< Updated upstream
         match = re.search(r'^([^\x00-\x7F]|\W+)\s*(.*)', label_part)
         if match:
             emoji = match.group(1).strip()
             label = match.group(2).strip() if match.group(2) else emoji
         else:
             label = label_part
+=======
+        emoji_match = re.match(r'^([𐀀-􏿿☀-➿🌀-🫿]+)\s*(.*)', label)
+        if emoji_match:
+            emoji = emoji_match.group(1).strip() or None
+            label = emoji_match.group(2).strip() or label
+
+        # Rollen-ID extrahieren
+        id_match = re.search(r'\d+', role_id_str)
+        if not id_match:
+            errors.append(t("errors","selfrole_no_id", entry=entry))
+            continue
+        role_id = int(id_match.group())
+
+        # Prüfen ob Rolle existiert
+        role = interaction.guild.get_role(role_id)
+        if not role:
+            errors.append(t("errors","selfrole_role_missing", entry=entry, role_id=role_id))
+            continue
+>>>>>>> Stashed changes
 
         formatted_roles.append({
             "label": label,
@@ -608,7 +910,85 @@ async def setup_selfrole(interaction: discord.Interaction, titel: str, beschreib
 
 # --- WHITELIST MANAGEMENT COMMAND ---
 
+<<<<<<< Updated upstream
 @bot.tree.command(name="whitelist", description="Verwaltet die Liste der erlaubten Link-Domains")
+=======
+
+@bot.tree.command(
+    name="selfrole_loeschen",
+    description=td("selfrole_loeschen")
+)
+@app_commands.default_permissions(administrator=True)
+@app_commands.describe(
+    panel_id=tp("selfrole_loeschen","panel_id")
+)
+async def selfrole_loeschen(interaction: discord.Interaction, panel_id: str):
+    guild_id = str(interaction.guild_id)
+    config = load_config()
+    panels = config.get(guild_id, {}).get("selfrole_panels", [])
+    target = next((p for p in panels if str(p.get("message_id")) == panel_id), None)
+
+    if not target:
+        return await interaction.response.send_message(
+            t("errors","selfrole_panel_not_found"), ephemeral=True
+        )
+
+    panels.remove(target)
+    save_config(config)
+
+    try:
+        channel = (
+            interaction.guild.get_channel(target["channel_id"])
+            or await interaction.guild.fetch_channel(target["channel_id"])
+        )
+        msg = await channel.fetch_message(int(panel_id))
+        await msg.delete()
+        await interaction.response.send_message(t("success","selfrole_panel_deleted"), ephemeral=True)
+    except Exception:
+        await interaction.response.send_message(
+            t("errors","panel_removed_only"), ephemeral=True
+        )
+
+
+@bot.tree.command(
+    name="selfrole_liste",
+    description=td("selfrole_liste")
+)
+@app_commands.default_permissions(administrator=True)
+async def selfrole_liste(interaction: discord.Interaction):
+    guild_id = str(interaction.guild_id)
+    config = load_config()
+    panels = config.get(guild_id, {}).get("selfrole_panels", [])
+
+    if not panels:
+        return await interaction.response.send_message(
+            t("errors","no_panels"), ephemeral=True
+        )
+
+    embed = discord.Embed(
+        title=t("embeds","selfrole","list_title"),
+        description=t("embeds","selfrole","list_desc", count=len(panels)),
+        color=discord.Color.blue(),
+        timestamp=now_timestamp()
+    )
+    for p in panels:
+        roles_list = ", ".join([f"`{r['label']}`" for r in p.get("roles", [])]) or "—"
+        embed.add_field(
+            name=f"📋 {p.get('title', '?')}",
+            value=f"{t('embeds','selfrole','list_id_label')}: `{p.get('message_id', '?')}`\n{roles_list}",
+            inline=False
+        )
+    if interaction.guild.icon:
+        embed.set_footer(text=interaction.guild.name, icon_url=interaction.guild.icon.url)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+# ─────────────────────────────────────────────
+#  WHITELIST COMMAND
+# ─────────────────────────────────────────────
+
+@bot.tree.command(name="whitelist", description=td("whitelist"))
+>>>>>>> Stashed changes
 @app_commands.default_permissions(administrator=True)
 @app_commands.choices(aktion=[
     app_commands.Choice(name="Hinzufügen", value="add"),
@@ -702,7 +1082,40 @@ async def warn(interaction: discord.Interaction, nutzer: discord.Member, grund: 
     await interaction.response.send_message(f"✅ {nutzer.mention} wurde verwarnt. Grund: {grund} (Warns: {new_warn_count})", ephemeral=True)
     await send_log(interaction.guild, "⚠️ Verwarnung ausgesprochen", f"Ein Nutzer wurde verwarnt. (Warnung #{new_warn_count})", discord.Color.gold(), nutzer, interaction.user, grund)
 
+<<<<<<< Updated upstream
 @bot.tree.command(name="warn_edit", description="Bearbeitet oder löscht die Anzahl der Verwarnungen eines Nutzers")
+=======
+    _wi = {1:"icon_1",2:"icon_2",3:"icon_3",4:"icon_4",5:"icon_5"}
+    icon = t("embeds","dm_warn",_wi.get(new_warn_count,"icon_max"))
+
+    dm_embed = make_dm_embed(
+        title=f"{icon} {t('embeds','dm_warn','title')}",
+        description=t("embeds","dm_warn","desc"),
+        color=warn_color,
+        guild=interaction.guild,
+        fields=[
+            (t("embeds","dm_warn","f_server"), interaction.guild.name, True),
+            (t("embeds","dm_warn","f_mod"), str(interaction.user), True),
+            (t("embeds","dm_warn","f_total"), str(new_warn_count), True),
+            (t("embeds","dm_warn","f_reason"), grund, False),
+        ],
+        footer_system=t("embeds","shared","footer_mod")
+    )
+    await send_dm(nutzer, embed=dm_embed)
+
+    await interaction.response.send_message(
+        t("success","warn_success", mention=nutzer.mention, count=new_warn_count), ephemeral=True
+    )
+    await send_log(
+        interaction.guild, t("embeds","log_warn","title", count=new_warn_count),
+        t("embeds","log_warn","desc"),
+        warn_color, nutzer, interaction.user, grund,
+        extra_fields=[(t("embeds","log_warn","f_total"), f"`{new_warn_count}`", True)]
+    )
+
+
+@bot.tree.command(name="warn_edit", description=td("warn_edit"))
+>>>>>>> Stashed changes
 @app_commands.default_permissions(moderate_members=True)
 @app_commands.describe(nutzer="Das Mitglied", anzahl="Die neue Anzahl an Verwarnungen (0 zum Löschen)")
 async def warn_edit(interaction: discord.Interaction, nutzer: discord.Member, anzahl: int):
@@ -739,7 +1152,18 @@ async def userinfo(interaction: discord.Interaction, nutzer: discord.Member = No
         warns = config[gid]["warns"].get(str(target.id), 0)
 
     roles = [role.mention for role in target.roles if role != interaction.guild.default_role]
+<<<<<<< Updated upstream
     embed = discord.Embed(title=f"Infos zu {target.name}", color=target.color)
+=======
+
+    warn_display = t("embeds","userinfo","warns_none") if warns == 0 else t("embeds","userinfo","warns_fmt", count=warns)
+
+    embed = discord.Embed(
+        title=f"👤 {target.display_name}",
+        color=target.color if target.color.value != 0 else discord.Color.blurple(),
+        timestamp=now_timestamp()
+    )
+>>>>>>> Stashed changes
     embed.set_thumbnail(url=target.display_avatar.url)
     embed.add_field(name="ID", value=target.id)
     embed.add_field(name="Warns", value=str(warns))
@@ -785,9 +1209,27 @@ async def set_waiting_room(interaction: discord.Interaction, kanal: discord.Voic
 
 @bot.tree.command(name="setup_verify", description="Erstellt eine Nachricht mit einem Verifizierungs-Button")
 @app_commands.default_permissions(administrator=True)
+<<<<<<< Updated upstream
 @app_commands.describe(titel="Überschrift des Panels", beschreibung="Anleitungstext", rolle="Rolle, die vergeben wird")
 async def setup_verify(interaction: discord.Interaction, titel: str, beschreibung: str, rolle: discord.Role):
     embed = discord.Embed(title=titel, description=format_discord_text(beschreibung), color=discord.Color.blue())
+=======
+@app_commands.describe(
+    titel=tp("setup_verify","titel"),
+    beschreibung=tp("setup_verify","beschreibung"),
+    rolle=tp("setup_verify","rolle")
+)
+async def setup_verify(interaction: discord.Interaction, rolle: discord.Role, titel: str = None, beschreibung: str = None):
+    final_title = titel or t("embeds","verify_panel","default_title")
+    final_desc  = format_discord_text(beschreibung) if beschreibung else t("embeds","verify_panel","default_desc")
+    embed = discord.Embed(
+        title=final_title,
+        description=final_desc,
+        color=discord.Color.green()
+    )
+    embed.set_footer(text=t("embeds","verify_panel","footer", role=rolle.name))
+
+>>>>>>> Stashed changes
     view = VerifyView(rolle.id)
     msg = await interaction.channel.send(embed=embed, view=view)
     
@@ -835,21 +1277,70 @@ async def setup_tickets(interaction: discord.Interaction, supporter_rollen: str,
     if not role_ids:
         return await interaction.response.send_message("❌ Bitte gib mindestens eine gültige Rolle an.", ephemeral=True)
 
+<<<<<<< Updated upstream
     raw_list = re.findall(r'"([^"]*)"', kategorien)
     if not raw_list: raw_list = [c.strip() for c in kategorien.split(",") if c.strip()]
     
+=======
+    # Hochkommas und Anführungszeichen aus dem gesamten String entfernen
+    kategorien_clean = kategorien.replace("'", "").replace('"', "")
+    # Kategorien per Komma trennen
+    raw_list = [c.strip() for c in kategorien_clean.split(",") if c.strip()]
+
+    if not raw_list:
+        return await interaction.response.send_message(
+            t("errors","no_categories"),
+            ephemeral=True
+        )
+
+>>>>>>> Stashed changes
     formatted_cats = []
+    parse_errors = []
     for item in raw_list:
         parts = item.split("|")
+        if not parts[0].strip():
+            parse_errors.append(f"`{item}` — leerer Name")
+            continue
         label = parts[0].strip()
         desc = format_discord_text(parts[1].strip()) if len(parts) > 1 else None
+
+        # Emoji aus Label extrahieren: nur echte Unicode-Emoji
         emoji = None
+<<<<<<< Updated upstream
         match = re.search(r'^([^\x00-\x7F]|\W+)\s*(.*)', label)
         if match:
             emoji = match.group(1).strip()
             label = match.group(2).strip() if match.group(2) else emoji
         formatted_cats.append({"label": label, "value": label, "emoji": emoji, "description": desc, "supporter_role_ids": None})
     
+=======
+        for char in label:
+            cp = ord(char)
+            if cp > 0x27BF and cp not in range(0x2000, 0x206F):
+                emoji = char
+                label = label[len(char):].strip()
+                break
+        if not label:
+            label = item.strip()
+
+        formatted_cats.append({
+            "label": label[:100], "value": label[:100],
+            "emoji": emoji,
+            "description": desc,
+            "supporter_role_ids": None
+        })
+
+    if not formatted_cats:
+        err_text = "\n".join(parse_errors) if parse_errors else "Unbekannter Fehler"
+        return await interaction.response.send_message(
+            t("errors","no_categories_detail", errors=err_text), ephemeral=True
+        )
+
+    if parse_errors:
+        # Weitermachen aber Fehler am Ende melden
+        pass
+
+>>>>>>> Stashed changes
     config = load_config()
     if guild_id not in config: config[guild_id] = {}
     
@@ -867,7 +1358,14 @@ async def setup_tickets(interaction: discord.Interaction, supporter_rollen: str,
         "title": default_title
     })
     save_config(config)
+<<<<<<< Updated upstream
     await interaction.response.send_message(f"✅ Ticket-Panel erstellt (ID: {message.id}).", ephemeral=True)
+=======
+    success_msg = t("success","ticket_panel_created", id=message.id)
+    if parse_errors:
+        success_msg += t("success","skipped_entries", entries="\n".join(parse_errors))
+    await interaction.response.send_message(success_msg, ephemeral=True)
+>>>>>>> Stashed changes
 
 @bot.tree.command(name="ticket_edit", description="Bearbeitet ein bestehendes Ticket-Panel")
 @app_commands.default_permissions(administrator=True)
@@ -885,8 +1383,14 @@ async def ticket_edit(interaction: discord.Interaction, message_id: str, titel: 
         if farbe: embed.color = discord.Color(int(farbe.replace("#", ""), 16))
         await msg.edit(embed=embed)
         save_config(config)
+<<<<<<< Updated upstream
         await interaction.response.send_message("✅ Panel aktualisiert.", ephemeral=True)
     except Exception as e: await interaction.response.send_message(f"❌ Fehler: {e}", ephemeral=True)
+=======
+        await interaction.response.send_message(t("success","ticket_panel_updated"), ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(t("errors","generic_error", error=str(e)), ephemeral=True)
+>>>>>>> Stashed changes
 
 @bot.tree.command(name="ticket_delete", description="Löscht ein Ticket-Panel")
 @app_commands.default_permissions(administrator=True)

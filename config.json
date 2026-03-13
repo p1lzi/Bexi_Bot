@@ -369,5 +369,213 @@
         "type": "streaming",
         "text": "\ud83d\udc41\ufe0f",
         "url": "https://www.youtube.com/watch?v=hvL1339luv0"
+<<<<<<< Updated upstream
     }
+=======
+    },
+    "1317429074058154084": {
+        "warns": {
+            "1372631743504318645": 2,
+            "1341343247150354493": 1
+        },
+        "log_channel_id": 1480966878091542570,
+        "category_counters": {
+            "Test": 9,
+            "Tesstts": 2,
+            "asf": 3,
+            "\ud83d\udc11": 8,
+            "\ud83c\udf44": 2,
+            "'\ud83d\udc80trst": 1,
+            "'\ud83c\udf44Test": 1,
+            "Tst": 2,
+            "sd": 1
+        },
+        "category_channels": {
+            "Test": 1480966499958001736,
+            "Tesstts": 1480967505118892074,
+            "asf": 1481205607519486003,
+            "\ud83d\udc11": 1481593868163088530,
+            "\ud83c\udf44": 1481591564458524785,
+            "'\ud83d\udc80trst": 1481949249381077143,
+            "'\ud83c\udf44Test": 1481949607138295888,
+            "Tst": 1481953409472008303,
+            "sd": 1481951818987864175
+        },
+        "ticket_panels": [
+            {
+                "categories": [
+                    {
+                        "label": "Test",
+                        "value": "Test",
+                        "emoji": "\ud83d\udccb",
+                        "description": "sd",
+                        "supporter_role_ids": null
+                    },
+                    {
+                        "label": "asf",
+                        "value": "asf",
+                        "emoji": "\ud83d\udc80",
+                        "description": "ss",
+                        "supporter_role_ids": null
+                    }
+                ],
+                "channel_id": 1317429074544562208,
+                "message_id": 1481205249170604127,
+                "supporter_role_ids": [
+                    1480965772603031848
+                ],
+                "created_at": "11.03.2026 09:20",
+                "title": "Tsst"
+            },
+            {
+                "categories": [
+                    {
+                        "label": "Test",
+                        "value": "Test",
+                        "emoji": "\ud83d\udc80",
+                        "description": "test",
+                        "supporter_role_ids": null
+                    }
+                ],
+                "channel_id": 1317429074544562208,
+                "message_id": 1481557228761780354,
+                "supporter_role_ids": [
+                    1480965772603031848
+                ],
+                "created_at": "12.03.2026 08:39",
+                "title": "\ud83c\udfab Support Tickets"
+            },
+            {
+                "categories": [
+                    {
+                        "label": "\ud83d\udc11",
+                        "value": "\ud83d\udc11",
+                        "emoji": "\ud83d\udc11",
+                        "description": "Goat",
+                        "supporter_role_ids": null
+                    },
+                    {
+                        "label": "\ud83c\udf44",
+                        "value": "\ud83c\udf44",
+                        "emoji": "\ud83c\udf44",
+                        "description": "Msuh",
+                        "supporter_role_ids": null
+                    }
+                ],
+                "channel_id": 1317429074544562208,
+                "message_id": 1481559660547932161,
+                "supporter_role_ids": [
+                    1480965772603031848
+                ],
+                "created_at": "12.03.2026 08:49",
+                "title": "\ud83c\udfab Support Tickets"
+            },
+            {
+                "categories": [
+                    {
+                        "label": "Test",
+                        "value": "Test",
+                        "emoji": null,
+                        "description": "Test",
+                        "supporter_role_ids": null
+                    },
+                    {
+                        "label": "Test2",
+                        "value": "Test2",
+                        "emoji": null,
+                        "description": "Test",
+                        "supporter_role_ids": null
+                    }
+                ],
+                "channel_id": 1317429074544562208,
+                "message_id": 1481950600827506821,
+                "supporter_role_ids": [
+                    1480965772603031848
+                ],
+                "created_at": "13.03.2026 10:42",
+                "title": "\ud83c\udfab Support Tickets"
+            },
+            {
+                "categories": [
+                    {
+                        "label": "Tst",
+                        "value": "Tst",
+                        "emoji": "\ud83d\udce2",
+                        "description": "test",
+                        "supporter_role_ids": null
+                    },
+                    {
+                        "label": "sd",
+                        "value": "sd",
+                        "emoji": "\ud83c\udfae",
+                        "description": "sd",
+                        "supporter_role_ids": null
+                    }
+                ],
+                "channel_id": 1317429074544562208,
+                "message_id": 1481950719345954898,
+                "supporter_role_ids": [
+                    1480965772603031848
+                ],
+                "created_at": "13.03.2026 10:43",
+                "title": "\ud83c\udfab Support Tickets"
+            }
+        ],
+        "selfrole_panels": [
+            {
+                "message_id": 1481260051434831944,
+                "channel_id": 1317429074544562208,
+                "panel_id": "1481260048138371164",
+                "title": "W\u00e4hle deine Rollen",
+                "roles": [
+                    {
+                        "label": "Test",
+                        "role_id": 1373586602827321454,
+                        "emoji": "\ud83d\udccb",
+                        "description": "sdsds"
+                    },
+                    {
+                        "label": "sd",
+                        "role_id": 1480965772603031848,
+                        "emoji": "\ud83d\udc11",
+                        "description": "sdsds"
+                    }
+                ]
+            },
+            {
+                "message_id": 1481575237546938430,
+                "channel_id": 1317429074544562208,
+                "panel_id": "1481575234380369993",
+                "title": "Test",
+                "roles": [
+                    {
+                        "label": "Test",
+                        "role_id": 1373586602827321454,
+                        "emoji": "\ud83d\udce2",
+                        "description": "dsdsdsd"
+                    },
+                    {
+                        "label": "lol",
+                        "role_id": 1480965772603031848,
+                        "emoji": "\ud83c\udfe0",
+                        "description": "sds"
+                    }
+                ]
+            }
+        ],
+        "welcome_channel_id": 1317429074544562208,
+        "language": "en",
+        "verify_panels": [
+            {
+                "role_id": 1373586602827321454,
+                "msg_id": 1481953599633363088
+            },
+            {
+                "role_id": 1373586602827321454,
+                "msg_id": 1481954878208086207
+            }
+        ]
+    },
+    "language": "en"
+>>>>>>> Stashed changes
 }

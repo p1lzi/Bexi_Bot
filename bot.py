@@ -976,7 +976,7 @@ async def setup_pioneer_role(interaction: discord.Interaction, rolle: discord.Ro
 # ─────────────────────────────────────────────
 
 @bot.tree.command(
-    name="selfrole_erstellen",
+    name="selfrole_create",
     description=td("selfrole_erstellen")
 )
 @app_commands.default_permissions(administrator=True)
@@ -1087,7 +1087,7 @@ async def selfrole_erstellen(
 
 
 @bot.tree.command(
-    name="selfrole_loeschen",
+    name="selfrole_delete",
     description=td("selfrole_loeschen")
 )
 @app_commands.default_permissions(administrator=True)
@@ -1123,7 +1123,7 @@ async def selfrole_loeschen(interaction: discord.Interaction, panel_id: str):
 
 
 @bot.tree.command(
-    name="selfrole_liste",
+    name="selfrole_list",
     description=td("selfrole_liste")
 )
 @app_commands.default_permissions(administrator=True)

@@ -29,7 +29,7 @@ LANG_DIR = 'language'
 #  I18N – SPRACHSYSTEM
 # ─────────────────────────────────────────────
 _lang_cache: dict = {}
-_current_lang: str = "de"
+_current_lang: str = "en"
 
 def load_language(code: str) -> dict:
     """Lädt eine Sprachdatei aus dem lang/-Ordner."""
@@ -44,10 +44,10 @@ def init_language(guild_id: str = None):
     global _lang_cache, _current_lang
     cfg = load_config()
     if guild_id:
-        code = cfg.get(guild_id, {}).get("language", "de")
+        code = cfg.get(guild_id, {}).get("language", "en")
     else:
         # Beim Start: ersten Server mit Spracheinstellung nehmen, sonst "de"
-        code = "de"
+        code = "en"
         for key, val in cfg.items():
             if isinstance(val, dict) and "language" in val:
                 code = val["language"]
@@ -55,8 +55,8 @@ def init_language(guild_id: str = None):
     _current_lang = code
     _lang_cache = load_language(_current_lang)
     if not _lang_cache:
-        _current_lang = "de"
-        _lang_cache = load_language("de")
+        _current_lang = "en"
+        _lang_cache = load_language("en")
 
 def set_language(code: str, guild_id: str = None) -> bool:
     """Setzt die Sprache pro Server. Gibt True zurueck wenn erfolgreich."""
@@ -298,12 +298,10 @@ class SelfRoleButton(discord.ui.Button):
     def __init__(self, role_data: dict, has_role: bool):
         emoji = role_data.get('emoji') or None
         label = role_data['label'][:80]
-        # Grün = Rolle aktiv, Grau = Rolle nicht aktiv
-        style = discord.ButtonStyle.success if has_role else discord.ButtonStyle.secondary
         super().__init__(
             label=label,
             emoji=emoji,
-            style=style,
+            style=discord.ButtonStyle.secondary,
             custom_id=f"selfrole_btn_{role_data['role_id']}"
         )
         self.role_data = role_data
@@ -762,6 +760,1704 @@ class TicketView(discord.ui.View):
         self.add_item(TicketSelect(options, supporter_role_ids, categories_data))
 
 
+
+
+
+
+# ─────────────────────────────────────────────
+#  APPLICATION SYSTEM
+# ─────────────────────────────────────────────
+
+pending_applications: dict = {}
+QUESTIONS_PER_STEP = 4
+
+DEFAULT_APPLICATION_QUESTIONS = [
+    {"label": "Roblox Username",                "placeholder": "Your Roblox username",                             "style": "short",    "required": True},
+    {"label": "Roblox User ID",                 "placeholder": "Your Roblox User ID (numbers only)",              "style": "short",    "required": True},
+    {"label": "Discord Name + Tag",             "placeholder": "e.g. username or username#0000",                  "style": "short",    "required": True},
+    {"label": "Age",                            "placeholder": "Your age",                                         "style": "short",    "required": True},
+    {"label": "Timezone",                       "placeholder": "e.g. UTC+1, EST, PST",                            "style": "short",    "required": True},
+    {"label": "Country / Region",               "placeholder": "e.g. Germany, USA",                               "style": "short",    "required": True},
+    {"label": "Previous Staff Experience?",     "placeholder": "Yes/No — If yes: servers, position, why left",   "style": "paragraph","required": True},
+    {"label": "ERLC Moderation Experience?",    "placeholder": "Yes/No — tools used, situations handled",        "style": "paragraph","required": True},
+    {"label": "Why do you want to be staff?",   "placeholder": "Minimum 5 sentences",                             "style": "paragraph","required": True},
+    {"label": "What makes you a good staff?",   "placeholder": "Minimum 5 sentences",                             "style": "paragraph","required": True},
+    {"label": "Your Strengths",                 "placeholder": "List your strengths",                             "style": "paragraph","required": True},
+    {"label": "Your Weaknesses",                "placeholder": "List your weaknesses",                            "style": "paragraph","required": True},
+    {"label": "Daily Activity (hours)",         "placeholder": "1-2h / 2-4h / 4-6h / 6+h",                      "style": "short",    "required": True},
+    {"label": "When are you usually online?",   "placeholder": "e.g. evenings 6pm-10pm UTC+1",                   "style": "short",    "required": True},
+    {"label": "Handle tickets regularly?",      "placeholder": "Yes / No",                                        "style": "short",    "required": True},
+    {"label": "Player insults you in RP?",      "placeholder": "Describe your response",                          "style": "paragraph","required": True},
+    {"label": "Two players yelling in ticket?", "placeholder": "How do you de-escalate?",                         "style": "paragraph","required": True},
+    {"label": "Friend breaking rules?",         "placeholder": "How do you handle it?",                           "style": "paragraph","required": True},
+    {"label": "Accused of being unfair?",       "placeholder": "How do you react?",                               "style": "paragraph","required": True},
+    {"label": "Unsure if rule was broken?",     "placeholder": "What steps do you take?",                         "style": "paragraph","required": True},
+    {"label": "Define: FRP / RDM / VDM",        "placeholder": "Explain each term briefly",                       "style": "paragraph","required": True},
+    {"label": "Define: FearRP / Meta / CombLog","placeholder": "Explain each term briefly",                       "style": "paragraph","required": True},
+    {"label": "What is staff abuse?",           "placeholder": "Your definition",                                  "style": "paragraph","required": True},
+    {"label": "What must staff NEVER do?",      "placeholder": "Even when off-duty",                               "style": "paragraph","required": True},
+    {"label": "Working microphone? (Yes/No)",   "placeholder": "Yes / No",                                        "style": "short",    "required": True},
+    {"label": "Voice tickets? (Yes/No)",        "placeholder": "Yes / No",                                        "style": "short",    "required": True},
+    {"label": "Can record evidence? (Yes/No)",  "placeholder": "Yes / No",                                        "style": "short",    "required": True},
+    {"label": "Accept staff rules & removal?",  "placeholder": "Yes / No",                                        "style": "short",    "required": True},
+    {"label": "All info is truthful? (Yes/No)", "placeholder": "Yes / No",                                        "style": "short",    "required": True},
+]
+
+QUESTION_SECTIONS = {
+    0:  "👤  Personal Information",
+    6:  "🏆  Experience",
+    8:  "💬  Motivation",
+    12: "📅  Activity",
+    15: "⚡  Situation Questions",
+    20: "📖  Rule Knowledge",
+    24: "🔧  Technical",
+    27: "✅  Agreement",
+}
+
+
+def get_application_steps(questions: list) -> list:
+    steps = []
+    for i in range(0, len(questions), QUESTIONS_PER_STEP):
+        steps.append(questions[i:i + QUESTIONS_PER_STEP])
+    return steps
+
+
+def _section_for_index(idx: int) -> str:
+    result = "📋  Application"
+    for sec_idx in sorted(QUESTION_SECTIONS.keys()):
+        if idx >= sec_idx:
+            result = QUESTION_SECTIONS[sec_idx]
+    return result
+
+
+def build_review_embeds(guild, applicant, answers, panel_title, questions) -> list:
+    """Build structured multi-embed review with section grouping."""
+    BLURPLE = discord.Color.from_rgb(88, 101, 242)
+
+    # ── Header Embed ──────────────────────────────────────────────────────────
+    header = discord.Embed(color=BLURPLE, timestamp=now_timestamp())
+    header.set_author(
+        name=t("embeds", "application", "review_author", title=panel_title),
+        icon_url=applicant.display_avatar.url
+    )
+    joined_str = discord.utils.format_dt(applicant.joined_at, style="R") if applicant.joined_at else "—"
+    header.description = "\n".join([
+        t("embeds", "application", "review_applicant") + f" {applicant.mention}  `{applicant.id}`",
+        t("embeds", "application", "review_account")   + f" {discord.utils.format_dt(applicant.created_at, style='R')}",
+        t("embeds", "application", "review_joined")    + " " + joined_str,
+        t("embeds", "application", "review_submitted") + f" {discord.utils.format_dt(now_timestamp(), style='f')}",
+    ])
+    header.set_thumbnail(url=applicant.display_avatar.url)
+    if guild.icon:
+        header.set_footer(
+            text=guild.name + "  •  " + t("embeds", "application", "footer"),
+            icon_url=guild.icon.url
+        )
+    else:
+        header.set_footer(text=guild.name + "  •  " + t("embeds", "application", "footer"))
+
+    embeds = [header]
+
+    # ── Answer Embeds — grouped by section ────────────────────────────────────
+    current_section = None
+    current_embed = None
+    field_count = 0
+
+    for i, (label, value) in enumerate(answers):
+        global_idx = next((j for j, q in enumerate(questions) if q["label"] == label), i)
+        section = _section_for_index(global_idx)
+
+        # New embed when section changes or field limit reached
+        if section != current_section or current_embed is None or field_count >= 5:
+            new_emb = discord.Embed(
+                title=section if section != current_section else None,
+                color=BLURPLE
+            )
+            embeds.append(new_emb)
+            current_embed = new_emb
+            current_section = section
+            field_count = 0
+
+        display_value = ("```" + value[:950] + "```") if len(value) > 80 else (value[:1024] or "*— —*")
+        current_embed.add_field(name=label, value=display_value, inline=False)
+        field_count += 1
+
+    return embeds
+
+
+
+
+
+# ── Application Setup Wizard ──────────────────────────────────────────────────
+_setup_wizard_state: dict = {}
+
+
+def _build_wizard_embed(state: dict, guild) -> discord.Embed:
+    """Builds a status embed showing current wizard progress."""
+    BLURPLE = discord.Color.from_rgb(88, 101, 242)
+    embed = discord.Embed(
+        title=t("embeds", "wizard", "title"),
+        color=BLURPLE
+    )
+
+    # Step 1 — Basic info
+    title_val   = state.get("title") or t("embeds", "wizard", "not_set")
+    channel_id  = state.get("review_channel_id")
+    channel_val = ("<#" + str(channel_id) + ">") if channel_id else t("embeds", "wizard", "not_set")
+    role_ids    = state.get("reviewer_role_ids", [])
+    roles_val   = (" ".join("<@&" + str(r) + ">" for r in role_ids)
+                   if role_ids else t("embeds", "wizard", "not_set"))
+
+    embed.add_field(
+        name=t("embeds", "wizard", "f_step1"),
+        value=(
+            t("embeds", "wizard", "f_title")   + " " + title_val + "\n" +
+            t("embeds", "wizard", "f_channel")  + " " + channel_val + "\n" +
+            t("embeds", "wizard", "f_roles")    + " " + roles_val
+        ),
+        inline=False
+    )
+
+    # Step 2 — Questions (grouped by section)
+    questions = state.get("questions")
+    current_section = state.get("current_section")
+    if questions is None:
+        q_val = t("embeds", "wizard", "q_default")
+        embed.add_field(
+            name=t("embeds", "wizard", "f_step2") + " (—)",
+            value=q_val,
+            inline=False
+        )
+    elif len(questions) == 0:
+        q_val = t("embeds", "wizard", "q_none")
+        embed.add_field(
+            name=t("embeds", "wizard", "f_step2") + " (0)",
+            value=q_val,
+            inline=False
+        )
+    else:
+        # Group by section
+        shown = 0
+        last_section = None
+        field_lines = []
+        field_name = t("embeds", "wizard", "f_step2") + " (" + str(len(questions)) + ")"
+        for i, q in enumerate(questions):
+            if shown >= 15:
+                field_lines.append(t("embeds", "wizard", "q_more", n=len(questions) - shown))
+                break
+            sec = q.get("section") or ""
+            if sec and sec != last_section:
+                field_lines.append("__**" + sec + "**__")
+                last_section = sec
+            min_l = q.get("min_length", 0)
+            ph    = q.get("placeholder", "")
+            style = q.get("style", "paragraph")
+            meta_parts = []
+            if style == "short":
+                meta_parts.append(t("embeds", "wizard", "q_meta_short"))
+            if min_l:
+                meta_parts.append(t("embeds", "wizard", "q_meta_minlen", n=min_l))
+            if ph:
+                meta_parts.append(t("embeds", "wizard", "q_meta_ph", ph=ph[:25]))
+            meta = ("  `" + " · ".join(meta_parts) + "`") if meta_parts else ""
+            field_lines.append("**" + str(i + 1) + ".** " + q["label"] + meta)
+            shown += 1
+        embed.add_field(name=field_name, value="\n".join(field_lines) or "—", inline=False)
+
+    # Active section indicator
+    if current_section:
+        embed.add_field(
+            name=t("embeds", "wizard", "f_current_section"),
+            value="`" + current_section + "`",
+            inline=False
+        )
+
+    if guild and guild.icon:
+        embed.set_footer(text=guild.name, icon_url=guild.icon.url)
+    else:
+        embed.set_footer(text=guild.name if guild else "Bexi Bot")
+    return embed
+
+
+class AppSetupStep1Modal(discord.ui.Modal):
+    """Step 1: Title + Description + Review channel + Reviewer role"""
+    def __init__(self):
+        super().__init__(title=t("modals", "app_setup_s1_title"))
+        self.f_title = discord.ui.TextInput(
+            label=t("modals", "app_setup_title_label"),
+            placeholder=t("modals", "app_setup_title_ph"),
+            style=discord.TextStyle.short, required=True, max_length=80
+        )
+        self.f_desc = discord.ui.TextInput(
+            label=t("modals", "app_setup_desc_label"),
+            placeholder=t("modals", "app_setup_desc_ph"),
+            style=discord.TextStyle.paragraph, required=False, max_length=1000
+        )
+        self.f_channel = discord.ui.TextInput(
+            label=t("modals", "app_setup_channel_label"),
+            placeholder=t("modals", "app_setup_channel_ph"),
+            style=discord.TextStyle.short, required=True, max_length=30
+        )
+        self.f_role = discord.ui.TextInput(
+            label=t("modals", "app_setup_role_label"),
+            placeholder=t("modals", "app_setup_role_ph"),
+            style=discord.TextStyle.short, required=False, max_length=100
+        )
+        self.add_item(self.f_title)
+        self.add_item(self.f_desc)
+        self.add_item(self.f_channel)
+        self.add_item(self.f_role)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        uid = interaction.user.id
+
+        channel_raw = self.f_channel.value.strip().lstrip("<#").rstrip(">")
+        try:
+            channel = interaction.guild.get_channel(int(channel_raw))
+        except ValueError:
+            channel = discord.utils.get(interaction.guild.text_channels, name=channel_raw.lstrip("#"))
+        if not channel:
+            return await interaction.response.send_message(
+                t("errors", "setup_channel_not_found"), ephemeral=True
+            )
+
+        reviewer_role_ids = []
+        if self.f_role.value.strip():
+            reviewer_role_ids = [rid for rid in extract_role_ids(self.f_role.value)
+                                 if interaction.guild.get_role(rid)]
+
+        _setup_wizard_state[uid] = {
+            "title":             self.f_title.value,
+            "desc":              self.f_desc.value or "",
+            "review_channel_id": channel.id,
+            "reviewer_role_ids": reviewer_role_ids,
+            "questions":         [],
+            "current_section":   None,
+            "use_default":       None
+        }
+
+        embed = _build_wizard_embed(_setup_wizard_state[uid], interaction.guild)
+        view  = AppSetupMainView(uid)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+
+class AppSetupSectionModal(discord.ui.Modal):
+    """Set the active section/category for subsequent questions."""
+    def __init__(self, user_id: int):
+        super().__init__(title=t("modals", "app_setup_section_title"))
+        self.user_id = user_id
+        state = _setup_wizard_state.get(user_id, {})
+        self.f_section = discord.ui.TextInput(
+            label=t("modals", "app_setup_section_label"),
+            placeholder=t("modals", "app_setup_section_ph"),
+            default=state.get("current_section") or "",
+            style=discord.TextStyle.short, required=False, max_length=60
+        )
+        self.add_item(self.f_section)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        uid = self.user_id
+        if uid not in _setup_wizard_state:
+            return await interaction.response.send_message(t("errors", "panel_not_found"), ephemeral=True)
+        val = self.f_section.value.strip() or None
+        _setup_wizard_state[uid]["current_section"] = val
+        embed = _build_wizard_embed(_setup_wizard_state[uid], interaction.guild)
+        view  = AppSetupMainView(uid)
+        await interaction.response.edit_message(embed=embed, view=view)
+
+
+class AppSetupMainView(discord.ui.View):
+    """Main wizard hub — shown after step 1, always visible between actions."""
+    def __init__(self, user_id: int):
+        super().__init__(timeout=600)
+        self.user_id = user_id
+        self.edit_info_btn.label    = t("buttons", "wizard_edit_info")
+        self.add_q_btn.label        = t("buttons", "wizard_add_q")
+        self.add_section_btn.label  = t("buttons", "wizard_add_section")
+        self.default_q_btn.label    = t("buttons", "wizard_default_q")
+        self.clear_q_btn.label      = t("buttons", "wizard_clear_q")
+        self.remove_last_btn.label  = t("buttons", "wizard_remove_last")
+        self.preview_btn.label      = t("buttons", "wizard_preview")
+        self.finish_btn.label       = t("buttons", "wizard_finish")
+        self.cancel_btn.label       = t("buttons", "wizard_cancel")
+
+    def _check(self, interaction: discord.Interaction) -> bool:
+        return interaction.user.id == self.user_id
+
+    async def _refresh(self, interaction: discord.Interaction):
+        """Re-render the wizard embed in place."""
+        state = _setup_wizard_state.get(self.user_id)
+        if not state:
+            return
+        embed = _build_wizard_embed(state, interaction.guild)
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    # ── Row 0 ──────────────────────────────────────────────────────────────────
+    @discord.ui.button(label="✏️ Edit Info",     style=discord.ButtonStyle.secondary, row=0)
+    async def edit_info_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        await interaction.response.send_modal(AppSetupEditInfoModal(self.user_id))
+
+    @discord.ui.button(label="➕ Add Questions", style=discord.ButtonStyle.blurple,   row=0)
+    async def add_q_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        state = _setup_wizard_state.get(self.user_id, {})
+        if state.get("questions") is None:
+            _setup_wizard_state[self.user_id]["questions"] = []
+        await interaction.response.send_modal(AppSetupQuestionsModal(self.user_id))
+
+    @discord.ui.button(label="📂 Add Section",       style=discord.ButtonStyle.secondary, row=0)
+    async def add_section_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        state = _setup_wizard_state.get(self.user_id, {})
+        if state.get("questions") is None:
+            _setup_wizard_state[self.user_id]["questions"] = []
+        await interaction.response.send_modal(AppSetupSectionModal(self.user_id))
+
+    # ── Row 1 ──────────────────────────────────────────────────────────────────
+    @discord.ui.button(label="✅ Default Questions", style=discord.ButtonStyle.green,  row=1)
+    async def default_q_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        _setup_wizard_state[self.user_id]["questions"] = None
+        await self._refresh(interaction)
+
+    @discord.ui.button(label="🗑️ Clear Questions",  style=discord.ButtonStyle.danger,   row=1)
+    async def clear_q_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        _setup_wizard_state[self.user_id]["questions"] = []
+        _setup_wizard_state[self.user_id]["current_section"] = None
+        await self._refresh(interaction)
+
+    @discord.ui.button(label="↩️ Remove Last",      style=discord.ButtonStyle.secondary, row=1)
+    async def remove_last_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        state = _setup_wizard_state.get(self.user_id, {})
+        questions = state.get("questions")
+        if not questions:
+            return await interaction.response.send_message(t("errors", "app_no_questions"), ephemeral=True)
+        questions.pop()
+        await self._refresh(interaction)
+
+    # ── Row 2 ──────────────────────────────────────────────────────────────────
+    @discord.ui.button(label="👁️ Preview",          style=discord.ButtonStyle.secondary, row=2)
+    async def preview_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        state = _setup_wizard_state.get(self.user_id)
+        if not state:
+            return await interaction.response.send_message(t("errors", "panel_not_found"), ephemeral=True)
+        questions = state.get("questions") or DEFAULT_APPLICATION_QUESTIONS
+        # Build preview: show panel embed + first step modal fields as description
+        BLURPLE = discord.Color.from_rgb(88, 101, 242)
+        preview_embed = discord.Embed(
+            title=state.get("title") or t("embeds", "application", "default_title"),
+            description=state.get("desc") or t("embeds", "application", "default_desc"),
+            color=BLURPLE,
+            timestamp=now_timestamp()
+        )
+        if interaction.guild.icon:
+            preview_embed.set_thumbnail(url=interaction.guild.icon.url)
+        preview_embed.set_footer(
+            text=t("embeds", "application", "panel_footer", name=interaction.guild.name)
+        )
+        # Show questions as fields grouped by section
+        last_sec = None
+        shown = 0
+        for q in questions:
+            if shown >= 20:
+                preview_embed.add_field(
+                    name="...",
+                    value=t("embeds", "wizard", "q_more", n=len(questions) - shown),
+                    inline=False
+                )
+                break
+            sec = q.get("section") or ""
+            if sec and sec != last_sec:
+                preview_embed.add_field(name="━━━  " + sec + "  ━━━", value="", inline=False)
+                last_sec = sec
+            min_l = q.get("min_length", 0)
+            meta  = (" *(min. " + str(min_l) + " chars)*") if min_l else ""
+            ph    = q.get("placeholder") or t("embeds", "wizard", "preview_answer_ph")
+            preview_embed.add_field(
+                name=q["label"] + meta,
+                value="> " + ph[:80],
+                inline=False
+            )
+            shown += 1
+        await interaction.response.send_message(
+            content=t("success", "wizard_preview_note"),
+            embed=preview_embed,
+            ephemeral=True
+        )
+
+    @discord.ui.button(label="🚀 Finish & Create",  style=discord.ButtonStyle.green,   row=2)
+    async def finish_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        state = _setup_wizard_state.get(self.user_id)
+        if not state or not state.get("title") or not state.get("review_channel_id"):
+            return await interaction.response.send_message(
+                t("errors", "wizard_incomplete"), ephemeral=True
+            )
+        await self._finalize(interaction)
+
+    @discord.ui.button(label="✖️ Cancel",           style=discord.ButtonStyle.secondary, row=2)
+    async def cancel_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        _setup_wizard_state.pop(self.user_id, None)
+        await interaction.response.edit_message(
+            content=t("errors", "application_cancelled"),
+            embed=None, view=None
+        )
+
+    async def _finalize(self, interaction: discord.Interaction):
+        state = _setup_wizard_state.pop(self.user_id, None)
+        if not state:
+            return await interaction.response.send_message(t("errors", "panel_not_found"), ephemeral=True)
+        guild_id    = str(interaction.guild_id)
+        config      = load_config()
+        if guild_id not in config:
+            config[guild_id] = {}
+        panel_index = len(config[guild_id].get("application_panels", []))
+        panel_title = state["title"]
+        panel_desc  = state["desc"] or t("embeds", "application", "default_desc")
+        questions   = state.get("questions")  # None = use default
+
+        embed = discord.Embed(
+            title=panel_title, description=panel_desc,
+            color=discord.Color.blurple(), timestamp=now_timestamp()
+        )
+        if interaction.guild.icon:
+            embed.set_thumbnail(url=interaction.guild.icon.url)
+        embed.set_footer(text=t("embeds", "application", "panel_footer", name=interaction.guild.name))
+
+        view    = ApplicationPanelView(panel_index=panel_index)
+        message = await interaction.channel.send(embed=embed, view=view)
+        config[guild_id].setdefault("application_panels", []).append({
+            "message_id":        message.id,
+            "channel_id":        interaction.channel_id,
+            "review_channel_id": state["review_channel_id"],
+            "reviewer_role_ids": state.get("reviewer_role_ids", []),
+            "title":             panel_title,
+            "questions":         questions
+        })
+        save_config(config)
+        review_ch  = interaction.guild.get_channel(state["review_channel_id"])
+        ch_mention = review_ch.mention if review_ch else str(state["review_channel_id"])
+
+        done_embed = discord.Embed(
+            title=t("embeds", "wizard", "done_title"),
+            description=t("success", "application_panel_created",
+                          id=message.id, channel=ch_mention),
+            color=discord.Color.green(),
+            timestamp=now_timestamp()
+        )
+        if interaction.guild.icon:
+            done_embed.set_footer(text=interaction.guild.name, icon_url=interaction.guild.icon.url)
+        await interaction.response.edit_message(embed=done_embed, view=None)
+
+
+class AppSetupEditInfoModal(discord.ui.Modal):
+    """Re-edit title, desc, channel, roles after step 1."""
+    def __init__(self, user_id: int):
+        super().__init__(title=t("modals", "app_setup_edit_title"))
+        self.user_id = user_id
+        state = _setup_wizard_state.get(user_id, {})
+        self.f_title = discord.ui.TextInput(
+            label=t("modals", "app_setup_title_label"),
+            placeholder=t("modals", "app_setup_title_ph"),
+            default=state.get("title", ""),
+            style=discord.TextStyle.short, required=True, max_length=80
+        )
+        self.f_desc = discord.ui.TextInput(
+            label=t("modals", "app_setup_desc_label"),
+            placeholder=t("modals", "app_setup_desc_ph"),
+            default=state.get("desc", ""),
+            style=discord.TextStyle.paragraph, required=False, max_length=1000
+        )
+        self.f_channel = discord.ui.TextInput(
+            label=t("modals", "app_setup_channel_label"),
+            placeholder=t("modals", "app_setup_channel_ph"),
+            default=str(state.get("review_channel_id", "")),
+            style=discord.TextStyle.short, required=True, max_length=30
+        )
+        self.f_role = discord.ui.TextInput(
+            label=t("modals", "app_setup_role_label"),
+            placeholder=t("modals", "app_setup_role_ph"),
+            default=" ".join(str(r) for r in state.get("reviewer_role_ids", [])),
+            style=discord.TextStyle.short, required=False, max_length=100
+        )
+        self.add_item(self.f_title)
+        self.add_item(self.f_desc)
+        self.add_item(self.f_channel)
+        self.add_item(self.f_role)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        uid = self.user_id
+        if uid not in _setup_wizard_state:
+            return await interaction.response.send_message(t("errors", "panel_not_found"), ephemeral=True)
+
+        channel_raw = self.f_channel.value.strip().lstrip("<#").rstrip(">")
+        try:
+            channel = interaction.guild.get_channel(int(channel_raw))
+        except ValueError:
+            channel = discord.utils.get(interaction.guild.text_channels, name=channel_raw.lstrip("#"))
+        if not channel:
+            return await interaction.response.send_message(t("errors", "setup_channel_not_found"), ephemeral=True)
+
+        reviewer_role_ids = []
+        if self.f_role.value.strip():
+            reviewer_role_ids = [rid for rid in extract_role_ids(self.f_role.value)
+                                 if interaction.guild.get_role(rid)]
+
+        _setup_wizard_state[uid].update({
+            "title":             self.f_title.value,
+            "desc":              self.f_desc.value or "",
+            "review_channel_id": channel.id,
+            "reviewer_role_ids": reviewer_role_ids,
+        })
+
+        embed = _build_wizard_embed(_setup_wizard_state[uid], interaction.guild)
+        view  = AppSetupMainView(uid)
+        await interaction.response.edit_message(embed=embed, view=view)
+
+
+class AppSetupQuestionsModal(discord.ui.Modal):
+    """Add one question with label, placeholder and min_length per modal."""
+    def __init__(self, user_id: int):
+        super().__init__(title=t("modals", "app_setup_q_title"))
+        self.user_id = user_id
+        existing_count = len(_setup_wizard_state.get(user_id, {}).get("questions") or [])
+        self.q_num = existing_count + 1
+
+        self.f_label = discord.ui.TextInput(
+            label=t("modals", "app_setup_q_label"),
+            placeholder=t("modals", "app_setup_q_label_ph"),
+            style=discord.TextStyle.short,
+            required=True,
+            max_length=45
+        )
+        self.f_placeholder = discord.ui.TextInput(
+            label=t("modals", "app_setup_q_placeholder_label"),
+            placeholder=t("modals", "app_setup_q_placeholder_ph"),
+            style=discord.TextStyle.short,
+            required=False,
+            max_length=100
+        )
+        self.f_min_length = discord.ui.TextInput(
+            label=t("modals", "app_setup_q_minlen_label"),
+            placeholder=t("modals", "app_setup_q_minlen_ph"),
+            style=discord.TextStyle.short,
+            required=False,
+            max_length=4
+        )
+        self.f_style = discord.ui.TextInput(
+            label=t("modals", "app_setup_q_style_label"),
+            placeholder=t("modals", "app_setup_q_style_ph"),
+            style=discord.TextStyle.short,
+            required=False,
+            max_length=10
+        )
+        self.add_item(self.f_label)
+        self.add_item(self.f_placeholder)
+        self.add_item(self.f_min_length)
+        self.add_item(self.f_style)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        uid = self.user_id
+        if uid not in _setup_wizard_state:
+            return await interaction.response.send_message(t("errors", "panel_not_found"), ephemeral=True)
+        if _setup_wizard_state[uid].get("questions") is None:
+            _setup_wizard_state[uid]["questions"] = []
+
+        # Parse min_length
+        min_len = 0
+        try:
+            min_len = max(0, int(self.f_min_length.value.strip()))
+        except (ValueError, AttributeError):
+            min_len = 0
+
+        # Parse style: "short"/"s" or default paragraph
+        style_raw = (self.f_style.value or "").strip().lower()
+        style = "short" if style_raw in ("short", "s", "kurz", "k") else "paragraph"
+
+        _setup_wizard_state[uid]["questions"].append({
+            "label":       self.f_label.value.strip()[:45],
+            "placeholder": (self.f_placeholder.value or "").strip()[:100],
+            "style":       style,
+            "required":    True,
+            "min_length":  min_len,
+            "section":     _setup_wizard_state[uid].get("current_section") or ""
+        })
+
+        embed = _build_wizard_embed(_setup_wizard_state[uid], interaction.guild)
+        view  = AppSetupMainView(uid)
+        await interaction.response.edit_message(embed=embed, view=view)
+
+
+
+
+
+class ApplicationReviewView(discord.ui.View):
+    def __init__(self, applicant_id: int, thread_id: int = None, review_channel_id: int = None):
+        super().__init__(timeout=None)
+        self.applicant_id = applicant_id
+        self.thread_id = thread_id
+        self.review_channel_id = review_channel_id
+        self.accept_btn.label   = t("buttons", "app_accept")
+        self.decline_btn.label  = t("buttons", "app_decline")
+        self.question_btn.label = t("buttons", "app_question")
+
+    def _check_perm(self, interaction: discord.Interaction) -> bool:
+        return (interaction.user.guild_permissions.manage_guild
+                or interaction.user.guild_permissions.administrator)
+
+    @discord.ui.button(label="Accept",   style=discord.ButtonStyle.green,  emoji="✅", custom_id="app_review_accept")
+    async def accept_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check_perm(interaction):
+            return await interaction.response.send_message(t("errors", "no_permission_review"), ephemeral=True)
+        await interaction.response.send_modal(
+            ApplicationDecisionModal(self.applicant_id, "accept", interaction.user, interaction.guild, self.thread_id)
+        )
+
+    @discord.ui.button(label="Decline",  style=discord.ButtonStyle.red,    emoji="❌", custom_id="app_review_decline")
+    async def decline_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check_perm(interaction):
+            return await interaction.response.send_message(t("errors", "no_permission_review"), ephemeral=True)
+        await interaction.response.send_modal(
+            ApplicationDecisionModal(self.applicant_id, "decline", interaction.user, interaction.guild, self.thread_id)
+        )
+
+    @discord.ui.button(label="Question", style=discord.ButtonStyle.blurple, emoji="❓", custom_id="app_review_question")
+    async def question_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check_perm(interaction):
+            return await interaction.response.send_message(t("errors", "no_permission_review"), ephemeral=True)
+        await interaction.response.send_modal(
+            ApplicationDecisionModal(self.applicant_id, "question", interaction.user, interaction.guild, self.thread_id)
+        )
+
+
+class ApplicationDecisionModal(discord.ui.Modal):
+    def __init__(self, applicant_id: int, decision: str, reviewer, guild, thread_id: int = None):
+        title_keys = {"accept": "app_accept_title", "decline": "app_decline_title", "question": "app_question_title"}
+        super().__init__(title=t("modals", title_keys.get(decision, "app_decline_title")))
+        self.applicant_id = applicant_id
+        self.decision = decision
+        self.reviewer = reviewer
+        self.guild = guild
+        self.thread_id = thread_id
+        self.note = discord.ui.TextInput(
+            label=t("modals", "app_decision_label"),
+            placeholder=t("modals", "app_decision_placeholder"),
+            style=discord.TextStyle.paragraph,
+            required=True,
+            max_length=1000
+        )
+        self.add_item(self.note)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        colors = {"accept": discord.Color.green(), "decline": discord.Color.red(), "question": discord.Color.blurple()}
+        emojis = {"accept": "✅", "decline": "❌", "question": "❓"}
+        color  = colors[self.decision]
+
+        # Respond immediately to avoid 10062
+        success_key = "application_accepted" if self.decision == "accept" else (
+            "application_declined" if self.decision == "decline" else "application_questioned"
+        )
+        await interaction.response.send_message(
+            t("success", success_key, mention="<@" + str(self.applicant_id) + ">"),
+            ephemeral=True
+        )
+
+        # Fetch the application thread
+        thread = None
+        if self.thread_id:
+            try:
+                thread = self.guild.get_channel(self.thread_id) or await self.guild.fetch_channel(self.thread_id)
+            except Exception:
+                pass
+
+        applicant = self.guild.get_member(self.applicant_id)
+
+        if self.decision == "question":
+            # Add reviewer to the existing thread and post question embed
+            if thread:
+                try:
+                    await thread.add_user(self.reviewer)
+                except Exception:
+                    pass
+                q_embed = discord.Embed(
+                    title=t("embeds", "application", "dm_question_title"),
+                    description=t("embeds", "application", "question_thread_desc",
+                                  mention="<@" + str(self.applicant_id) + ">",
+                                  reviewer=self.reviewer.mention),
+                    color=discord.Color.blurple(),
+                    timestamp=now_timestamp()
+                )
+                q_embed.add_field(
+                    name=t("embeds", "application", "review_note"),
+                    value=self.note.value,
+                    inline=False
+                )
+                if self.guild.icon:
+                    q_embed.set_footer(
+                        text=self.guild.name + " • " + t("embeds", "application", "footer"),
+                        icon_url=self.guild.icon.url
+                    )
+                await thread.send(
+                    content="<@" + str(self.applicant_id) + ">",
+                    embed=q_embed
+                )
+                # Also DM the applicant so they don't miss it
+                if applicant:
+                    dm_q_embed = make_dm_embed(
+                        title=t("embeds", "application", "dm_question_title"),
+                        description=t("embeds", "application", "dm_question_desc"),
+                        color=discord.Color.blurple(),
+                        guild=self.guild,
+                        fields=[
+                            (t("embeds", "application", "review_reviewer"), self.reviewer.mention, True),
+                            (t("embeds", "application", "review_note"),     self.note.value,       False),
+                        ],
+                        footer_system=t("embeds", "application", "footer")
+                    )
+                    await send_dm(applicant, embed=dm_q_embed)
+        else:
+            # Accept / Decline: DM the applicant
+            if applicant:
+                dm_keys = {
+                    "accept":  ("dm_accepted_title", "dm_accepted_desc"),
+                    "decline": ("dm_declined_title", "dm_declined_desc"),
+                }
+                title_key, desc_key = dm_keys[self.decision]
+                dm_embed = make_dm_embed(
+                    title=t("embeds", "application", title_key),
+                    description=t("embeds", "application", desc_key),
+                    color=color,
+                    guild=self.guild,
+                    fields=[
+                        (t("embeds", "application", "review_reviewer"), self.reviewer.mention, True),
+                        (t("embeds", "application", "review_note"),     self.note.value,       False),
+                    ],
+                    footer_system=t("embeds", "application", "footer")
+                )
+                await send_dm(applicant, embed=dm_embed)
+
+            # Post status embed in thread, disable buttons, lock + archive
+            if thread:
+                status_embed = discord.Embed(
+                    title=emojis[self.decision] + "  " + t("embeds", "application", "status_handled"),
+                    description=(
+                        t("embeds", "application", "review_reviewer") + " " + self.reviewer.mention
+                        + "\n" + t("embeds", "application", "review_note") + "\n" + self.note.value
+                    ),
+                    color=color,
+                    timestamp=now_timestamp()
+                )
+                done_view = discord.ui.View()
+                btn_label = (t("buttons", "app_" + self.decision) + "  (" + self.reviewer.display_name + ")")[:80]
+                done_btn = discord.ui.Button(label=btn_label, style=discord.ButtonStyle.secondary, disabled=True)
+                done_view.add_item(done_btn)
+                try:
+                    await thread.send(embed=status_embed)
+                    await interaction.message.edit(view=done_view)
+                    await thread.edit(locked=True, archived=True)
+                except Exception:
+                    pass
+
+
+class ApplicationModal(discord.ui.Modal):
+    def __init__(self, user_id, guild_id, step, steps, review_channel_id, panel_title, questions):
+        total = len(steps)
+        super().__init__(title=(panel_title[:40] + " (" + str(step + 1) + "/" + str(total) + ")"))
+        self.user_id = user_id
+        self.guild_id = guild_id
+        self.step = step
+        self.steps = steps
+        self.review_channel_id = review_channel_id
+        self.panel_title = panel_title
+        self.questions = questions
+        self.inputs = []
+        self.input_labels = []
+        for q in steps[step]:
+            label_str = q["label"][:45]
+            ti = discord.ui.TextInput(
+                label=label_str,
+                placeholder=q.get("placeholder", "")[:100],
+                style=discord.TextStyle.paragraph if q.get("style") == "paragraph" else discord.TextStyle.short,
+                required=q.get("required", True),
+                max_length=1024
+            )
+            self.add_item(ti)
+            self.inputs.append(ti)
+            self.input_labels.append(label_str)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        uid = self.user_id
+        if uid not in pending_applications:
+            pending_applications[uid] = {"answers": [], "guild_id": self.guild_id}
+        # Validate min_length for each answer
+        validation_errors = []
+        for i, ti in enumerate(self.inputs):
+            val = ti.value or ""
+            step_questions = self.steps[self.step]
+            if i < len(step_questions):
+                min_len = step_questions[i].get("min_length", 0)
+                if min_len and len(val.strip()) < min_len:
+                    validation_errors.append(
+                        t("errors", "app_answer_too_short",
+                          label=self.input_labels[i], min=min_len, got=len(val.strip()))
+                    )
+        if validation_errors:
+            return await interaction.response.send_message(
+                "\n".join(validation_errors), ephemeral=True
+            )
+
+        for i, ti in enumerate(self.inputs):
+            pending_applications[uid]["answers"].append((self.input_labels[i], ti.value))
+
+        next_step = self.step + 1
+        if next_step < len(self.steps):
+            view = ApplicationContinueView(
+                user_id=uid, guild_id=self.guild_id,
+                step=next_step, steps=self.steps,
+                review_channel_id=self.review_channel_id,
+                panel_title=self.panel_title, questions=self.questions
+            )
+            done = next_step
+            total = len(self.steps)
+            bar = "█" * done + "░" * (total - done)
+            await interaction.response.send_message(
+                t("success", "application_step_done", current=done, total=total, bar=bar),
+                view=view, ephemeral=True
+            )
+        else:
+            await self._submit_application(interaction)  # response happens inside
+
+    async def _submit_application(self, interaction: discord.Interaction):
+        uid = self.user_id
+        data = pending_applications.pop(uid, {"answers": [], "guild_id": self.guild_id})
+        guild = interaction.guild
+        applicant = interaction.user
+
+        # Respond immediately — Discord 3s window
+        await interaction.response.send_message(t("success", "application_submitted"), ephemeral=True)
+
+        review_channel = guild.get_channel(self.review_channel_id)
+        if not review_channel:
+            return
+
+        # Load reviewer role IDs from panel config
+        config = load_config()
+        guild_id = str(guild.id)
+        panels = config.get(guild_id, {}).get("application_panels", [])
+        reviewer_role_ids = []
+        for p in panels:
+            if p.get("review_channel_id") == self.review_channel_id:
+                reviewer_role_ids = p.get("reviewer_role_ids", [])
+                break
+
+        # Create private thread in review_channel for this application
+        thread_name = (self.panel_title[:20] + " — " + applicant.display_name[:20])
+        try:
+            thread = await review_channel.create_thread(
+                name=thread_name,
+                type=discord.ChannelType.private_thread,
+                reason="Application: " + applicant.display_name
+            )
+        except Exception:
+            try:
+                thread = await review_channel.create_thread(
+                    name=thread_name,
+                    type=discord.ChannelType.public_thread
+                )
+            except Exception:
+                return
+
+        # Add applicant to thread
+        try:
+            await thread.add_user(applicant)
+        except Exception:
+            pass
+
+        # Add all members with reviewer roles to thread
+        for rid in reviewer_role_ids:
+            role = guild.get_role(rid)
+            if role:
+                for member in guild.members:
+                    if member.bot:
+                        continue
+                    if role in member.roles:
+                        try:
+                            await thread.add_user(member)
+                        except Exception:
+                            pass
+
+        # Build and send review embeds into thread
+        embeds = build_review_embeds(
+            guild=guild, applicant=applicant,
+            answers=data["answers"],
+            panel_title=self.panel_title, questions=self.questions
+        )
+        try:
+            rv = ApplicationReviewView(
+                applicant_id=applicant.id,
+                thread_id=thread.id,
+                review_channel_id=self.review_channel_id
+            )
+            for i, e in enumerate(embeds):
+                if i == len(embeds) - 1:
+                    await thread.send(embed=e, view=rv)
+                else:
+                    await thread.send(embed=e)
+        except discord.Forbidden:
+            pass
+
+        # DM confirmation
+        dm_embed = make_dm_embed(
+            title=t("embeds", "application", "dm_title"),
+            description=t("embeds", "application", "dm_desc"),
+            color=discord.Color.green(),
+            guild=guild,
+            footer_system=t("embeds", "application", "footer")
+        )
+        await send_dm(applicant, embed=dm_embed)
+
+
+class ApplicationContinueView(discord.ui.View):
+    def __init__(self, user_id, guild_id, step, steps, review_channel_id, panel_title, questions):
+        super().__init__(timeout=300)
+        self.user_id = user_id
+        self.guild_id = guild_id
+        self.step = step
+        self.steps = steps
+        self.review_channel_id = review_channel_id
+        self.panel_title = panel_title
+        self.questions = questions
+        self.continue_btn.label = t("buttons", "app_continue")
+        self.cancel_btn.label   = t("buttons", "app_cancel")
+
+    @discord.ui.button(label="Continue", style=discord.ButtonStyle.blurple, emoji="📝")
+    async def continue_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.user_id:
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        modal = ApplicationModal(
+            user_id=self.user_id, guild_id=self.guild_id,
+            step=self.step, steps=self.steps,
+            review_channel_id=self.review_channel_id,
+            panel_title=self.panel_title, questions=self.questions
+        )
+        await interaction.response.send_modal(modal)
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, emoji="✖️")
+    async def cancel_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.user_id:
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        pending_applications.pop(self.user_id, None)
+        await interaction.response.edit_message(content=t("errors", "application_cancelled"), view=None)
+
+
+class ApplicationPanelView(discord.ui.View):
+    def __init__(self, panel_index: int):
+        super().__init__(timeout=None)
+        self.panel_index = panel_index
+        self.apply_btn.label = t("buttons", "apply_now")
+
+    @discord.ui.button(label="Apply Now", style=discord.ButtonStyle.green, emoji="📋", custom_id="application_panel_btn")
+    async def apply_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        guild_id = str(interaction.guild_id)
+        config = load_config()
+        panels = config.get(guild_id, {}).get("application_panels", [])
+        panel = next((p for p in panels if p.get("message_id") == interaction.message.id), None)
+        if not panel and panels:
+            panel = panels[self.panel_index] if self.panel_index < len(panels) else panels[0]
+        if not panel:
+            return await interaction.response.send_message(t("errors", "panel_not_found"), ephemeral=True)
+        if not panel.get("review_channel_id"):
+            return await interaction.response.send_message(t("errors", "application_no_review_channel"), ephemeral=True)
+        if interaction.user.id in pending_applications:
+            return await interaction.response.send_message(t("errors", "application_already_open"), ephemeral=True)
+        questions = panel.get("questions") or DEFAULT_APPLICATION_QUESTIONS
+        steps = get_application_steps(questions)
+        panel_title = panel.get("title", t("embeds", "application", "default_title"))
+        modal = ApplicationModal(
+            user_id=interaction.user.id, guild_id=interaction.guild_id,
+            step=0, steps=steps,
+            review_channel_id=panel["review_channel_id"],
+            panel_title=panel_title, questions=questions
+        )
+        await interaction.response.send_modal(modal)
+
+
+
+# ─────────────────────────────────────────────
+#  SELFROLE SETUP WIZARD
+# ─────────────────────────────────────────────
+
+_selfrole_wizard_state: dict = {}
+
+
+def _build_selfrole_embed(state: dict, guild) -> discord.Embed:
+    BLUE = discord.Color.blue()
+    embed = discord.Embed(title=t("embeds", "selfrole_wizard", "title"), color=BLUE)
+
+    title_val  = state.get("title") or t("embeds", "wizard", "not_set")
+    desc_val   = state.get("desc")  or t("embeds", "wizard", "not_set")
+    color_val  = state.get("color_hex") or t("embeds", "selfrole_wizard", "color_default")
+
+    embed.add_field(
+        name=t("embeds", "selfrole_wizard", "f_info"),
+        value=(
+            t("embeds", "selfrole_wizard", "f_title")  + " " + title_val  + "\n" +
+            t("embeds", "selfrole_wizard", "f_desc")   + " " + desc_val[:60] + "\n" +
+            t("embeds", "selfrole_wizard", "f_color")  + " " + color_val
+        ),
+        inline=False
+    )
+
+    roles = state.get("roles", [])
+    if roles:
+        lines = []
+        for i, r in enumerate(roles[:15]):
+            emoji_str = (r.get("emoji") + " ") if r.get("emoji") else ""
+            role_mention = "<@&" + str(r["role_id"]) + ">"
+            desc_str = ("  —  " + r["description"][:30]) if r.get("description") else ""
+            lines.append("**" + str(i + 1) + ".** " + emoji_str + r["label"] + "  " + role_mention + desc_str)
+        if len(roles) > 15:
+            lines.append(t("embeds", "wizard", "q_more", n=len(roles) - 15))
+        roles_val = "\n".join(lines)
+    else:
+        roles_val = t("embeds", "selfrole_wizard", "roles_empty")
+
+    embed.add_field(
+        name=t("embeds", "selfrole_wizard", "f_roles") + " (" + str(len(roles)) + ")",
+        value=roles_val,
+        inline=False
+    )
+
+    if guild and guild.icon:
+        embed.set_footer(text=guild.name, icon_url=guild.icon.url)
+    return embed
+
+
+class SelfRoleSetupInfoModal(discord.ui.Modal):
+    def __init__(self, user_id: int):
+        super().__init__(title=t("modals", "selfrole_setup_info_title"))
+        self.user_id = user_id
+        state = _selfrole_wizard_state.get(user_id, {})
+        self.f_title = discord.ui.TextInput(
+            label=t("modals", "selfrole_setup_title_label"),
+            placeholder=t("modals", "selfrole_setup_title_ph"),
+            default=state.get("title", ""),
+            style=discord.TextStyle.short, required=True, max_length=80
+        )
+        self.f_desc = discord.ui.TextInput(
+            label=t("modals", "selfrole_setup_desc_label"),
+            placeholder=t("modals", "selfrole_setup_desc_ph"),
+            default=state.get("desc", ""),
+            style=discord.TextStyle.paragraph, required=False, max_length=500
+        )
+        self.f_color = discord.ui.TextInput(
+            label=t("modals", "selfrole_setup_color_label"),
+            placeholder=t("modals", "selfrole_setup_color_ph"),
+            default=state.get("color_hex", ""),
+            style=discord.TextStyle.short, required=False, max_length=10
+        )
+        self.add_item(self.f_title)
+        self.add_item(self.f_desc)
+        self.add_item(self.f_color)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        uid = self.user_id
+        if uid not in _selfrole_wizard_state:
+            _selfrole_wizard_state[uid] = {"roles": []}
+        _selfrole_wizard_state[uid].update({
+            "title":     self.f_title.value.strip(),
+            "desc":      self.f_desc.value.strip(),
+            "color_hex": self.f_color.value.strip().lstrip("#"),
+        })
+        embed = _build_selfrole_embed(_selfrole_wizard_state[uid], interaction.guild)
+        view  = SelfRoleSetupMainView(uid)
+        if interaction.message:
+            await interaction.response.edit_message(embed=embed, view=view)
+        else:
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+
+class SelfRoleSetupAddRoleModal(discord.ui.Modal):
+    def __init__(self, user_id: int):
+        super().__init__(title=t("modals", "selfrole_setup_role_title"))
+        self.user_id = user_id
+        self.f_role = discord.ui.TextInput(
+            label=t("modals", "selfrole_setup_role_label"),
+            placeholder=t("modals", "selfrole_setup_role_ph"),
+            style=discord.TextStyle.short, required=True, max_length=30
+        )
+        self.f_name = discord.ui.TextInput(
+            label=t("modals", "selfrole_setup_name_label"),
+            placeholder=t("modals", "selfrole_setup_name_ph"),
+            style=discord.TextStyle.short, required=True, max_length=80
+        )
+        self.f_emoji = discord.ui.TextInput(
+            label=t("modals", "selfrole_setup_emoji_label"),
+            placeholder=t("modals", "selfrole_setup_emoji_ph"),
+            style=discord.TextStyle.short, required=False, max_length=10
+        )
+        self.f_description = discord.ui.TextInput(
+            label=t("modals", "selfrole_setup_roledesc_label"),
+            placeholder=t("modals", "selfrole_setup_roledesc_ph"),
+            style=discord.TextStyle.short, required=False, max_length=100
+        )
+        self.add_item(self.f_role)
+        self.add_item(self.f_name)
+        self.add_item(self.f_emoji)
+        self.add_item(self.f_description)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        uid = self.user_id
+        if uid not in _selfrole_wizard_state:
+            return await interaction.response.send_message(t("errors", "panel_not_found"), ephemeral=True)
+
+        # Parse role ID
+        raw = self.f_role.value.strip().lstrip("<@&").rstrip(">")
+        role_id = None
+        try:
+            role_id = int(raw)
+        except ValueError:
+            id_match = re.search(r"\d+", raw)
+            if id_match:
+                role_id = int(id_match.group())
+        if not role_id:
+            return await interaction.response.send_message(t("errors", "selfrole_no_id", entry=self.f_role.value), ephemeral=True)
+        role = interaction.guild.get_role(role_id)
+        if not role:
+            return await interaction.response.send_message(t("errors", "selfrole_role_missing", entry=self.f_role.value, role_id=role_id), ephemeral=True)
+
+        # Check duplicate
+        existing = _selfrole_wizard_state[uid].get("roles", [])
+        if any(r["role_id"] == role_id for r in existing):
+            return await interaction.response.send_message(t("errors", "selfrole_duplicate"), ephemeral=True)
+
+        # Parse label / emoji
+        label = self.f_name.value.strip()[:100]
+        emoji_raw = self.f_emoji.value.strip() or None
+        emoji = None
+        if emoji_raw:
+            for char in emoji_raw:
+                cp = ord(char)
+                if cp > 0x27BF:
+                    emoji = char
+                    break
+            if not emoji:
+                emoji = emoji_raw[:10]
+
+        _selfrole_wizard_state[uid].setdefault("roles", []).append({
+            "label":       label,
+            "role_id":     role_id,
+            "emoji":       emoji,
+            "description": self.f_description.value.strip()[:100] or None
+        })
+
+        embed = _build_selfrole_embed(_selfrole_wizard_state[uid], interaction.guild)
+        view  = SelfRoleSetupMainView(uid)
+        await interaction.response.edit_message(embed=embed, view=view)
+
+
+class SelfRoleSetupMainView(discord.ui.View):
+    def __init__(self, user_id: int):
+        super().__init__(timeout=600)
+        self.user_id = user_id
+        self.edit_info_btn.label  = t("buttons", "wizard_edit_info")
+        self.add_role_btn.label   = t("buttons", "selfrole_wizard_add")
+        self.remove_role_btn.label= t("buttons", "selfrole_wizard_remove")
+        self.finish_btn.label     = t("buttons", "wizard_finish")
+        self.cancel_btn.label     = t("buttons", "wizard_cancel")
+
+    def _check(self, interaction: discord.Interaction) -> bool:
+        return interaction.user.id == self.user_id
+
+    @discord.ui.button(label="✏️ Edit Info",    style=discord.ButtonStyle.secondary, row=0)
+    async def edit_info_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        await interaction.response.send_modal(SelfRoleSetupInfoModal(self.user_id))
+
+    @discord.ui.button(label="➕ Add Role",     style=discord.ButtonStyle.blurple,   row=0)
+    async def add_role_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        state = _selfrole_wizard_state.get(self.user_id, {})
+        if len(state.get("roles", [])) >= 25:
+            return await interaction.response.send_message(t("errors", "selfrole_max_roles"), ephemeral=True)
+        await interaction.response.send_modal(SelfRoleSetupAddRoleModal(self.user_id))
+
+    @discord.ui.button(label="🗑️ Remove Last",  style=discord.ButtonStyle.danger,    row=1)
+    async def remove_role_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        state = _selfrole_wizard_state.get(self.user_id, {})
+        if not state.get("roles"):
+            return await interaction.response.send_message(t("errors", "selfrole_no_roles_to_remove"), ephemeral=True)
+        removed = state["roles"].pop()
+        embed = _build_selfrole_embed(state, interaction.guild)
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="🚀 Finish",        style=discord.ButtonStyle.green,     row=1)
+    async def finish_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        state = _selfrole_wizard_state.get(self.user_id)
+        if not state or not state.get("title"):
+            return await interaction.response.send_message(t("errors", "wizard_incomplete"), ephemeral=True)
+        if not state.get("roles"):
+            return await interaction.response.send_message(t("errors", "selfrole_no_roles_to_remove"), ephemeral=True)
+        await self._finalize(interaction)
+
+    @discord.ui.button(label="✖️ Cancel",        style=discord.ButtonStyle.secondary, row=2)
+    async def cancel_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        _selfrole_wizard_state.pop(self.user_id, None)
+        await interaction.response.edit_message(content=t("errors", "application_cancelled"), embed=None, view=None)
+
+    async def _finalize(self, interaction: discord.Interaction):
+        state = _selfrole_wizard_state.pop(self.user_id, None)
+        if not state:
+            return
+        guild_id = str(interaction.guild_id)
+        config = load_config()
+        if guild_id not in config:
+            config[guild_id] = {}
+
+        color = discord.Color.blue()
+        if state.get("color_hex"):
+            try:
+                color = discord.Color(int(state["color_hex"].lstrip("#"), 16))
+            except ValueError:
+                pass
+
+        panel_id = str(interaction.id)
+        roles    = state["roles"]
+
+        embed = discord.Embed(
+            title=state["title"],
+            description=format_discord_text(state.get("desc", "")),
+            color=color,
+            timestamp=now_timestamp()
+        )
+        if interaction.guild.icon:
+            embed.set_thumbnail(url=interaction.guild.icon.url)
+        embed.set_footer(
+            text=t("embeds", "selfrole", "panel_footer", name=interaction.guild.name, count=len(roles)),
+            icon_url=interaction.guild.icon.url if interaction.guild.icon else None
+        )
+
+        view    = SelfRoleView(roles, panel_id)
+        message = await interaction.channel.send(embed=embed, view=view)
+        config[guild_id].setdefault("selfrole_panels", []).append({
+            "message_id": message.id,
+            "channel_id": interaction.channel_id,
+            "panel_id":   panel_id,
+            "title":      state["title"],
+            "roles":      roles
+        })
+        save_config(config)
+
+        done_embed = discord.Embed(
+            title=t("embeds", "wizard", "done_title"),
+            description=t("success", "selfrole_panel_created",
+                          title=state["title"], count=len(roles), skipped=""),
+            color=discord.Color.green(),
+            timestamp=now_timestamp()
+        )
+        if interaction.guild.icon:
+            done_embed.set_footer(text=interaction.guild.name, icon_url=interaction.guild.icon.url)
+        await interaction.response.edit_message(embed=done_embed, view=None)
+
+
+# ─────────────────────────────────────────────
+#  TICKET SETUP WIZARD
+# ─────────────────────────────────────────────
+
+_ticket_wizard_state: dict = {}
+
+
+def _build_ticket_embed(state: dict, guild) -> discord.Embed:
+    GOLD = discord.Color.gold()
+    embed = discord.Embed(title=t("embeds", "ticket_wizard", "title"), color=GOLD)
+
+    title_val = state.get("title") or t("embeds", "wizard", "not_set")
+    roles     = state.get("supporter_role_ids", [])
+    roles_val = (" ".join("<@&" + str(r) + ">" for r in roles)
+                 if roles else t("embeds", "wizard", "not_set"))
+
+    # Embed styling values
+    desc_val    = (state.get("embed_desc") or "")[:40] + ("..." if len(state.get("embed_desc") or "") > 40 else "")
+    color_val   = ("#" + state["embed_color"]) if state.get("embed_color") else t("embeds", "ticket_wizard", "color_default")
+    thumb_val   = t("embeds", "ticket_wizard", "thumb_on") if state.get("embed_thumbnail") else t("embeds", "ticket_wizard", "thumb_off")
+
+    embed.add_field(
+        name=t("embeds", "ticket_wizard", "f_info"),
+        value=(
+            t("embeds", "ticket_wizard", "f_title")  + " " + title_val  + "\n" +
+            t("embeds", "ticket_wizard", "f_roles")  + " " + roles_val
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name=t("embeds", "ticket_wizard", "f_embed_style"),
+        value=(
+            t("embeds", "ticket_wizard", "f_desc")   + " " + (desc_val or t("embeds", "wizard", "not_set")) + "\n" +
+            t("embeds", "ticket_wizard", "f_color")  + " " + color_val + "\n" +
+            t("embeds", "ticket_wizard", "f_thumb")  + " " + thumb_val
+        ),
+        inline=False
+    )
+
+    cats = state.get("categories", [])
+    if cats:
+        lines = []
+        for i, c in enumerate(cats[:10]):
+            emoji_str = (c.get("emoji") + " ") if c.get("emoji") else ""
+            desc_str  = ("  —  " + c["description"][:30]) if c.get("description") else ""
+            lines.append("**" + str(i + 1) + ".** " + emoji_str + c["label"] + desc_str)
+        if len(cats) > 10:
+            lines.append(t("embeds", "wizard", "q_more", n=len(cats) - 10))
+        cats_val = "\n".join(lines)
+    else:
+        cats_val = t("embeds", "ticket_wizard", "cats_empty")
+
+    embed.add_field(
+        name=t("embeds", "ticket_wizard", "f_cats") + " (" + str(len(cats)) + ")",
+        value=cats_val,
+        inline=False
+    )
+
+    if guild and guild.icon:
+        embed.set_footer(text=guild.name, icon_url=guild.icon.url)
+    return embed
+
+
+class TicketSetupEmbedModal(discord.ui.Modal):
+    """Edit the visual styling of the ticket panel embed."""
+    def __init__(self, user_id: int):
+        super().__init__(title=t("modals", "ticket_setup_embed_title"))
+        self.user_id = user_id
+        state = _ticket_wizard_state.get(user_id, {})
+        self.f_desc = discord.ui.TextInput(
+            label=t("modals", "ticket_setup_embed_desc_label"),
+            placeholder=t("modals", "ticket_setup_embed_desc_ph"),
+            default=state.get("embed_desc", ""),
+            style=discord.TextStyle.paragraph, required=False, max_length=1000
+        )
+        self.f_color = discord.ui.TextInput(
+            label=t("modals", "ticket_setup_embed_color_label"),
+            placeholder=t("modals", "ticket_setup_embed_color_ph"),
+            default=state.get("embed_color", ""),
+            style=discord.TextStyle.short, required=False, max_length=10
+        )
+        self.f_thumbnail = discord.ui.TextInput(
+            label=t("modals", "ticket_setup_embed_thumb_label"),
+            placeholder=t("modals", "ticket_setup_embed_thumb_ph"),
+            default="yes" if state.get("embed_thumbnail", True) else "no",
+            style=discord.TextStyle.short, required=False, max_length=5
+        )
+        self.add_item(self.f_desc)
+        self.add_item(self.f_color)
+        self.add_item(self.f_thumbnail)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        uid = self.user_id
+        if uid not in _ticket_wizard_state:
+            return await interaction.response.send_message(t("errors", "panel_not_found"), ephemeral=True)
+
+        # Parse color
+        color_raw = self.f_color.value.strip().lstrip("#")
+        if color_raw:
+            try:
+                int(color_raw, 16)  # validate hex
+            except ValueError:
+                return await interaction.response.send_message(
+                    t("errors", "ticket_invalid_color"), ephemeral=True
+                )
+
+        # Parse thumbnail toggle
+        thumb_raw = self.f_thumbnail.value.strip().lower()
+        thumbnail = thumb_raw not in ("no", "n", "false", "0", "nein")
+
+        _ticket_wizard_state[uid].update({
+            "embed_desc":      self.f_desc.value.strip(),
+            "embed_color":     color_raw,
+            "embed_thumbnail": thumbnail,
+        })
+        embed = _build_ticket_embed(_ticket_wizard_state[uid], interaction.guild)
+        view  = TicketSetupMainView(uid)
+        await interaction.response.edit_message(embed=embed, view=view)
+
+
+class TicketSetupInfoModal(discord.ui.Modal):
+    def __init__(self, user_id: int):
+        super().__init__(title=t("modals", "ticket_setup_info_title"))
+        self.user_id = user_id
+        state = _ticket_wizard_state.get(user_id, {})
+        self.f_title = discord.ui.TextInput(
+            label=t("modals", "ticket_setup_title_label"),
+            placeholder=t("modals", "ticket_setup_title_ph"),
+            default=state.get("title", ""),
+            style=discord.TextStyle.short, required=True, max_length=80
+        )
+        self.f_roles = discord.ui.TextInput(
+            label=t("modals", "ticket_setup_roles_label"),
+            placeholder=t("modals", "ticket_setup_roles_ph"),
+            default=" ".join(str(r) for r in state.get("supporter_role_ids", [])),
+            style=discord.TextStyle.short, required=True, max_length=200
+        )
+        self.add_item(self.f_title)
+        self.add_item(self.f_roles)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        uid = self.user_id
+        if uid not in _ticket_wizard_state:
+            _ticket_wizard_state[uid] = {"categories": []}
+
+        role_ids = [rid for rid in extract_role_ids(self.f_roles.value)
+                    if interaction.guild.get_role(rid)]
+        if not role_ids:
+            return await interaction.response.send_message(t("errors", "no_valid_role"), ephemeral=True)
+
+        _ticket_wizard_state[uid].update({
+            "title":              self.f_title.value.strip(),
+            "supporter_role_ids": role_ids,
+        })
+        # Ensure embed style keys exist with defaults
+        _ticket_wizard_state[uid].setdefault("embed_desc", "")
+        _ticket_wizard_state[uid].setdefault("embed_color", "")
+        _ticket_wizard_state[uid].setdefault("embed_thumbnail", True)
+        embed = _build_ticket_embed(_ticket_wizard_state[uid], interaction.guild)
+        view  = TicketSetupMainView(uid)
+        if interaction.message:
+            await interaction.response.edit_message(embed=embed, view=view)
+        else:
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+
+class TicketSetupCategoryModal(discord.ui.Modal):
+    def __init__(self, user_id: int):
+        super().__init__(title=t("modals", "ticket_setup_cat_title"))
+        self.user_id = user_id
+        self.f_label = discord.ui.TextInput(
+            label=t("modals", "ticket_setup_cat_label"),
+            placeholder=t("modals", "ticket_setup_cat_label_ph"),
+            style=discord.TextStyle.short, required=True, max_length=100
+        )
+        self.f_emoji = discord.ui.TextInput(
+            label=t("modals", "ticket_setup_cat_emoji"),
+            placeholder=t("modals", "ticket_setup_cat_emoji_ph"),
+            style=discord.TextStyle.short, required=False, max_length=10
+        )
+        self.f_desc = discord.ui.TextInput(
+            label=t("modals", "ticket_setup_cat_desc"),
+            placeholder=t("modals", "ticket_setup_cat_desc_ph"),
+            style=discord.TextStyle.short, required=False, max_length=100
+        )
+        self.add_item(self.f_label)
+        self.add_item(self.f_emoji)
+        self.add_item(self.f_desc)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        uid = self.user_id
+        if uid not in _ticket_wizard_state:
+            return await interaction.response.send_message(t("errors", "panel_not_found"), ephemeral=True)
+
+        label = self.f_label.value.strip()[:100]
+
+        # Parse emoji
+        emoji = None
+        emoji_raw = self.f_emoji.value.strip()
+        if emoji_raw:
+            for char in emoji_raw:
+                cp = ord(char)
+                if cp > 0x27BF:
+                    emoji = char
+                    break
+            if not emoji:
+                emoji = emoji_raw[:10]
+
+        _ticket_wizard_state[uid].setdefault("categories", []).append({
+            "label":             label,
+            "value":             label,
+            "emoji":             emoji,
+            "description":       self.f_desc.value.strip()[:100] or None,
+            "supporter_role_ids": None
+        })
+
+        embed = _build_ticket_embed(_ticket_wizard_state[uid], interaction.guild)
+        view  = TicketSetupMainView(uid)
+        await interaction.response.edit_message(embed=embed, view=view)
+
+
+class TicketSetupMainView(discord.ui.View):
+    def __init__(self, user_id: int):
+        super().__init__(timeout=600)
+        self.user_id = user_id
+        self.edit_info_btn.label   = t("buttons", "wizard_edit_info")
+        self.edit_embed_btn.label  = t("buttons", "ticket_wizard_edit_embed")
+        self.add_cat_btn.label     = t("buttons", "ticket_wizard_add_cat")
+        self.remove_cat_btn.label  = t("buttons", "ticket_wizard_remove_cat")
+        self.preview_btn.label     = t("buttons", "wizard_preview")
+        self.finish_btn.label      = t("buttons", "wizard_finish")
+        self.cancel_btn.label      = t("buttons", "wizard_cancel")
+
+    def _check(self, interaction: discord.Interaction) -> bool:
+        return interaction.user.id == self.user_id
+
+    @discord.ui.button(label="✏️ Edit Info",      style=discord.ButtonStyle.secondary, row=0)
+    async def edit_info_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        await interaction.response.send_modal(TicketSetupInfoModal(self.user_id))
+
+    @discord.ui.button(label="🎨 Edit Embed",     style=discord.ButtonStyle.secondary, row=0)
+    async def edit_embed_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        await interaction.response.send_modal(TicketSetupEmbedModal(self.user_id))
+
+    @discord.ui.button(label="➕ Add Category",   style=discord.ButtonStyle.blurple,   row=0)
+    async def add_cat_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        state = _ticket_wizard_state.get(self.user_id, {})
+        if len(state.get("categories", [])) >= 25:
+            return await interaction.response.send_message(t("errors", "ticket_max_cats"), ephemeral=True)
+        await interaction.response.send_modal(TicketSetupCategoryModal(self.user_id))
+
+    @discord.ui.button(label="🗑️ Remove Last",    style=discord.ButtonStyle.danger,    row=1)
+    async def remove_cat_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        state = _ticket_wizard_state.get(self.user_id, {})
+        if not state.get("categories"):
+            return await interaction.response.send_message(t("errors", "ticket_no_cats"), ephemeral=True)
+        state["categories"].pop()
+        embed = _build_ticket_embed(state, interaction.guild)
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="👁️ Preview",         style=discord.ButtonStyle.secondary, row=1)
+    async def preview_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        state = _ticket_wizard_state.get(self.user_id)
+        if not state:
+            return await interaction.response.send_message(t("errors", "panel_not_found"), ephemeral=True)
+
+        # Build the actual panel embed as it will appear in the channel
+        title = state.get("title") or t("embeds", "ticket_panel", "title")
+        desc  = state.get("embed_desc") or t("embeds", "ticket_panel", "desc")
+        color_hex = state.get("embed_color")
+        try:
+            color = discord.Color(int(color_hex, 16)) if color_hex else discord.Color.gold()
+        except (ValueError, TypeError):
+            color = discord.Color.gold()
+
+        preview = discord.Embed(title=title, description=desc, color=color, timestamp=now_timestamp())
+        if state.get("embed_thumbnail", True) and interaction.guild.icon:
+            preview.set_thumbnail(url=interaction.guild.icon.url)
+        preview.set_footer(text=t("embeds", "ticket_panel", "footer", name=interaction.guild.name))
+
+        cats = state.get("categories", [])
+        if cats:
+            cat_lines = []
+            for c in cats:
+                emoji_str = (c.get("emoji") + " ") if c.get("emoji") else ""
+                desc_str  = " — " + c["description"] if c.get("description") else ""
+                cat_lines.append("• " + emoji_str + "**" + c["label"] + "**" + desc_str)
+            preview.add_field(
+                name=t("embeds", "ticket_wizard", "preview_cats_title"),
+                value="\n".join(cat_lines),
+                inline=False
+            )
+
+        await interaction.response.send_message(
+            content=t("success", "wizard_preview_note"),
+            embed=preview,
+            ephemeral=True
+        )
+
+    @discord.ui.button(label="🚀 Finish",          style=discord.ButtonStyle.green,     row=2)
+    async def finish_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        state = _ticket_wizard_state.get(self.user_id)
+        if not state or not state.get("title") or not state.get("supporter_role_ids"):
+            return await interaction.response.send_message(t("errors", "wizard_incomplete"), ephemeral=True)
+        if not state.get("categories"):
+            return await interaction.response.send_message(t("errors", "ticket_no_cats"), ephemeral=True)
+        await self._finalize(interaction)
+
+    @discord.ui.button(label="✖️ Cancel",          style=discord.ButtonStyle.secondary, row=2)
+    async def cancel_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        _ticket_wizard_state.pop(self.user_id, None)
+        await interaction.response.edit_message(content=t("errors", "application_cancelled"), embed=None, view=None)
+
+    async def _finalize(self, interaction: discord.Interaction):
+        state = _ticket_wizard_state.pop(self.user_id, None)
+        if not state:
+            return
+        guild_id = str(interaction.guild_id)
+        config = load_config()
+        if guild_id not in config:
+            config[guild_id] = {}
+
+        cats     = state["categories"]
+        role_ids = state["supporter_role_ids"]
+        title    = state.get("title", t("embeds", "ticket_panel", "title"))
+
+        view = TicketView(cats, role_ids)
+        desc      = state.get("embed_desc") or t("embeds", "ticket_panel", "desc")
+        color_hex = state.get("embed_color")
+        try:
+            color = discord.Color(int(color_hex, 16)) if color_hex else discord.Color.gold()
+        except (ValueError, TypeError):
+            color = discord.Color.gold()
+        embed = discord.Embed(title=title, description=desc, color=color)
+        if state.get("embed_thumbnail", True) and interaction.guild.icon:
+            embed.set_thumbnail(url=interaction.guild.icon.url)
+        embed.set_footer(text=t("embeds", "ticket_panel", "footer", name=interaction.guild.name))
+
+        message = await interaction.channel.send(embed=embed, view=view)
+        config[guild_id].setdefault("ticket_panels", []).append({
+            "categories":        cats,
+            "channel_id":        interaction.channel_id,
+            "message_id":        message.id,
+            "supporter_role_ids":role_ids,
+            "created_at":        datetime.datetime.now().strftime("%d.%m.%Y %H:%M"),
+            "title":             title
+        })
+        save_config(config)
+
+        done_embed = discord.Embed(
+            title=t("embeds", "wizard", "done_title"),
+            description=t("success", "ticket_panel_created", id=message.id),
+            color=discord.Color.green(),
+            timestamp=now_timestamp()
+        )
+        if interaction.guild.icon:
+            done_embed.set_footer(text=interaction.guild.name, icon_url=interaction.guild.icon.url)
+        await interaction.response.edit_message(embed=done_embed, view=None)
+
+
+
 # ─────────────────────────────────────────────
 #  BOT
 # ─────────────────────────────────────────────
@@ -793,6 +2489,11 @@ class MyBot(commands.Bot):
                 self.add_view(SelfRoleView(s_panel["roles"], str(s_panel.get("message_id", "default"))))
 
         self.add_view(TicketControlView())
+        for guild_id_str2, data2 in config.items():
+            if not isinstance(data2, dict):
+                continue
+            for idx2, _ap in enumerate(data2.get("application_panels", [])):
+                self.add_view(ApplicationPanelView(panel_index=idx2))
         await self.tree.sync()
         print("🌐 Slash Commands wurden global synchronisiert.")
 
@@ -843,6 +2544,15 @@ class MyBot(commands.Bot):
     async def on_member_join(self, member: discord.Member):
         guild_id = str(member.guild.id)
         config = load_config()
+        # Auto-assign join roles
+        join_role_ids = config.get(guild_id, {}).get("join_roles", [])
+        for rid in join_role_ids:
+            role = member.guild.get_role(rid)
+            if role:
+                try:
+                    await member.add_roles(role, reason="Auto Join Role")
+                except Exception:
+                    pass
         welcome_channel_id = config.get(guild_id, {}).get("welcome_channel_id")
         if welcome_channel_id:
             channel = member.guild.get_channel(welcome_channel_id)
@@ -975,116 +2685,13 @@ async def setup_pioneer_role(interaction: discord.Interaction, rolle: discord.Ro
 #  SELFROLE COMMANDS
 # ─────────────────────────────────────────────
 
-@bot.tree.command(
-    name="selfrole_create",
-    description=td("selfrole_erstellen")
-)
+@bot.tree.command(name="selfrole_create", description=td("selfrole_erstellen"))
 @app_commands.default_permissions(administrator=True)
-@app_commands.describe(
-    titel=tp("selfrole_erstellen","titel"),
-    beschreibung=tp("selfrole_erstellen","beschreibung"),
-    farbe=tp("selfrole_erstellen","farbe"),
-    rollen=tp("selfrole_erstellen","rollen")
-)
-async def selfrole_erstellen(
-    interaction: discord.Interaction,
-    titel: str,
-    beschreibung: str,
-    rollen: str,
-    farbe: str = None
-):
-    await interaction.response.defer(ephemeral=True)
-    guild_id = str(interaction.guild_id)
-
-    # Parse Rollen: "Name|RollenID|Beschreibung" oder "Name|RollenID"
-    formatted_roles = []
-    entries = [e.strip() for e in rollen.split(",") if e.strip()]
-    errors = []
-
-    for entry in entries:
-        parts = [p.strip() for p in entry.split("|")]
-        if len(parts) < 2:
-            errors.append(t("errors","selfrole_bad_format", entry=entry))
-            continue
-        label = parts[0][:100]
-        role_id_str = parts[1]
-        description = parts[2][:100] if len(parts) > 2 else None
-
-        # Emoji aus Label extrahieren
-        emoji = None
-        emoji_match = re.match(r'^([𐀀-􏿿☀-➿🌀-🫿]+)\s*(.*)', label)
-        if emoji_match:
-            emoji = emoji_match.group(1).strip() or None
-            label = emoji_match.group(2).strip() or label
-
-        # Rollen-ID extrahieren
-        id_match = re.search(r'\d+', role_id_str)
-        if not id_match:
-            errors.append(t("errors","selfrole_no_id", entry=entry))
-            continue
-        role_id = int(id_match.group())
-
-        # Prüfen ob Rolle existiert
-        role = interaction.guild.get_role(role_id)
-        if not role:
-            errors.append(t("errors","selfrole_role_missing", entry=entry, role_id=role_id))
-            continue
-
-        formatted_roles.append({
-            "label": label,
-            "role_id": role_id,
-            "emoji": emoji,
-            "description": description
-        })
-
-    if not formatted_roles:
-        return await interaction.followup.send(
-            t("errors","selfrole_no_roles", errors="\n".join(errors)),
-            ephemeral=True
-        )
-
-    # Panel-Farbe
-    color = discord.Color.blue()
-    if farbe:
-        try:
-            color = discord.Color(int(farbe.replace("#", ""), 16))
-        except ValueError:
-            pass
-
-    panel_id = str(interaction.id)
-
-    embed = discord.Embed(
-        title=titel,
-        description=format_discord_text(beschreibung),
-        color=color,
-        timestamp=now_timestamp()
-    )
-    if interaction.guild.icon:
-        embed.set_thumbnail(url=interaction.guild.icon.url)
-    embed.set_footer(
-        text=t("embeds","selfrole","panel_footer", name=interaction.guild.name, count=len(formatted_roles)),
-        icon_url=interaction.guild.icon.url if interaction.guild.icon else None
-    )
-
-    view = SelfRoleView(formatted_roles, panel_id)
-    message = await interaction.channel.send(embed=embed, view=view)
-
-    config = load_config()
-    if guild_id not in config:
-        config[guild_id] = {}
-    config[guild_id].setdefault("selfrole_panels", []).append({
-        "message_id": message.id,
-        "channel_id": interaction.channel_id,
-        "panel_id": panel_id,
-        "title": titel,
-        "roles": formatted_roles
-    })
-    save_config(config)
-
-    skipped = t("success","selfrole_skipped", errors="\n".join(errors)) if errors else ""
-    result_msg = t("success","selfrole_panel_created", title=titel, count=len(formatted_roles), skipped=skipped)
-    await interaction.followup.send(result_msg, ephemeral=True)
-
+async def selfrole_erstellen(interaction: discord.Interaction):
+    """Starts the interactive self-role panel setup wizard."""
+    uid = interaction.user.id
+    _selfrole_wizard_state[uid] = {"title": "", "desc": "", "color_hex": "", "roles": []}
+    await interaction.response.send_modal(SelfRoleSetupInfoModal(uid))
 
 @bot.tree.command(
     name="selfrole_delete",
@@ -1617,98 +3224,11 @@ async def status_config(
 
 @bot.tree.command(name="setup_tickets", description=td("setup_tickets"))
 @app_commands.default_permissions(administrator=True)
-@app_commands.describe(
-    supporter_rollen=tp("setup_tickets","supporter_rollen"),
-    kategorien="Kategorien im Format: 'Name|Beschreibung', mehrere in Anführungszeichen mit Komma trennen"
-)
-async def setup_tickets(interaction: discord.Interaction, supporter_rollen: str, kategorien: str):
-    guild_id = str(interaction.guild_id)
-    role_ids = extract_role_ids(supporter_rollen)
-    if not role_ids:
-        return await interaction.response.send_message(
-            t("errors","no_valid_role"), ephemeral=True
-        )
-
-    # Hochkommas und Anführungszeichen aus dem gesamten String entfernen
-    kategorien_clean = kategorien.replace("'", "").replace('"', "")
-    # Kategorien per Komma trennen
-    raw_list = [c.strip() for c in kategorien_clean.split(",") if c.strip()]
-
-    if not raw_list:
-        return await interaction.response.send_message(
-            t("errors","no_categories"),
-            ephemeral=True
-        )
-
-    formatted_cats = []
-    parse_errors = []
-    for item in raw_list:
-        parts = item.split("|")
-        if not parts[0].strip():
-            parse_errors.append(f"`{item}` — leerer Name")
-            continue
-        label = parts[0].strip()
-        desc = format_discord_text(parts[1].strip()) if len(parts) > 1 else None
-
-        # Emoji aus Label extrahieren: nur echte Unicode-Emoji
-        emoji = None
-        for char in label:
-            cp = ord(char)
-            if cp > 0x27BF and cp not in range(0x2000, 0x206F):
-                emoji = char
-                label = label[len(char):].strip()
-                break
-        if not label:
-            label = item.strip()
-
-        formatted_cats.append({
-            "label": label[:100], "value": label[:100],
-            "emoji": emoji,
-            "description": desc,
-            "supporter_role_ids": None
-        })
-
-    if not formatted_cats:
-        err_text = "\n".join(parse_errors) if parse_errors else "Unbekannter Fehler"
-        return await interaction.response.send_message(
-            t("errors","no_categories_detail", errors=err_text), ephemeral=True
-        )
-
-    if parse_errors:
-        # Weitermachen aber Fehler am Ende melden
-        pass
-
-    config = load_config()
-    if guild_id not in config:
-        config[guild_id] = {}
-
-    view = TicketView(formatted_cats, role_ids)
-    default_title = t("embeds","ticket_panel","title")
-    embed = discord.Embed(
-        title=default_title,
-        description=t("embeds","ticket_panel","desc"),
-        color=discord.Color.gold()
-    )
-    if interaction.guild.icon:
-        embed.set_thumbnail(url=interaction.guild.icon.url)
-    embed.set_footer(text=t("embeds","ticket_panel","footer", name=interaction.guild.name))
-
-    message = await interaction.channel.send(embed=embed, view=view)
-
-    config[guild_id].setdefault("ticket_panels", []).append({
-        "categories": formatted_cats,
-        "channel_id": interaction.channel_id,
-        "message_id": message.id,
-        "supporter_role_ids": role_ids,
-        "created_at": datetime.datetime.now().strftime("%d.%m.%Y %H:%M"),
-        "title": default_title
-    })
-    save_config(config)
-    success_msg = t("success","ticket_panel_created", id=message.id)
-    if parse_errors:
-        success_msg += t("success","skipped_entries", entries="\n".join(parse_errors))
-    await interaction.response.send_message(success_msg, ephemeral=True)
-
+async def setup_tickets(interaction: discord.Interaction):
+    """Starts the interactive ticket panel setup wizard."""
+    uid = interaction.user.id
+    _ticket_wizard_state[uid] = {"title": "", "supporter_role_ids": [], "categories": []}
+    await interaction.response.send_modal(TicketSetupInfoModal(uid))
 
 @bot.tree.command(name="ticket_edit", description=td("ticket_edit"))
 @app_commands.default_permissions(administrator=True)
@@ -1812,6 +3332,159 @@ async def ping(interaction: discord.Interaction):
         color=color
     )
     await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+
+
+
+
+
+# ─────────────────────────────────────────────
+#  APPLICATION COMMANDS
+# ─────────────────────────────────────────────
+
+@bot.tree.command(name="setup_application", description=td("setup_application"))
+@app_commands.default_permissions(administrator=True)
+async def setup_application(interaction: discord.Interaction):
+    """Starts the interactive application panel setup wizard."""
+    await interaction.response.send_modal(AppSetupStep1Modal())
+
+
+@bot.tree.command(name="application_custom", description=td("application_custom"))
+@app_commands.default_permissions(administrator=True)
+@app_commands.describe(
+    review_kanal=tp("application_custom", "review_kanal"),
+    titel=tp("application_custom", "titel"),
+    fragen=tp("application_custom", "fragen"),
+    beschreibung=tp("application_custom", "beschreibung"),
+)
+async def application_custom(
+    interaction: discord.Interaction,
+    review_kanal: discord.TextChannel,
+    titel: str,
+    fragen: str,
+    beschreibung: str = None,
+):
+    """
+    fragen format: "Label|placeholder|short/paragraph, Label2|..."
+    """
+    guild_id = str(interaction.guild_id)
+    config = load_config()
+    if guild_id not in config:
+        config[guild_id] = {}
+
+    raw_questions = []
+    errors = []
+    for entry in [e.strip() for e in fragen.split(",") if e.strip()]:
+        parts = [p.strip() for p in entry.split("|")]
+        if not parts[0]:
+            errors.append(entry)
+            continue
+        style = "paragraph"
+        if len(parts) >= 3 and parts[2].lower() in ("short", "s"):
+            style = "short"
+        raw_questions.append({
+            "label":       parts[0][:45],
+            "placeholder": parts[1][:100] if len(parts) > 1 else "",
+            "style":       style,
+            "required":    True
+        })
+
+    if not raw_questions:
+        return await interaction.response.send_message(t("errors", "no_categories"), ephemeral=True)
+
+    panel_title = titel
+    panel_desc  = format_discord_text(beschreibung) if beschreibung else t("embeds", "application", "default_desc")
+    existing = config[guild_id].get("application_panels", [])
+    panel_index = len(existing)
+
+    embed = discord.Embed(title=panel_title, description=panel_desc, color=discord.Color.blurple(), timestamp=now_timestamp())
+    if interaction.guild.icon:
+        embed.set_thumbnail(url=interaction.guild.icon.url)
+    embed.set_footer(text=t("embeds", "application", "panel_footer", name=interaction.guild.name))
+
+    view = ApplicationPanelView(panel_index=panel_index)
+    message = await interaction.channel.send(embed=embed, view=view)
+    config[guild_id].setdefault("application_panels", []).append({
+        "message_id": message.id,
+        "channel_id": interaction.channel_id,
+        "review_channel_id": review_kanal.id,
+        "title": panel_title,
+        "questions": raw_questions
+    })
+    save_config(config)
+
+    skipped = t("success", "skipped_entries", entries=", ".join(errors)) if errors else ""
+    await interaction.response.send_message(
+        t("success", "application_panel_created", id=message.id, channel=review_kanal.mention) + skipped,
+        ephemeral=True
+    )
+
+
+@bot.tree.command(name="application_delete", description=td("application_delete"))
+@app_commands.default_permissions(administrator=True)
+@app_commands.describe(message_id=tp("application_delete", "message_id"))
+async def application_delete(interaction: discord.Interaction, message_id: str):
+    guild_id = str(interaction.guild_id)
+    config = load_config()
+    panels = config.get(guild_id, {}).get("application_panels", [])
+    target = next((p for p in panels if str(p.get("message_id")) == message_id), None)
+    if not target:
+        return await interaction.response.send_message(t("errors", "panel_not_found"), ephemeral=True)
+    panels.remove(target)
+    save_config(config)
+    try:
+        channel = interaction.guild.get_channel(target["channel_id"]) or await interaction.guild.fetch_channel(target["channel_id"])
+        msg = await channel.fetch_message(int(message_id))
+        await msg.delete()
+        await interaction.response.send_message(t("success", "application_panel_deleted"), ephemeral=True)
+    except Exception:
+        await interaction.response.send_message(t("errors", "panel_removed_only"), ephemeral=True)
+
+
+@bot.tree.command(name="set_join_roles", description=td("set_join_roles"))
+@app_commands.default_permissions(administrator=True)
+@app_commands.describe(rollen=tp("set_join_roles", "rollen"))
+async def set_join_roles(interaction: discord.Interaction, rollen: str):
+    guild_id = str(interaction.guild_id)
+    config = load_config()
+    if guild_id not in config:
+        config[guild_id] = {}
+
+    role_ids = extract_role_ids(rollen)
+    valid_roles = []
+    invalid = []
+    for rid in role_ids:
+        role = interaction.guild.get_role(rid)
+        if role:
+            valid_roles.append(rid)
+        else:
+            invalid.append(str(rid))
+
+    if not valid_roles:
+        return await interaction.response.send_message(t("errors", "no_valid_role"), ephemeral=True)
+
+    config[guild_id]["join_roles"] = valid_roles
+    save_config(config)
+
+    role_mentions = " ".join(interaction.guild.get_role(r).mention for r in valid_roles)
+    skipped = (" — " + t("errors", "role_not_found") + ": " + ", ".join(invalid)) if invalid else ""
+    await interaction.response.send_message(
+        t("success", "join_roles_set", roles=role_mentions) + skipped, ephemeral=True
+    )
+
+
+@bot.tree.command(name="remove_join_roles", description=td("remove_join_roles"))
+@app_commands.default_permissions(administrator=True)
+async def remove_join_roles(interaction: discord.Interaction):
+    guild_id = str(interaction.guild_id)
+    config = load_config()
+    if guild_id not in config or "join_roles" not in config[guild_id]:
+        return await interaction.response.send_message(t("errors", "join_roles_none"), ephemeral=True)
+    config[guild_id].pop("join_roles", None)
+    save_config(config)
+    await interaction.response.send_message(t("success", "join_roles_removed"), ephemeral=True)
+
 
 
 @bot.event

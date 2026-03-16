@@ -171,6 +171,10 @@
         "remove_join_roles": {
             "description": "Entfernt alle konfigurierten Auto-Join-Rollen",
             "params": {}
+        },
+        "delete_wizard": {
+            "description": "Startet den interaktiven Lösch-Assistenten",
+            "params": {}
         }
     },
     "buttons": {
@@ -204,7 +208,16 @@
         "ticket_wizard_edit_embed": "🎨 Embed gestalten",
         "status_wizard_apply": "✅ Übernehmen",
         "joinroles_add": "➕ Rolle hinzufügen",
-        "joinroles_remove": "🗑️ Letzte entfernen"
+        "joinroles_remove": "🗑️ Letzte entfernen",
+        "wizard_pick_roles": "👥 Supporter Roles",
+        "wizard_pick_channel": "📢 Review Channel",
+        "wizard_pick_reviewer": "👥 Reviewer Role",
+        "wizard_pick_verify_role": "🎭 Verify Role",
+        "status_wizard_pick_status": "🟢 Status",
+        "status_wizard_pick_activity": "🎮 Activity",
+        "status_wizard_edit_text": "✏️ Text / URL",
+        "delete_wizard_back": "← Zurück",
+        "delete_wizard_more": "🗑️ Weiteres löschen"
     },
     "modals": {
         "ticket_close_title": "Ticket schließen",
@@ -301,7 +314,35 @@
         "verify_setup_thumb_ph": "yes = anzeigen, no = ausblenden"
     },
     "selects": {
-        "ticket_placeholder": "📂 Wähle dein Anliegen..."
+        "ticket_placeholder": "📂 Wähle dein Anliegen...",
+        "selfrole_pick_role": "🎭 Rolle auswählen...",
+        "selfrole_remove_role": "🗑️ Rolle entfernen...",
+        "wizard_pick_roles": "👥 Rollen auswählen...",
+        "wizard_pick_channel": "📢 Kanal auswählen...",
+        "wizard_pick_verify_role": "🎭 Verifizierungsrolle wählen...",
+        "status_pick": "🤖 Online-Status wählen...",
+        "status_online_desc": "Bot erscheint als Online",
+        "status_idle_desc": "Bot erscheint als Abwesend",
+        "status_dnd_desc": "Bot erscheint als Bitte nicht stören",
+        "status_invisible_desc": "Bot erscheint als Offline",
+        "activity_pick": "🎮 Aktivitäts-Typ wählen...",
+        "activity_playing_desc": "Spielt [Text]",
+        "activity_streaming_desc": "Streamt [Text] auf Twitch/YouTube",
+        "activity_listening_desc": "Hört [Text]",
+        "activity_watching_desc": "Schaut [Text]",
+        "delete_type_ph": "🗑️ Was möchtest du löschen?",
+        "delete_tickets": "🎫 Ticket Panels",
+        "delete_tickets_desc": "{n} Panel(s) vorhanden",
+        "delete_selfroles": "🎭 Self-Role Panels",
+        "delete_selfroles_desc": "{n} Panel(s) vorhanden",
+        "delete_applications": "📋 Bewerbungs-Panels",
+        "delete_applications_desc": "{n} Panel(s) vorhanden",
+        "delete_verify": "✅ Verifizierungs-Panels",
+        "delete_verify_desc": "{n} Panel(s) vorhanden",
+        "delete_joinroles": "👋 Auto-Join Rollen",
+        "delete_joinroles_desc": "Alle Auto-Join Rollen entfernen",
+        "delete_nothing": "— Nichts vorhanden —",
+        "delete_panel_ph": "Panel auswählen..."
     },
     "errors": {
         "role_not_found": "❌ Diese Rolle existiert nicht mehr.",
@@ -352,7 +393,8 @@
         "ticket_invalid_color": "❌ Ungültige Farbe. Bitte Hex-Code ohne # angeben, z.B. `FFD700`.",
         "status_invalid": "❌ Ungültiger Status. Erlaubt: {options}",
         "activity_invalid": "❌ Ungültiger Aktivitäts-Typ. Erlaubt: {options}",
-        "joinroles_none_to_remove": "❌ Keine Rollen zum Entfernen."
+        "joinroles_none_to_remove": "❌ Keine Rollen zum Entfernen.",
+        "delete_nothing_found": "ℹ️ Keine löschbaren Panels auf diesem Server gefunden."
     },
     "success": {
         "log_channel_set": "✅ Log-Kanal wurde auf {channel} gesetzt.",
@@ -393,7 +435,18 @@
         "join_roles_removed": "✅ Auto-Join-Rollen wurden entfernt.",
         "app_setup_s1_done": "✅ Schritt 1 abgeschlossen!\n**Titel:** {title}\n**Review-Kanal:** {channel}\n**Reviewer-Rolle(n):** {roles}\n\nWähle jetzt die Fragen-Einstellung:",
         "app_setup_q_added": "✅ {count} Frage(n) gespeichert. Weitere hinzufügen oder fertigstellen?",
-        "wizard_preview_note": "👁️ **Vorschau** — So sieht das Bewerbungs-Panel aus:"
+        "wizard_preview_note": "👁️ **Vorschau** — So sieht das Bewerbungs-Panel aus:",
+        "selfrole_pick_role_hint": "Wähle eine Rolle aus dem Dropdown:",
+        "selfrole_remove_role_hint": "Wähle die zu entfernende Rolle:",
+        "wizard_select_done": "✅ Auswahl gespeichert.",
+        "wizard_pick_roles_hint": "Wähle eine oder mehrere Rollen:",
+        "wizard_pick_channel_hint": "Wähle den Review-Kanal:",
+        "status_wizard_pick_status_hint": "Wähle den Online-Status des Bots:",
+        "status_wizard_pick_activity_hint": "Wähle den Aktivitäts-Typ:",
+        "delete_wizard_start": "Wähle aus, was du löschen möchtest:",
+        "delete_wizard_back_hint": "Wähle erneut einen Typ:",
+        "delete_wizard_done": "✅ Fertig.",
+        "panel_deleted_ok": "✅ Panel erfolgreich gelöscht."
     },
     "embeds": {
         "shared": {
@@ -664,6 +717,11 @@
             "f_color": "**Farbe:**",
             "f_thumb": "**Thumbnail:**",
             "color_default": "*Standard (Grün)*"
+        },
+        "delete_wizard": {
+            "title": "{emoji} {label} löschen",
+            "desc": "{count} Panel(s) gefunden. Wähle eines zum Löschen aus:",
+            "untitled": "*(Kein Titel)*"
         }
     }
 }

@@ -171,6 +171,10 @@
         "remove_join_roles": {
             "description": "Removes all configured auto-join roles",
             "params": {}
+        },
+        "delete_wizard": {
+            "description": "Starts the interactive delete wizard",
+            "params": {}
         }
     },
     "buttons": {
@@ -204,7 +208,16 @@
         "ticket_wizard_edit_embed": "🎨 Edit Embed",
         "status_wizard_apply": "✅ Apply",
         "joinroles_add": "➕ Add Role",
-        "joinroles_remove": "🗑️ Remove Last"
+        "joinroles_remove": "🗑️ Remove Last",
+        "wizard_pick_roles": "👥 Supporter Roles",
+        "wizard_pick_channel": "📢 Review Channel",
+        "wizard_pick_reviewer": "👥 Reviewer Role",
+        "wizard_pick_verify_role": "🎭 Verify Role",
+        "status_wizard_pick_status": "🟢 Status",
+        "status_wizard_pick_activity": "🎮 Activity",
+        "status_wizard_edit_text": "✏️ Text / URL",
+        "delete_wizard_back": "← Back",
+        "delete_wizard_more": "🗑️ Delete another"
     },
     "modals": {
         "ticket_close_title": "Close Ticket",
@@ -301,7 +314,35 @@
         "verify_setup_thumb_ph": "yes = show, no = hide"
     },
     "selects": {
-        "ticket_placeholder": "📂 Select your topic..."
+        "ticket_placeholder": "📂 Select your topic...",
+        "selfrole_pick_role": "🎭 Select a role...",
+        "selfrole_remove_role": "🗑️ Remove a role...",
+        "wizard_pick_roles": "👥 Select roles...",
+        "wizard_pick_channel": "📢 Select channel...",
+        "wizard_pick_verify_role": "🎭 Select verify role...",
+        "status_pick": "🤖 Select online status...",
+        "status_online_desc": "Bot appears as online",
+        "status_idle_desc": "Bot appears as away",
+        "status_dnd_desc": "Bot appears as do not disturb",
+        "status_invisible_desc": "Bot appears as offline",
+        "activity_pick": "🎮 Select activity type...",
+        "activity_playing_desc": "Playing [text]",
+        "activity_streaming_desc": "Streaming [text] on Twitch/YouTube",
+        "activity_listening_desc": "Listening to [text]",
+        "activity_watching_desc": "Watching [text]",
+        "delete_type_ph": "🗑️ What do you want to delete?",
+        "delete_tickets": "🎫 Ticket Panels",
+        "delete_tickets_desc": "{n} panel(s) available",
+        "delete_selfroles": "🎭 Self-Role Panels",
+        "delete_selfroles_desc": "{n} panel(s) available",
+        "delete_applications": "📋 Application Panels",
+        "delete_applications_desc": "{n} panel(s) available",
+        "delete_verify": "✅ Verify Panels",
+        "delete_verify_desc": "{n} panel(s) available",
+        "delete_joinroles": "👋 Auto-Join Roles",
+        "delete_joinroles_desc": "Remove all auto-join roles",
+        "delete_nothing": "— Nothing available —",
+        "delete_panel_ph": "Select panel..."
     },
     "errors": {
         "role_not_found": "❌ This role no longer exists.",
@@ -352,7 +393,8 @@
         "ticket_invalid_color": "❌ Invalid color. Please provide a hex code without #, e.g. `FFD700`.",
         "status_invalid": "❌ Invalid status. Allowed: {options}",
         "activity_invalid": "❌ Invalid activity type. Allowed: {options}",
-        "joinroles_none_to_remove": "❌ No roles to remove."
+        "joinroles_none_to_remove": "❌ No roles to remove.",
+        "delete_nothing_found": "ℹ️ No deletable panels found on this server."
     },
     "success": {
         "log_channel_set": "✅ Log channel set to {channel}.",
@@ -393,7 +435,18 @@
         "join_roles_removed": "✅ Auto-join roles have been removed.",
         "app_setup_s1_done": "✅ Step 1 complete!\n**Title:** {title}\n**Review Channel:** {channel}\n**Reviewer Role(s):** {roles}\n\nNow choose your questions setting:",
         "app_setup_q_added": "✅ {count} question(s) saved. Add more or finish?",
-        "wizard_preview_note": "👁️ **Preview** — This is how the application panel will look:"
+        "wizard_preview_note": "👁️ **Preview** — This is how the application panel will look:",
+        "selfrole_pick_role_hint": "Select a role from the dropdown:",
+        "selfrole_remove_role_hint": "Select the role to remove:",
+        "wizard_select_done": "✅ Selection saved.",
+        "wizard_pick_roles_hint": "Select one or more roles:",
+        "wizard_pick_channel_hint": "Select the review channel:",
+        "status_wizard_pick_status_hint": "Select the bot's online status:",
+        "status_wizard_pick_activity_hint": "Select the activity type:",
+        "delete_wizard_start": "Select what you want to delete:",
+        "delete_wizard_back_hint": "Select a type again:",
+        "delete_wizard_done": "✅ Done.",
+        "panel_deleted_ok": "✅ Panel successfully deleted."
     },
     "embeds": {
         "shared": {
@@ -664,6 +717,11 @@
             "f_color": "**Color:**",
             "f_thumb": "**Thumbnail:**",
             "color_default": "*Default (Green)*"
+        },
+        "delete_wizard": {
+            "title": "{emoji} Delete {label}",
+            "desc": "{count} panel(s) found. Select one to delete:",
+            "untitled": "*(No title)*"
         }
     }
 }

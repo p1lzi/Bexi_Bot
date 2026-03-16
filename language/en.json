@@ -100,21 +100,12 @@
             }
         },
         "setup_verify": {
-            "description": "Creates a message with a verification button",
-            "params": {
-                "titel": "Heading of the verification panel",
-                "beschreibung": "Explanation text for users",
-                "rolle": "Role assigned after verification"
-            }
+            "description": "Starts the interactive setup wizard for a verification panel",
+            "params": {}
         },
         "status_config": {
-            "description": "Changes the online status and activity of the bot",
-            "params": {
-                "status": "Online status of the bot",
-                "typ": "Type of displayed activity",
-                "text": "Activity text shown below the bot name",
-                "stream_url": "Stream URL (only relevant for type 'Streaming')"
-            },
+            "description": "Starts the interactive bot status wizard",
+            "params": {},
             "choices": {
                 "status": {
                     "online": "Online",
@@ -170,19 +161,12 @@
             }
         },
         "application_custom": {
-            "description": "Creates a custom application panel with your own questions",
-            "params": {
-                "review_kanal": "Channel for incoming applications",
-                "titel": "Title of the panel",
-                "fragen": "Format: Question|Placeholder|short/paragraph — separate multiple with comma",
-                "beschreibung": "Description text (optional)"
-            }
+            "description": "Starts the setup wizard for an application panel with custom questions and sections",
+            "params": {}
         },
         "set_join_roles": {
-            "description": "Sets roles that new members automatically receive when joining",
-            "params": {
-                "rollen": "Roles by mention or ID — separate multiple with space or comma"
-            }
+            "description": "Starts the interactive auto join roles wizard",
+            "params": {}
         },
         "remove_join_roles": {
             "description": "Removes all configured auto-join roles",
@@ -217,7 +201,10 @@
         "wizard_add_section": "📂 Add Section",
         "wizard_remove_last": "↩️ Remove Last",
         "wizard_preview": "👁️ Preview",
-        "ticket_wizard_edit_embed": "🎨 Edit Embed"
+        "ticket_wizard_edit_embed": "🎨 Edit Embed",
+        "status_wizard_apply": "✅ Apply",
+        "joinroles_add": "➕ Add Role",
+        "joinroles_remove": "🗑️ Remove Last"
     },
     "modals": {
         "ticket_close_title": "Close Ticket",
@@ -285,7 +272,33 @@
         "ticket_setup_embed_color_label": "Color (Hex without #)",
         "ticket_setup_embed_color_ph": "e.g. FFD700 for Gold, 5865F2 for Blurple",
         "ticket_setup_embed_thumb_label": "Show server icon as thumbnail? (yes/no)",
-        "ticket_setup_embed_thumb_ph": "yes = show, no = hide"
+        "ticket_setup_embed_thumb_ph": "yes = show, no = hide",
+        "app_setup_section_desc_label": "Short description (optional)",
+        "app_setup_section_desc_ph": "e.g. Your personal details",
+        "status_wizard_title": "Configure Bot Status",
+        "status_wizard_status_label": "Online Status",
+        "status_wizard_status_ph": "online / idle / dnd / invisible",
+        "status_wizard_activity_label": "Activity Type",
+        "status_wizard_activity_ph": "playing / streaming / listening / watching",
+        "status_wizard_text_label": "Activity Text",
+        "status_wizard_text_ph": "e.g. 🎮 Bexi RP | !help",
+        "status_wizard_url_label": "Stream URL (streaming only)",
+        "status_wizard_url_ph": "https://twitch.tv/...",
+        "joinroles_add_title": "Add Roles",
+        "joinroles_add_label": "Roles (IDs or mentions)",
+        "joinroles_add_ph": "e.g. @Member @Guest or 123 456",
+        "verify_setup_info_title": "Set Up Verify Panel",
+        "verify_setup_role_label": "Role (ID or mention)",
+        "verify_setup_role_ph": "e.g. @Member or 123456789",
+        "verify_setup_title_label": "Title (optional)",
+        "verify_setup_title_ph": "✅ Verification",
+        "verify_setup_desc_label": "Description (optional)",
+        "verify_setup_desc_ph": "Explanation text for users...",
+        "verify_setup_embed_title": "Style Embed",
+        "verify_setup_color_label": "Color (Hex without #)",
+        "verify_setup_color_ph": "e.g. 57F287 for Green, 5865F2 for Blurple",
+        "verify_setup_thumb_label": "Server icon as thumbnail? (yes/no)",
+        "verify_setup_thumb_ph": "yes = show, no = hide"
     },
     "selects": {
         "ticket_placeholder": "📂 Select your topic..."
@@ -336,7 +349,10 @@
         "ticket_max_cats": "❌ Maximum 25 categories per panel.",
         "ticket_no_cats": "❌ No categories added yet.",
         "app_no_questions": "❌ No questions to remove.",
-        "ticket_invalid_color": "❌ Invalid color. Please provide a hex code without #, e.g. `FFD700`."
+        "ticket_invalid_color": "❌ Invalid color. Please provide a hex code without #, e.g. `FFD700`.",
+        "status_invalid": "❌ Invalid status. Allowed: {options}",
+        "activity_invalid": "❌ Invalid activity type. Allowed: {options}",
+        "joinroles_none_to_remove": "❌ No roles to remove."
     },
     "success": {
         "log_channel_set": "✅ Log channel set to {channel}.",
@@ -623,6 +639,31 @@
             "thumb_on": "✅ On",
             "thumb_off": "❌ Off",
             "preview_cats_title": "📂 Categories"
+        },
+        "status_wizard": {
+            "title": "⚙️ Bot Status Setup",
+            "f_settings": "🤖 Settings",
+            "f_status": "**Status:**",
+            "f_activity": "**Activity:**",
+            "f_text": "**Text:**",
+            "f_url": "**Stream URL:**",
+            "done_title": "✅ Status Updated!"
+        },
+        "joinroles_wizard": {
+            "title": "⚙️ Auto Join Roles",
+            "f_roles": "🎭 Roles",
+            "empty": "*No roles — please add some*",
+            "done_title": "✅ Roles Set!"
+        },
+        "verify_wizard": {
+            "title": "⚙️ Verify Panel Setup",
+            "f_settings": "⚙️ Settings",
+            "f_role": "**Role:**",
+            "f_title": "**Title:**",
+            "f_desc": "**Description:**",
+            "f_color": "**Color:**",
+            "f_thumb": "**Thumbnail:**",
+            "color_default": "*Default (Green)*"
         }
     }
 }

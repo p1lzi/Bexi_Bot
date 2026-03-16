@@ -1,0 +1,268 @@
+{
+    "_info": {
+        "description": "Default Staff Application — ERLC RP Server",
+        "version": "1.0"
+    },
+    "panel": {
+        "title": "📋 Staff Application",
+        "description": "Want to become part of our team?\n\nClick **Apply Now** and fill out the form. You will be guided through all questions step by step.\n\n> ⚠️ Answer all questions completely and honestly."
+    },
+    "questions": [
+        {
+            "label": "Roblox Username",
+            "placeholder": "Your Roblox username",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": {
+                "name": "👤  Personal Information",
+                "desc": "Basic information about you"
+            }
+        },
+        {
+            "label": "Roblox User ID",
+            "placeholder": "Your Roblox User ID (numbers only)",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": null
+        },
+        {
+            "label": "Discord Name + Tag",
+            "placeholder": "e.g. username or username#0000",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": null
+        },
+        {
+            "label": "Age",
+            "placeholder": "Your age",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": null
+        },
+        {
+            "label": "Timezone",
+            "placeholder": "e.g. UTC+1, EST, PST",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": null
+        },
+        {
+            "label": "Country / Region",
+            "placeholder": "e.g. Germany, USA",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": null
+        },
+        {
+            "label": "Previous Staff Experience?",
+            "placeholder": "Yes/No — If yes: servers, position, why left",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 20,
+            "section": {
+                "name": "🏆  Experience",
+                "desc": "Your previous moderation experience"
+            }
+        },
+        {
+            "label": "ERLC Moderation Experience?",
+            "placeholder": "Yes/No — tools used, situations handled",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 20,
+            "section": null
+        },
+        {
+            "label": "Why do you want to be staff?",
+            "placeholder": "Minimum 5 sentences",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 100,
+            "section": {
+                "name": "💬  Motivation",
+                "desc": "Tell us why you want to join the team"
+            }
+        },
+        {
+            "label": "What makes you a good staff?",
+            "placeholder": "Minimum 5 sentences",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 100,
+            "section": null
+        },
+        {
+            "label": "Your Strengths",
+            "placeholder": "List your strengths",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 30,
+            "section": null
+        },
+        {
+            "label": "Your Weaknesses",
+            "placeholder": "List your weaknesses",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 30,
+            "section": null
+        },
+        {
+            "label": "Daily Activity (hours)",
+            "placeholder": "1-2h / 2-4h / 4-6h / 6+h",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": {
+                "name": "📅  Activity",
+                "desc": "Your availability and online times"
+            }
+        },
+        {
+            "label": "When are you usually online?",
+            "placeholder": "e.g. evenings 6pm-10pm UTC+1",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": null
+        },
+        {
+            "label": "Handle tickets regularly?",
+            "placeholder": "Yes / No",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": null
+        },
+        {
+            "label": "Player insults you in RP?",
+            "placeholder": "Describe your response",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 50,
+            "section": {
+                "name": "⚡  Situation Questions",
+                "desc": "How would you react in these scenarios?"
+            }
+        },
+        {
+            "label": "Two players yelling in ticket?",
+            "placeholder": "How do you de-escalate?",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 50,
+            "section": null
+        },
+        {
+            "label": "Friend breaking rules?",
+            "placeholder": "How do you handle it?",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 50,
+            "section": null
+        },
+        {
+            "label": "Accused of being unfair?",
+            "placeholder": "How do you react?",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 50,
+            "section": null
+        },
+        {
+            "label": "Unsure if rule was broken?",
+            "placeholder": "What steps do you take?",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 50,
+            "section": null
+        },
+        {
+            "label": "Define: FRP / RDM / VDM",
+            "placeholder": "Explain each term briefly",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 30,
+            "section": {
+                "name": "📖  Rule Knowledge",
+                "desc": "Prove you know the server rules"
+            }
+        },
+        {
+            "label": "Define: FearRP / Meta / CombLog",
+            "placeholder": "Explain each term briefly",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 30,
+            "section": null
+        },
+        {
+            "label": "What is staff abuse?",
+            "placeholder": "Your definition",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 30,
+            "section": null
+        },
+        {
+            "label": "What must staff NEVER do?",
+            "placeholder": "Even when off-duty",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 30,
+            "section": null
+        },
+        {
+            "label": "Working microphone? (Yes/No)",
+            "placeholder": "Yes / No",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": {
+                "name": "🔧  Technical",
+                "desc": "Technical requirements for the role"
+            }
+        },
+        {
+            "label": "Voice tickets? (Yes/No)",
+            "placeholder": "Yes / No",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": null
+        },
+        {
+            "label": "Can record evidence? (Yes/No)",
+            "placeholder": "Yes / No",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": null
+        },
+        {
+            "label": "Accept staff rules & removal?",
+            "placeholder": "Yes / No",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": {
+                "name": "✅  Agreement",
+                "desc": "Confirm you agree to all terms"
+            }
+        },
+        {
+            "label": "All info is truthful? (Yes/No)",
+            "placeholder": "Yes / No",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": null
+        }
+    ]
+}

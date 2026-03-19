@@ -1,7 +1,7 @@
 # English
 <div align="center">
 
-# 🤖 Util Bot
+# 🤖 Util
 
 **A fully-featured Discord bot for roleplay servers and normal servers**
 
@@ -14,7 +14,7 @@ Ticket System · Applications · Moderation · Verification · Self-Roles · Mul
 
 <br/>
 
-**🇬🇧 English** · [🇩🇪 Deutsch](#-Deutsch)
+**🇬🇧 English** · [🇩🇪 Deutsch](#Deutsch)
 
 </div>
 

@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="https://cdn.discordapp.com/emojis/1234567890.png" alt="Bexi Bot" width="120" height="120" />
+<img src="https://discord.com/assets/b8dafcbec499ac71.svg" alt="Util Bot" width="120" height="120" />
 
-# Bexi Bot
+# Util Bot
 
 **Ein vollständiger Discord-Bot für Roleplay-Server**
 

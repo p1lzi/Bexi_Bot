@@ -1,4 +1,4 @@
-# English
+#English
 <div align="center">
 
 # 🤖 Util
@@ -14,7 +14,7 @@ Ticket System · Applications · Moderation · Verification · Self-Roles · Mul
 
 <br/>
 
-**🇬🇧 English** · [🇩🇪 Deutsch](#-Deutsch)
+**🇬🇧 English** · [🇩🇪 Deutsch](#Deutsch)
 
 </div>
 
@@ -420,7 +420,7 @@ This project is licensed under the [MIT License](LICENSE).
 ---
 ---
 ---
-# Deutsch
+#Deutsch
 
 <div align="center">
 

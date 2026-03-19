@@ -12,27 +12,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Ensure configs directory exists
-os.makedirs('configs', exist_ok=True)
-
-
-def _debug(msg: str):
-    """Print debug message only when DEBUG=true in .env"""
-    if DEBUG:
-        print(f"[DEBUG] {msg}")
-
-
-def _load_default_application() -> list:
-    """Load default application questions from configs/default_application.json."""
-    if os.path.exists(DEFAULT_APP_FILE):
-        try:
-            with open(DEFAULT_APP_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f).get('questions', [])
-        except (json.JSONDecodeError, OSError):
-            pass
-    return []
-
-
 try:
     from static_ffmpeg import run
     ffmpeg_exe, ffprobe_exe = run.get_or_fetch_platform_executables_else_raise()
@@ -41,21 +20,16 @@ except ImportError:
     HAS_STATIC_FFMPEG = False
 
 # --- SETUP DATEIEN ---
-TOKEN        = os.getenv('DISCORD_TOKEN')
-DEBUG        = os.getenv('DEBUG', 'false').lower() in ('1', 'true', 'yes')
-DEFAULT_LANG = os.getenv('DEFAULT_LANG', 'en').lower().strip()
-CONFIGS_DIR      = 'configs'
-CONFIG_FILE      = os.path.join(CONFIGS_DIR, 'config.json')
-WHITELIST_FILE   = os.path.join(CONFIGS_DIR, 'whitelist.json')
-OPEN_APPS_FILE   = os.path.join(CONFIGS_DIR, 'open_applications.json')
-DEFAULT_APP_FILE = os.path.join(CONFIGS_DIR, 'default_application.json')
+TOKEN = os.getenv('DISCORD_TOKEN')
+CONFIG_FILE = 'config.json'
+WHITELIST_FILE = 'whitelist.json'
 LANG_DIR = 'language'
 
 # ─────────────────────────────────────────────
 #  I18N – SPRACHSYSTEM
 # ─────────────────────────────────────────────
 _lang_cache: dict = {}
-_current_lang: str = "en"
+_current_lang: str = "de"
 
 def load_language(code: str) -> dict:
     """Lädt eine Sprachdatei aus dem lang/-Ordner."""
@@ -70,10 +44,10 @@ def init_language(guild_id: str = None):
     global _lang_cache, _current_lang
     cfg = load_config()
     if guild_id:
-        code = cfg.get(guild_id, {}).get("language", "en")
+        code = cfg.get(guild_id, {}).get("language", "de")
     else:
-        # Beim Start: ersten Server mit Spracheinstellung nehmen, sonst DEFAULT_LANG aus .env
-        code = DEFAULT_LANG if DEFAULT_LANG in ("de", "en") else "en"
+        # Beim Start: ersten Server mit Spracheinstellung nehmen, sonst "de"
+        code = "de"
         for key, val in cfg.items():
             if isinstance(val, dict) and "language" in val:
                 code = val["language"]
@@ -81,8 +55,8 @@ def init_language(guild_id: str = None):
     _current_lang = code
     _lang_cache = load_language(_current_lang)
     if not _lang_cache:
-        _current_lang = "en"
-        _lang_cache = load_language("en")
+        _current_lang = "de"
+        _lang_cache = load_language("de")
 
 def set_language(code: str, guild_id: str = None) -> bool:
     """Setzt die Sprache pro Server. Gibt True zurueck wenn erfolgreich."""
@@ -162,37 +136,6 @@ def load_whitelist():
 def save_whitelist(domains):
     with open(WHITELIST_FILE, 'w', encoding='utf-8') as f:
         json.dump({"allowed_domains": list(set(domains))}, f, indent=4)
-
-def load_open_apps() -> dict:
-    """Loads open application data from JSON. Structure:
-    { "thread_id": { "applicant_id": int, "thread_id": int, "review_channel_id": int } }
-    """
-    if os.path.exists(OPEN_APPS_FILE):
-        try:
-            with open(OPEN_APPS_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except (json.JSONDecodeError, OSError):
-            return {}
-    return {}
-
-
-def save_open_app(thread_id: int, applicant_id: int, review_channel_id: int):
-    data = load_open_apps()
-    data[str(thread_id)] = {
-        "applicant_id":      applicant_id,
-        "thread_id":         thread_id,
-        "review_channel_id": review_channel_id
-    }
-    with open(OPEN_APPS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=4)
-
-
-def delete_open_app(thread_id: int):
-    data = load_open_apps()
-    data.pop(str(thread_id), None)
-    with open(OPEN_APPS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=4)
-
 
 def format_discord_text(text: str):
     if not text:
@@ -351,6 +294,19 @@ async def send_dm(user: discord.User, content: str = "", embed: discord.Embed = 
 #  SELF ROLE SYSTEM
 # ─────────────────────────────────────────────
 
+<<<<<<< Updated upstream
+class SelfRoleButton(discord.ui.Button):
+    def __init__(self, role_data: dict, has_role: bool):
+        emoji = role_data.get('emoji') or None
+        label = role_data['label'][:80]
+        # Grün = Rolle aktiv, Grau = Rolle nicht aktiv
+        style = discord.ButtonStyle.success if has_role else discord.ButtonStyle.secondary
+        super().__init__(
+            label=label,
+            emoji=emoji,
+            style=style,
+            custom_id=f"selfrole_btn_{role_data['role_id']}"
+=======
 class SelfRoleSelect(discord.ui.Select):
     """Dropdown mit allen Rollen — bereits vorhandene sind vorausgewaehlt."""
     def __init__(self, roles_data: list, panel_id: str, member_role_ids: set):
@@ -379,6 +335,7 @@ class SelfRoleSelect(discord.ui.Select):
             max_values=len(options) if options else 1,
             options=options,
             custom_id="selfrole_select_" + panel_id
+>>>>>>> Stashed changes
         )
 
     async def callback(self, interaction: discord.Interaction):
@@ -863,6 +820,8 @@ class TicketView(discord.ui.View):
         self.add_item(TicketSelect(options, supporter_role_ids, categories_data))
 
 
+<<<<<<< Updated upstream
+=======
 
 
 
@@ -3543,6 +3502,7 @@ class DeleteTypeView(discord.ui.View):
         self.add_item(DeleteTypeSelect(user_id, guild_id))
 
 
+>>>>>>> Stashed changes
 # ─────────────────────────────────────────────
 #  TICKET EDIT WIZARD
 # ─────────────────────────────────────────────
@@ -4007,7 +3967,7 @@ class TicketEditMainView(discord.ui.View):
 
         except Exception as e:
             error_msg = str(e)
-            _debug(f"ticket_edit save error: {e}")
+            print(f"[ticket_edit save] ERROR: {e}")
 
         if error_msg:
             done_embed = discord.Embed(
@@ -4061,27 +4021,8 @@ class MyBot(commands.Bot):
                 self.add_view(SelfRoleView(s_panel["roles"], str(s_panel.get("message_id", "default"))))
 
         self.add_view(TicketControlView())
-        for guild_id_str2, data2 in config.items():
-            if not isinstance(data2, dict):
-                continue
-            for idx2, _ap in enumerate(data2.get("application_panels", [])):
-                self.add_view(ApplicationPanelView(panel_index=idx2))
-
-        # Restore open ApplicationReviewViews from persistent storage
-        open_apps = load_open_apps()
-        for entry in open_apps.values():
-            try:
-                self.add_view(ApplicationReviewView(
-                    applicant_id=entry["applicant_id"],
-                    thread_id=entry["thread_id"],
-                    review_channel_id=entry["review_channel_id"]
-                ))
-            except Exception:
-                pass
-
         await self.tree.sync()
         print("🌐 Slash Commands wurden global synchronisiert.")
-        _debug(f"Loaded {len(bot.tree.get_commands())} commands")
 
     async def on_message(self, message: discord.Message):
         if message.author.bot:
@@ -4104,7 +4045,6 @@ class MyBot(commands.Bot):
                     if not is_allowed:
                         try:
                             await message.delete()
-                            _debug(f"Link deleted from {message.author}: {link}")
                             await send_log(
                                 message.guild,
                                 t("embeds","log_link","title"),
@@ -4131,15 +4071,6 @@ class MyBot(commands.Bot):
     async def on_member_join(self, member: discord.Member):
         guild_id = str(member.guild.id)
         config = load_config()
-        # Auto-assign join roles
-        join_role_ids = config.get(guild_id, {}).get("join_roles", [])
-        for rid in join_role_ids:
-            role = member.guild.get_role(rid)
-            if role:
-                try:
-                    await member.add_roles(role, reason="Auto Join Role")
-                except Exception:
-                    pass
         welcome_channel_id = config.get(guild_id, {}).get("welcome_channel_id")
         if welcome_channel_id:
             channel = member.guild.get_channel(welcome_channel_id)
@@ -4272,8 +4203,117 @@ async def setup_pioneer_role(interaction: discord.Interaction, rolle: discord.Ro
 #  SELFROLE COMMANDS
 # ─────────────────────────────────────────────
 
-@bot.tree.command(name="selfrole_create", description=td("selfrole_erstellen"))
+@bot.tree.command(
+    name="selfrole_create",
+    description=td("selfrole_erstellen")
+)
 @app_commands.default_permissions(administrator=True)
+<<<<<<< Updated upstream
+@app_commands.describe(
+    titel=tp("selfrole_erstellen","titel"),
+    beschreibung=tp("selfrole_erstellen","beschreibung"),
+    farbe=tp("selfrole_erstellen","farbe"),
+    rollen=tp("selfrole_erstellen","rollen")
+)
+async def selfrole_erstellen(
+    interaction: discord.Interaction,
+    titel: str,
+    beschreibung: str,
+    rollen: str,
+    farbe: str = None
+):
+    await interaction.response.defer(ephemeral=True)
+    guild_id = str(interaction.guild_id)
+
+    # Parse Rollen: "Name|RollenID|Beschreibung" oder "Name|RollenID"
+    formatted_roles = []
+    entries = [e.strip() for e in rollen.split(",") if e.strip()]
+    errors = []
+
+    for entry in entries:
+        parts = [p.strip() for p in entry.split("|")]
+        if len(parts) < 2:
+            errors.append(t("errors","selfrole_bad_format", entry=entry))
+            continue
+        label = parts[0][:100]
+        role_id_str = parts[1]
+        description = parts[2][:100] if len(parts) > 2 else None
+
+        # Emoji aus Label extrahieren
+        emoji = None
+        emoji_match = re.match(r'^([𐀀-􏿿☀-➿🌀-🫿]+)\s*(.*)', label)
+        if emoji_match:
+            emoji = emoji_match.group(1).strip() or None
+            label = emoji_match.group(2).strip() or label
+
+        # Rollen-ID extrahieren
+        id_match = re.search(r'\d+', role_id_str)
+        if not id_match:
+            errors.append(t("errors","selfrole_no_id", entry=entry))
+            continue
+        role_id = int(id_match.group())
+
+        # Prüfen ob Rolle existiert
+        role = interaction.guild.get_role(role_id)
+        if not role:
+            errors.append(t("errors","selfrole_role_missing", entry=entry, role_id=role_id))
+            continue
+
+        formatted_roles.append({
+            "label": label,
+            "role_id": role_id,
+            "emoji": emoji,
+            "description": description
+        })
+
+    if not formatted_roles:
+        return await interaction.followup.send(
+            t("errors","selfrole_no_roles", errors="\n".join(errors)),
+            ephemeral=True
+        )
+
+    # Panel-Farbe
+    color = discord.Color.blue()
+    if farbe:
+        try:
+            color = discord.Color(int(farbe.replace("#", ""), 16))
+        except ValueError:
+            pass
+
+    panel_id = str(interaction.id)
+
+    embed = discord.Embed(
+        title=titel,
+        description=format_discord_text(beschreibung),
+        color=color,
+        timestamp=now_timestamp()
+    )
+    if interaction.guild.icon:
+        embed.set_thumbnail(url=interaction.guild.icon.url)
+    embed.set_footer(
+        text=t("embeds","selfrole","panel_footer", name=interaction.guild.name, count=len(formatted_roles)),
+        icon_url=interaction.guild.icon.url if interaction.guild.icon else None
+    )
+
+    view = SelfRoleView(formatted_roles, panel_id)
+    message = await interaction.channel.send(embed=embed, view=view)
+
+    config = load_config()
+    if guild_id not in config:
+        config[guild_id] = {}
+    config[guild_id].setdefault("selfrole_panels", []).append({
+        "message_id": message.id,
+        "channel_id": interaction.channel_id,
+        "panel_id": panel_id,
+        "title": titel,
+        "roles": formatted_roles
+    })
+    save_config(config)
+
+    skipped = t("success","selfrole_skipped", errors="\n".join(errors)) if errors else ""
+    result_msg = t("success","selfrole_panel_created", title=titel, count=len(formatted_roles), skipped=skipped)
+    await interaction.followup.send(result_msg, ephemeral=True)
+=======
 async def selfrole_erstellen(interaction: discord.Interaction):
     """Starts the interactive self-role panel setup wizard."""
     uid = interaction.user.id
@@ -4284,8 +4324,43 @@ async def selfrole_erstellen(interaction: discord.Interaction):
     _wm = await interaction.original_response()
     _wizard_messages[uid] = _wm.id
     _wizard_interactions[uid] = interaction
+>>>>>>> Stashed changes
 
 
+@bot.tree.command(
+    name="selfrole_delete",
+    description=td("selfrole_loeschen")
+)
+@app_commands.default_permissions(administrator=True)
+@app_commands.describe(
+    panel_id=tp("selfrole_loeschen","panel_id")
+)
+async def selfrole_loeschen(interaction: discord.Interaction, panel_id: str):
+    guild_id = str(interaction.guild_id)
+    config = load_config()
+    panels = config.get(guild_id, {}).get("selfrole_panels", [])
+    target = next((p for p in panels if str(p.get("message_id")) == panel_id), None)
+
+    if not target:
+        return await interaction.response.send_message(
+            t("errors","selfrole_panel_not_found"), ephemeral=True
+        )
+
+    panels.remove(target)
+    save_config(config)
+
+    try:
+        channel = (
+            interaction.guild.get_channel(target["channel_id"])
+            or await interaction.guild.fetch_channel(target["channel_id"])
+        )
+        msg = await channel.fetch_message(int(panel_id))
+        await msg.delete()
+        await interaction.response.send_message(t("success","selfrole_panel_deleted"), ephemeral=True)
+    except Exception:
+        await interaction.response.send_message(
+            t("errors","panel_removed_only"), ephemeral=True
+        )
 
 
 @bot.tree.command(
@@ -4705,6 +4780,33 @@ async def set_waiting_room(interaction: discord.Interaction, kanal: discord.Voic
 
 @bot.tree.command(name="setup_verify", description=td("setup_verify"))
 @app_commands.default_permissions(administrator=True)
+<<<<<<< Updated upstream
+@app_commands.describe(
+    titel=tp("setup_verify","titel"),
+    beschreibung=tp("setup_verify","beschreibung"),
+    rolle=tp("setup_verify","rolle")
+)
+async def setup_verify(interaction: discord.Interaction, rolle: discord.Role, titel: str = None, beschreibung: str = None):
+    final_title = titel or t("embeds","verify_panel","default_title")
+    final_desc  = format_discord_text(beschreibung) if beschreibung else t("embeds","verify_panel","default_desc")
+    embed = discord.Embed(
+        title=final_title,
+        description=final_desc,
+        color=discord.Color.green()
+    )
+    embed.set_footer(text=t("embeds","verify_panel","footer", role=rolle.name))
+
+    view = VerifyView(rolle.id)
+    msg = await interaction.channel.send(embed=embed, view=view)
+
+    config = load_config()
+    gid = str(interaction.guild_id)
+    if gid not in config:
+        config[gid] = {}
+    config[gid].setdefault("verify_panels", []).append({"role_id": rolle.id, "msg_id": msg.id})
+    save_config(config)
+    await interaction.response.send_message(t("success","verify_panel_created"), ephemeral=True)
+=======
 async def setup_verify(interaction: discord.Interaction):
     """Starts the interactive verify panel setup wizard."""
     uid = interaction.user.id
@@ -4715,14 +4817,54 @@ async def setup_verify(interaction: discord.Interaction):
     _wm = await interaction.original_response()
     _wizard_messages[uid] = _wm.id
     _wizard_interactions[uid] = interaction
+>>>>>>> Stashed changes
 
 
 @bot.tree.command(name="status_config", description=td("status_config"))
 @app_commands.default_permissions(administrator=True)
-async def status_config(interaction: discord.Interaction):
-    """Starts the interactive bot status setup wizard."""
-    uid = interaction.user.id
+@app_commands.choices(status=[
+    app_commands.Choice(name=tch("status_config","status","online"), value="online"),
+    app_commands.Choice(name=tch("status_config","status","idle"), value="idle"),
+    app_commands.Choice(name=tch("status_config","status","dnd"), value="dnd"),
+    app_commands.Choice(name=tch("status_config","status","invisible"), value="invisible")
+])
+@app_commands.choices(aktivitaet_typ=[
+    app_commands.Choice(name=tch("status_config","aktivitaet_typ","playing"), value="playing"),
+    app_commands.Choice(name=tch("status_config","aktivitaet_typ","streaming"), value="streaming"),
+    app_commands.Choice(name=tch("status_config","aktivitaet_typ","listening"), value="listening"),
+    app_commands.Choice(name=tch("status_config","aktivitaet_typ","watching"), value="watching")
+])
+@app_commands.describe(
+    status=tp("status_config","status"),
+    aktivitaet_typ=tp("status_config","aktivitaet_typ"),
+    text="Der Text der Aktivität, der unter dem Bot-Namen angezeigt wird",
+    stream_url="Stream-URL für den Streaming-Status (nur bei Typ 'Streamt' relevant)"
+)
+async def status_config(
+    interaction: discord.Interaction,
+    status: app_commands.Choice[str],
+    aktivitaet_typ: app_commands.Choice[str],
+    text: str,
+    stream_url: str = "https://twitch.tv/discord"
+):
+    discord_status = getattr(discord.Status, status.value, discord.Status.online)
+    activity = None
+    if aktivitaet_typ.value == "playing":
+        activity = discord.Game(name=text)
+    elif aktivitaet_typ.value == "streaming":
+        activity = discord.Streaming(name=text, url=stream_url)
+    elif aktivitaet_typ.value == "listening":
+        activity = discord.Activity(type=discord.ActivityType.listening, name=text)
+    elif aktivitaet_typ.value == "watching":
+        activity = discord.Activity(type=discord.ActivityType.watching, name=text)
+
+    await bot.change_presence(status=discord_status, activity=activity)
     config = load_config()
+<<<<<<< Updated upstream
+    config["bot_presence"] = {"status": status.value, "type": aktivitaet_typ.value, "text": text, "url": stream_url}
+    save_config(config)
+    await interaction.response.send_message(t("success","status_updated"), ephemeral=True)
+=======
     pres = config.get("bot_presence", {})
     _status_wizard_state[uid] = {
         "status":     pres.get("status", "online"),
@@ -4736,6 +4878,7 @@ async def status_config(interaction: discord.Interaction):
     _wm = await interaction.original_response()
     _wizard_messages[uid] = _wm.id
     _wizard_interactions[uid] = interaction
+>>>>>>> Stashed changes
 
 
 # ─────────────────────────────────────────────
@@ -4744,17 +4887,104 @@ async def status_config(interaction: discord.Interaction):
 
 @bot.tree.command(name="setup_tickets", description=td("setup_tickets"))
 @app_commands.default_permissions(administrator=True)
-async def setup_tickets(interaction: discord.Interaction):
-    """Starts the interactive ticket panel setup wizard."""
-    uid = interaction.user.id
-    _ticket_wizard_state[uid] = {"title": "", "supporter_role_ids": [], "categories": []}
-    await interaction.response.send_message(
-        embed=_build_ticket_embed(_ticket_wizard_state[uid], interaction.guild),
-        view=TicketSetupMainView(uid), ephemeral=True
+@app_commands.describe(
+    supporter_rollen=tp("setup_tickets","supporter_rollen"),
+    kategorien="Kategorien im Format: 'Name|Beschreibung', mehrere in Anführungszeichen mit Komma trennen"
+)
+async def setup_tickets(interaction: discord.Interaction, supporter_rollen: str, kategorien: str):
+    guild_id = str(interaction.guild_id)
+    role_ids = extract_role_ids(supporter_rollen)
+    if not role_ids:
+        return await interaction.response.send_message(
+            t("errors","no_valid_role"), ephemeral=True
+        )
+
+    # Hochkommas und Anführungszeichen aus dem gesamten String entfernen
+    kategorien_clean = kategorien.replace("'", "").replace('"', "")
+    # Kategorien per Komma trennen
+    raw_list = [c.strip() for c in kategorien_clean.split(",") if c.strip()]
+
+    if not raw_list:
+        return await interaction.response.send_message(
+            t("errors","no_categories"),
+            ephemeral=True
+        )
+
+    formatted_cats = []
+    parse_errors = []
+    for item in raw_list:
+        parts = item.split("|")
+        if not parts[0].strip():
+            parse_errors.append(f"`{item}` — leerer Name")
+            continue
+        label = parts[0].strip()
+        desc = format_discord_text(parts[1].strip()) if len(parts) > 1 else None
+
+        # Emoji aus Label extrahieren: nur echte Unicode-Emoji
+        emoji = None
+        for char in label:
+            cp = ord(char)
+            if cp > 0x27BF and cp not in range(0x2000, 0x206F):
+                emoji = char
+                label = label[len(char):].strip()
+                break
+        if not label:
+            label = item.strip()
+
+        formatted_cats.append({
+            "label": label[:100], "value": label[:100],
+            "emoji": emoji,
+            "description": desc,
+            "supporter_role_ids": None
+        })
+
+    if not formatted_cats:
+        err_text = "\n".join(parse_errors) if parse_errors else "Unbekannter Fehler"
+        return await interaction.response.send_message(
+            t("errors","no_categories_detail", errors=err_text), ephemeral=True
+        )
+
+    if parse_errors:
+        # Weitermachen aber Fehler am Ende melden
+        pass
+
+    config = load_config()
+    if guild_id not in config:
+        config[guild_id] = {}
+
+    view = TicketView(formatted_cats, role_ids)
+    default_title = t("embeds","ticket_panel","title")
+    embed = discord.Embed(
+        title=default_title,
+        description=t("embeds","ticket_panel","desc"),
+        color=discord.Color.gold()
     )
+<<<<<<< Updated upstream
+    if interaction.guild.icon:
+        embed.set_thumbnail(url=interaction.guild.icon.url)
+    embed.set_footer(text=t("embeds","ticket_panel","footer", name=interaction.guild.name))
+
+    message = await interaction.channel.send(embed=embed, view=view)
+
+    config[guild_id].setdefault("ticket_panels", []).append({
+        "categories": formatted_cats,
+        "channel_id": interaction.channel_id,
+        "message_id": message.id,
+        "supporter_role_ids": role_ids,
+        "created_at": datetime.datetime.now().strftime("%d.%m.%Y %H:%M"),
+        "title": default_title
+    })
+    save_config(config)
+    success_msg = t("success","ticket_panel_created", id=message.id)
+    if parse_errors:
+        success_msg += t("success","skipped_entries", entries="\n".join(parse_errors))
+    await interaction.response.send_message(success_msg, ephemeral=True)
+
+=======
     _wm = await interaction.original_response()
     _wizard_messages[uid] = _wm.id
     _wizard_interactions[uid] = interaction
+>>>>>>> Stashed changes
 
 @bot.tree.command(name="ticket_edit", description=td("ticket_edit"))
 @app_commands.default_permissions(administrator=True)
@@ -4809,39 +5039,30 @@ async def ticket_edit(interaction: discord.Interaction):
         )
 
 
-
-
-
-# ─────────────────────────────────────────────
-#  DELETE WIZARD COMMAND
-# ─────────────────────────────────────────────
-
-@bot.tree.command(name="delete", description=td("delete_wizard"))
+@bot.tree.command(name="ticket_delete", description=td("ticket_delete"))
 @app_commands.default_permissions(administrator=True)
-async def delete_cmd(interaction: discord.Interaction):
-    """Opens the delete wizard to remove panels and configurations."""
+@app_commands.describe(
+    message_id=tp("ticket_delete","message_id")
+)
+async def ticket_delete(interaction: discord.Interaction, message_id: str):
     guild_id = str(interaction.guild_id)
-    config   = load_config()
-    gdata    = config.get(guild_id, {})
-
-    has_anything = any([
-        gdata.get("ticket_panels"),
-        gdata.get("selfrole_panels"),
-        gdata.get("application_panels"),
-        gdata.get("verify_panels"),
-        gdata.get("join_roles"),
-    ])
-    if not has_anything:
-        return await interaction.response.send_message(
-            t("errors", "delete_nothing_found"), ephemeral=True
+    config = load_config()
+    panels = config.get(guild_id, {}).get("ticket_panels", [])
+    target = next((p for p in panels if str(p["message_id"]) == message_id), None)
+    if not target:
+        return await interaction.response.send_message(t("errors","panel_not_found"), ephemeral=True)
+    panels.remove(target)
+    save_config(config)
+    try:
+        channel = (
+            interaction.guild.get_channel(target["channel_id"])
+            or await interaction.guild.fetch_channel(target["channel_id"])
         )
-
-    view = DeleteTypeView(interaction.user.id, guild_id)
-    await interaction.response.send_message(
-        content=t("success", "delete_wizard_start"),
-        view=view,
-        ephemeral=True
-    )
+        msg = await channel.fetch_message(int(message_id))
+        await msg.delete()
+        await interaction.response.send_message(t("success","ticket_panel_deleted"), ephemeral=True)
+    except Exception:
+        await interaction.response.send_message(t("errors","panel_removed_only"), ephemeral=True)
 
 
 # ─────────────────────────────────────────────
@@ -4878,6 +5099,8 @@ async def ping(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
+<<<<<<< Updated upstream
+=======
 
 
 
@@ -4936,14 +5159,10 @@ async def set_join_roles(interaction: discord.Interaction):
 
 
 
+>>>>>>> Stashed changes
 @bot.event
 async def on_ready():
-    global DEFAULT_APPLICATION_QUESTIONS
-    DEFAULT_APPLICATION_QUESTIONS = _load_default_application()
     print(f'✅ Bot online als {bot.user}')
-    print(f'🌐 Standardsprache: {DEFAULT_LANG}')
-    if DEBUG:
-        print('🐛 DEBUG-Modus aktiv')
     if not os.path.exists(WHITELIST_FILE):
         save_whitelist(["tenor.com", "giphy.com"])
     config = load_config()

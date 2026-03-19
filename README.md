@@ -14,7 +14,7 @@ Ticket System · Applications · Moderation · Verification · Self-Roles · Mul
 
 <br/>
 
-**English 🇬🇧** · [Deutsch 🇩🇪](#Deutsch)
+**🇬🇧 English** · [🇩🇪 Deutsch](#Deutsch)
 
 </div>
 
@@ -437,7 +437,7 @@ Ticket-System · Bewerbungen · Moderation · Verifizierung · Self-Roles · Meh
 
 <br/>
 
-[English 🇬🇧](#-English) · **Deutsch 🇩🇪**
+[🇬🇧 English](#-English) · **🇩🇪 Deutsch**
 
 </div>
 

@@ -459,6 +459,6 @@ Dieses Projekt steht unter der [MIT License](LICENSE).
 
 <div align="center">
 
-Made with ❤️ by **p1lzi*
+Made with ❤️ by *p1lzi*
 
 </div>

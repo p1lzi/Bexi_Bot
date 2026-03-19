@@ -12,13 +12,8 @@
             }
         },
         "selfrole_erstellen": {
-            "description": "Erstellt ein Panel, über das Nutzer sich selbst Rollen vergeben können",
-            "params": {
-                "titel": "Titel des Panels, z.B. 'Wähle deine Rollen'",
-                "beschreibung": "Erklärungstext für die Nutzer unter dem Titel",
-                "rollen": "Format: 🎮 Name|RollenID|Beschreibung — mehrere mit Komma trennen",
-                "farbe": "Hex-Farbe, z.B. #5865F2 (optional)"
-            }
+            "description": "Startet den interaktiven Einrichtungs-Assistenten für ein Self-Role Panel",
+            "params": {}
         },
         "selfrole_loeschen": {
             "description": "Löscht ein bestehendes Self-Role Panel anhand der Nachrichten-ID",
@@ -105,21 +100,12 @@
             }
         },
         "setup_verify": {
-            "description": "Erstellt eine Nachricht mit einem Verifizierungs-Button",
-            "params": {
-                "titel": "Überschrift des Verifizierungs-Panels",
-                "beschreibung": "Erklärungstext für die Nutzer",
-                "rolle": "Rolle, die nach der Verifizierung vergeben wird"
-            }
+            "description": "Startet den interaktiven Einrichtungs-Assistenten für ein Verifizierungs-Panel",
+            "params": {}
         },
         "status_config": {
-            "description": "Ändert den Online-Status und die Aktivität des Bots",
-            "params": {
-                "status": "Online-Status des Bots",
-                "typ": "Art der angezeigten Aktivität",
-                "text": "Aktivitätstext unter dem Bot-Namen",
-                "stream_url": "Stream-URL (nur bei Typ 'Streamt' relevant)"
-            },
+            "description": "Startet den interaktiven Bot-Status-Wizard",
+            "params": {},
             "choices": {
                 "status": {
                     "online": "Online",
@@ -136,11 +122,8 @@
             }
         },
         "setup_tickets": {
-            "description": "Erstellt ein neues Support-Ticket-Panel",
-            "params": {
-                "supporter_rollen": "Rollen, die Tickets bearbeiten dürfen (Erwähnung oder ID)",
-                "kategorien": "Kategorien im Format: 'Name|Beschreibung', mehrere in Anführungszeichen"
-            }
+            "description": "Startet den interaktiven Einrichtungs-Assistenten für ein Ticket-Panel",
+            "params": {}
         },
         "ticket_edit": {
             "description": "Startet den interaktiven Ticket-Panel-Bearbeitungs-Wizard",
@@ -161,8 +144,6 @@
         "ping": {
             "description": "Zeigt die aktuelle Bot-Latenz an",
             "params": {}
-<<<<<<< Updated upstream
-=======
         },
         "setup_application": {
             "description": "Startet den interaktiven Einrichtungs-Assistenten für ein Bewerbungs-Panel",
@@ -185,24 +166,145 @@
         "delete_wizard": {
             "description": "Startet den interaktiven Lösch-Assistenten",
             "params": {}
->>>>>>> Stashed changes
         }
     },
     "buttons": {
         "claim_ticket": "Ticket übernehmen",
         "close_ticket": "Ticket schließen",
         "verify": "Jetzt verifizieren",
-        "claimed_done": "Übernommen"
+        "claimed_done": "Übernommen",
+        "apply_now": "Jetzt bewerben",
+        "app_continue": "Weiter →",
+        "app_cancel": "Abbrechen",
+        "app_accept": "✅ Annehmen",
+        "app_decline": "❌ Ablehnen",
+        "app_question": "❓ Rückfrage",
+        "app_setup_use_default": "✅ Standard-Fragen verwenden",
+        "app_setup_custom_q": "✏️ Eigene Fragen hinzufügen",
+        "app_setup_more_q": "➕ Weitere Fragen",
+        "app_setup_finish": "✅ Fertigstellen",
+        "wizard_edit_info": "✏️ Info bearbeiten",
+        "wizard_add_q": "➕ Fragen hinzufügen",
+        "wizard_default_q": "✅ Standard-Fragen",
+        "wizard_clear_q": "🗑️ Fragen löschen",
+        "wizard_finish": "🚀 Fertigstellen",
+        "wizard_cancel": "✖️ Abbrechen",
+        "selfrole_wizard_add": "➕ Rolle hinzufügen",
+        "selfrole_wizard_remove": "🗑️ Letzte entfernen",
+        "ticket_wizard_add_cat": "➕ Kategorie hinzufügen",
+        "ticket_wizard_remove_cat": "🗑️ Letzte entfernen",
+        "wizard_add_section": "📂 Sektion hinzufügen",
+        "wizard_remove_last": "↩️ Letzte entfernen",
+        "wizard_preview": "👁️ Vorschau",
+        "ticket_wizard_edit_embed": "🎨 Embed gestalten",
+        "status_wizard_apply": "✅ Übernehmen",
+        "joinroles_add": "➕ Rolle hinzufügen",
+        "joinroles_remove": "🗑️ Letzte entfernen",
+        "wizard_pick_roles": "👥 Supporter Roles",
+        "wizard_pick_channel": "📢 Review Channel",
+        "wizard_pick_reviewer": "👥 Reviewer Role",
+        "wizard_pick_verify_role": "🎭 Verify Role",
+        "status_wizard_pick_status": "🟢 Status",
+        "status_wizard_pick_activity": "🎮 Activity",
+        "status_wizard_edit_text": "✏️ Text / URL",
+        "delete_wizard_back": "← Zurück",
+        "delete_wizard_more": "🗑️ Weiteres löschen"
     },
     "modals": {
         "ticket_close_title": "Ticket schließen",
         "ticket_close_label": "Grund für das Schließen",
-        "ticket_close_placeholder": "z.B. Problem gelöst, keine Antwort erhalten..."
+        "ticket_close_placeholder": "z.B. Problem gelöst, keine Antwort erhalten...",
+        "app_accept_title": "Bewerbung annehmen",
+        "app_decline_title": "Bewerbung ablehnen",
+        "app_question_title": "Rückfrage stellen",
+        "app_decision_label": "Nachricht an den Bewerber",
+        "app_decision_placeholder": "z.B. Herzlichen Glückwunsch! / Leider können wir deine Bewerbung nicht annehmen...",
+        "app_setup_s1_title": "Bewerbungs-Panel erstellen (1/2)",
+        "app_setup_title_label": "Titel des Panels",
+        "app_setup_title_ph": "z.B. Staff Bewerbung",
+        "app_setup_desc_label": "Beschreibung (optional)",
+        "app_setup_desc_ph": "Kurze Erklärung für Bewerber...",
+        "app_setup_channel_label": "Review-Kanal (Erwähnung oder ID)",
+        "app_setup_channel_ph": "z.B. #bewerbungen oder 123456789",
+        "app_setup_q_title": "Frage hinzufügen",
+        "app_setup_q_label": "Frage (Feldname)",
+        "app_setup_q_ph": "Deine Frage (leer = überspringen)",
+        "app_setup_role_label": "Reviewer-Rolle (Erwähnung oder ID)",
+        "app_setup_role_ph": "z.B. @Staff oder 123456789 — leer = kein Filter",
+        "app_setup_edit_title": "Panel-Einstellungen bearbeiten",
+        "app_setup_q_label_ph": "z.B. Warum möchtest du Supporter werden?",
+        "app_setup_q_placeholder_label": "Vorschlagstext (optional)",
+        "app_setup_q_placeholder_ph": "z.B. Mindestens 5 Sätze...",
+        "app_setup_q_minlen_label": "Mindestlänge (0 = kein Limit)",
+        "app_setup_q_minlen_ph": "z.B. 50",
+        "app_setup_q_style_label": "Typ: paragraph oder short",
+        "app_setup_q_style_ph": "paragraph (Standard) / short (Einzeiler)",
+        "selfrole_setup_info_title": "Self-Role Panel einrichten",
+        "selfrole_setup_title_label": "Panel-Titel",
+        "selfrole_setup_title_ph": "z.B. Wähle deine Rollen",
+        "selfrole_setup_desc_label": "Beschreibung (optional)",
+        "selfrole_setup_desc_ph": "Erklärungstext für Nutzer...",
+        "selfrole_setup_color_label": "Farbe (Hex, optional)",
+        "selfrole_setup_color_ph": "z.B. 5865F2 oder #FF0000",
+        "selfrole_setup_role_title": "Rolle hinzufügen",
+        "selfrole_setup_role_label": "Rollen-ID oder Erwähnung",
+        "selfrole_setup_role_ph": "z.B. @Gamer oder 123456789",
+        "selfrole_setup_name_label": "Anzeigename des Buttons",
+        "selfrole_setup_name_ph": "z.B. Gamer",
+        "selfrole_setup_emoji_label": "Emoji (optional)",
+        "selfrole_setup_emoji_ph": "z.B. 🎮",
+        "selfrole_setup_roledesc_label": "Kurzbeschreibung (optional)",
+        "selfrole_setup_roledesc_ph": "z.B. Für alle Gamer",
+        "ticket_setup_info_title": "Ticket Panel einrichten",
+        "ticket_setup_title_label": "Panel-Titel",
+        "ticket_setup_title_ph": "z.B. Support Tickets",
+        "ticket_setup_roles_label": "Supporter-Rollen (IDs/Erwähnungen)",
+        "ticket_setup_roles_ph": "z.B. @Support @Admin oder 123 456",
+        "ticket_setup_cat_title": "Kategorie hinzufügen",
+        "ticket_setup_cat_label": "Name der Kategorie",
+        "ticket_setup_cat_label_ph": "z.B. Allgemeiner Support",
+        "ticket_setup_cat_emoji": "Emoji (optional)",
+        "ticket_setup_cat_emoji_ph": "z.B. 🛠️",
+        "ticket_setup_cat_desc": "Beschreibung (optional)",
+        "ticket_setup_cat_desc_ph": "z.B. Fragen zum Server...",
+        "app_setup_section_title": "Sektion / Überpunkt setzen",
+        "app_setup_section_label": "Sektionsname",
+        "app_setup_section_ph": "z.B. Persönliche Daten — leer = keine Sektion",
+        "ticket_setup_embed_title": "Embed gestalten",
+        "ticket_setup_embed_desc_label": "Beschreibungstext",
+        "ticket_setup_embed_desc_ph": "z.B. Brauchst du Hilfe? Wähle eine Kategorie...",
+        "ticket_setup_embed_color_label": "Farbe (Hex ohne #)",
+        "ticket_setup_embed_color_ph": "z.B. FFD700 für Gold, 5865F2 für Blurple",
+        "ticket_setup_embed_thumb_label": "Server-Icon als Thumbnail? (yes/no)",
+        "ticket_setup_embed_thumb_ph": "yes = anzeigen, no = ausblenden",
+        "app_setup_section_desc_label": "Kurzbeschreibung (optional)",
+        "app_setup_section_desc_ph": "z.B. Deine persönlichen Angaben",
+        "status_wizard_title": "Bot-Status einrichten",
+        "status_wizard_status_label": "Online-Status",
+        "status_wizard_status_ph": "online / idle / dnd / invisible",
+        "status_wizard_activity_label": "Aktivitäts-Typ",
+        "status_wizard_activity_ph": "playing / streaming / listening / watching",
+        "status_wizard_text_label": "Aktivitäts-Text",
+        "status_wizard_text_ph": "z.B. 🎮 Bexi RP | !help",
+        "status_wizard_url_label": "Stream-URL (nur bei streaming)",
+        "status_wizard_url_ph": "https://twitch.tv/...",
+        "joinroles_add_title": "Rollen hinzufügen",
+        "joinroles_add_label": "Rollen (IDs oder Erwähnungen)",
+        "joinroles_add_ph": "z.B. @Member @Gast oder 123 456",
+        "verify_setup_info_title": "Verifizierungs-Panel einrichten",
+        "verify_setup_role_label": "Rolle (ID oder Erwähnung)",
+        "verify_setup_role_ph": "z.B. @Member oder 123456789",
+        "verify_setup_title_label": "Titel (optional)",
+        "verify_setup_title_ph": "✅ Verifizierung",
+        "verify_setup_desc_label": "Beschreibung (optional)",
+        "verify_setup_desc_ph": "Erklärungstext für Nutzer...",
+        "verify_setup_embed_title": "Embed gestalten",
+        "verify_setup_color_label": "Farbe (Hex ohne #)",
+        "verify_setup_color_ph": "z.B. 57F287 für Grün, 5865F2 für Blurple",
+        "verify_setup_thumb_label": "Server-Icon als Thumbnail? (yes/no)",
+        "verify_setup_thumb_ph": "yes = anzeigen, no = ausblenden"
     },
     "selects": {
-<<<<<<< Updated upstream
-        "ticket_placeholder": "📂 Wähle dein Anliegen..."
-=======
         "ticket_placeholder": "📂 Wähle dein Anliegen...",
         "selfrole_pick_role": "🎭 Rollen auswählen / abwählen...",
         "selfrole_remove_role": "🗑️ Rolle entfernen...",
@@ -232,7 +334,6 @@
         "delete_joinroles_desc": "Alle Auto-Join Rollen entfernen",
         "delete_nothing": "— Nichts vorhanden —",
         "delete_panel_ph": "Panel auswählen..."
->>>>>>> Stashed changes
     },
     "errors": {
         "role_not_found": "❌ Diese Rolle existiert nicht mehr.",
@@ -264,7 +365,27 @@
         "no_categories": "❌ Keine gültigen Kategorien gefunden. Format: `Name|Beschreibung` — mehrere mit Komma trennen.",
         "no_categories_detail": "❌ Keine gültigen Kategorien.\n\n**Fehler:**\n{errors}",
         "generic_error": "❌ Fehler: {error}",
-        "ticket_edit_error": "❌ Fehler beim Bearbeiten des Panels: {error}"
+        "ticket_edit_error": "❌ Fehler beim Bearbeiten des Panels: {error}",
+        "application_not_yours": "❌ Das ist nicht deine Bewerbung.",
+        "application_cancelled": "❌ Bewerbung abgebrochen.",
+        "application_already_open": "⚠️ Du hast bereits eine offene Bewerbung. Bitte schließe diese zuerst ab.",
+        "application_no_review_channel": "❌ Kein Review-Kanal konfiguriert. Bitte wende dich an einen Administrator.",
+        "no_permission_review": "❌ Du hast keine Berechtigung, Bewerbungen zu bearbeiten.",
+        "join_roles_none": "ℹ️ Keine Auto-Join-Rollen konfiguriert.",
+        "setup_channel_not_found": "❌ Kanal nicht gefunden. Bitte Kanal-Erwähnung oder ID angeben.",
+        "wizard_incomplete": "❌ Bitte fülle mindestens Titel und Review-Kanal aus.",
+        "app_answer_too_short": "❌ **{label}** — Mindestens {min} Zeichen erforderlich (du hast {got}).",
+        "selfrole_max_roles": "❌ Maximum 25 Rollen pro Panel.",
+        "selfrole_no_roles_to_remove": "❌ Keine Rollen zum Entfernen.",
+        "selfrole_duplicate": "❌ Diese Rolle ist bereits im Panel.",
+        "ticket_max_cats": "❌ Maximum 25 Kategorien pro Panel.",
+        "ticket_no_cats": "❌ Keine Kategorien vorhanden.",
+        "app_no_questions": "❌ Keine Fragen zum Entfernen.",
+        "ticket_invalid_color": "❌ Ungültige Farbe. Bitte Hex-Code ohne # angeben, z.B. `FFD700`.",
+        "status_invalid": "❌ Ungültiger Status. Erlaubt: {options}",
+        "activity_invalid": "❌ Ungültiger Aktivitäts-Typ. Erlaubt: {options}",
+        "joinroles_none_to_remove": "❌ Keine Rollen zum Entfernen.",
+        "delete_nothing_found": "ℹ️ Keine löschbaren Panels auf diesem Server gefunden."
     },
     "success": {
         "log_channel_set": "✅ Log-Kanal wurde auf {channel} gesetzt.",
@@ -293,9 +414,6 @@
         "warn_edit_reset": "✅ Alle Warns für {mention} wurden zurückgesetzt.",
         "pioneer_summary": "Die Analyse wurde abgeschlossen. Hier ist die Zusammenfassung:",
         "language_set": "✅ Sprache wurde auf **Deutsch** gesetzt.",
-<<<<<<< Updated upstream
-        "skipped_entries": "\n\n⚠️ **Übersprungene Einträge:**\n{entries}"
-=======
         "skipped_entries": "\n\n⚠️ **Übersprungene Einträge:**\n{entries}",
         "application_step_done": "✅ Schritt {current}/{total} abgeschlossen.\n`{bar}`\nKlicke auf **Weiter** um fortzufahren.",
         "application_submitted": "✅ Deine Bewerbung wurde erfolgreich eingereicht! Wir melden uns bei dir.",
@@ -321,7 +439,6 @@
         "delete_wizard_done": "✅ Fertig.",
         "panel_deleted_ok": "✅ Panel erfolgreich gelöscht.",
         "selfrole_no_change": "Keine Änderungen vorgenommen."
->>>>>>> Stashed changes
     },
     "embeds": {
         "shared": {
@@ -497,6 +614,106 @@
             "footer": "Rolle: {role}",
             "default_title": "✅ Verifizierung",
             "default_desc": "Klicke auf den Button unten, um dich zu verifizieren und Zugang zum Server zu erhalten."
+        },
+        "application": {
+            "default_title": "📋 Staff Bewerbung",
+            "default_desc": "Möchtest du Teil unseres Teams werden?\n\nKlicke auf **Jetzt bewerben** und fülle das Formular aus. Du wirst Schritt für Schritt durch alle Fragen geführt.\n\n> ⚠️ Beantworte alle Fragen vollständig und ehrlich.",
+            "review_title": "{title} — Neue Bewerbung",
+            "review_desc": "Neue Bewerbung von {mention}",
+            "dm_title": "📋 Bewerbung eingereicht",
+            "dm_desc": "Deine Bewerbung wurde erfolgreich eingereicht. Unser Team wird sie so bald wie möglich prüfen. Bitte hab etwas Geduld. 🙂",
+            "footer": "Bewerbungs-System",
+            "panel_footer": "{name} • Bewerbungs-System",
+            "review_author": "{title} — Neue Bewerbung",
+            "review_applicant": "👤 **Bewerber:**",
+            "review_account": "🎂 **Account erstellt:**",
+            "review_joined": "📅 **Server beigetreten:**",
+            "review_submitted": "📨 **Eingereicht:**",
+            "review_reviewer": "🛡️ Bearbeiter",
+            "review_note": "💬 Nachricht",
+            "status_handled": "Bearbeitet",
+            "dm_accepted_title": "✅ Bewerbung angenommen!",
+            "dm_accepted_desc": "deine Bewerbung wurde angenommen. Willkommen im Team! 🎉",
+            "dm_declined_title": "❌ Bewerbung abgelehnt",
+            "dm_declined_desc": "deine Bewerbung wurde leider abgelehnt. Du kannst es zu einem späteren Zeitpunkt erneut versuchen.",
+            "dm_question_title": "❓ Rückfrage zu deiner Bewerbung",
+            "dm_question_desc": "das Team hat eine Rückfrage zu deiner Bewerbung. Bitte antworte so schnell wie möglich.",
+            "question_thread_desc": "{mention}, ein Supporter hat eine Rückfrage zu deiner Bewerbung.\n\n{reviewer} wird deine Fragen beantworten.",
+            "no_reviewer_role": "*Keine Rolle festgelegt*"
+        },
+        "wizard": {
+            "title": "⚙️ Bewerbungs-Panel Setup",
+            "f_step1": "📋 Schritt 1 — Grundeinstellungen",
+            "f_step2": "❓ Schritt 2 — Fragen",
+            "f_title": "**Titel:**",
+            "f_channel": "**Review-Kanal:**",
+            "f_roles": "**Reviewer-Rolle(n):**",
+            "not_set": "*nicht gesetzt*",
+            "q_default": "✅ Standard-Fragen (29 Fragen)",
+            "q_none": "*Keine Fragen — bitte hinzufügen*",
+            "q_more": "...und {n} weitere",
+            "done_title": "✅ Panel erstellt!",
+            "q_meta_short": "Einzeiler",
+            "q_meta_minlen": "min. {n} Zeichen",
+            "q_meta_ph": "Vorschlag: {ph}",
+            "f_current_section": "📂 Aktive Sektion",
+            "preview_answer_ph": "*(Antwort des Nutzers)*"
+        },
+        "selfrole_wizard": {
+            "title": "⚙️ Self-Role Panel Setup",
+            "f_info": "📋 Panel-Einstellungen",
+            "f_title": "**Titel:**",
+            "f_desc": "**Beschreibung:**",
+            "f_color": "**Farbe:**",
+            "f_roles": "🎭 Rollen",
+            "color_default": "*Standard (Blau)*",
+            "roles_empty": "*Noch keine Rollen — bitte hinzufügen*"
+        },
+        "ticket_wizard": {
+            "title": "⚙️ Ticket Panel Setup",
+            "f_info": "📋 Panel-Einstellungen",
+            "f_title": "**Titel:**",
+            "f_roles": "**Supporter-Rollen:**",
+            "f_cats": "📂 Kategorien",
+            "cats_empty": "*Noch keine Kategorien — bitte hinzufügen*",
+            "f_embed_style": "🎨 Embed-Gestaltung",
+            "f_desc": "**Beschreibung:**",
+            "f_color": "**Farbe:**",
+            "f_thumb": "**Thumbnail:**",
+            "color_default": "*Standard (Gold)*",
+            "thumb_on": "✅ An",
+            "thumb_off": "❌ Aus",
+            "preview_cats_title": "📂 Kategorien"
+        },
+        "status_wizard": {
+            "title": "⚙️ Bot-Status einrichten",
+            "f_settings": "🤖 Einstellungen",
+            "f_status": "**Status:**",
+            "f_activity": "**Aktivität:**",
+            "f_text": "**Text:**",
+            "f_url": "**Stream-URL:**",
+            "done_title": "✅ Status aktualisiert!"
+        },
+        "joinroles_wizard": {
+            "title": "⚙️ Auto-Join Rollen",
+            "f_roles": "🎭 Rollen",
+            "empty": "*Keine Rollen — bitte hinzufügen*",
+            "done_title": "✅ Rollen gesetzt!"
+        },
+        "verify_wizard": {
+            "title": "⚙️ Verifizierungs-Panel Setup",
+            "f_settings": "⚙️ Einstellungen",
+            "f_role": "**Rolle:**",
+            "f_title": "**Titel:**",
+            "f_desc": "**Beschreibung:**",
+            "f_color": "**Farbe:**",
+            "f_thumb": "**Thumbnail:**",
+            "color_default": "*Standard (Grün)*"
+        },
+        "delete_wizard": {
+            "title": "{emoji} {label} löschen",
+            "desc": "{count} Panel(s) gefunden. Wähle eines zum Löschen aus:",
+            "untitled": "*(Kein Titel)*"
         }
     }
 }

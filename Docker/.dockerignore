@@ -2,4 +2,4 @@
 .env
 .gitignore
 .gitattributes
-config.json
+/configs

@@ -14,7 +14,7 @@ Ticket System · Applications · Moderation · Verification · Self-Roles · Mul
 
 <br/>
 
-**🇬🇧 English** · [🇩🇪 Deutsch](#🇩🇪-Deutsch)
+**🇬🇧 English** · [🇩🇪 Deutsch](#-🇩🇪-Deutsch)
 
 </div>
 

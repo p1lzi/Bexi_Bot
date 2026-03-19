@@ -143,13 +143,8 @@
             }
         },
         "ticket_edit": {
-            "description": "Edits an existing ticket panel",
-            "params": {
-                "message_id": "ID of the panel message (autocomplete available)",
-                "titel": "New title (leave empty = unchanged)",
-                "beschreibung": "New description (leave empty = unchanged)",
-                "farbe": "New hex color, e.g. #FF0000 (leave empty = unchanged)"
-            }
+            "description": "Starts the interactive ticket panel edit wizard",
+            "params": {}
         },
         "ticket_delete": {
             "description": "Deletes a ticket panel",
@@ -166,6 +161,31 @@
         "ping": {
             "description": "Shows the current bot latency",
             "params": {}
+<<<<<<< Updated upstream
+=======
+        },
+        "setup_application": {
+            "description": "Starts the interactive setup wizard for an application panel",
+            "params": {}
+        },
+        "application_delete": {
+            "description": "Deletes an existing application panel",
+            "params": {
+                "message_id": "Message ID of the panel (right-click → Copy ID)"
+            }
+        },
+        "set_join_roles": {
+            "description": "Starts the interactive auto join roles wizard",
+            "params": {}
+        },
+        "remove_join_roles": {
+            "description": "Removes all configured auto-join roles",
+            "params": {}
+        },
+        "delete_wizard": {
+            "description": "Starts the interactive delete wizard",
+            "params": {}
+>>>>>>> Stashed changes
         }
     },
     "buttons": {
@@ -180,7 +200,39 @@
         "ticket_close_placeholder": "e.g. Issue resolved, no response received..."
     },
     "selects": {
+<<<<<<< Updated upstream
         "ticket_placeholder": "📂 Select your topic..."
+=======
+        "ticket_placeholder": "📂 Select your topic...",
+        "selfrole_pick_role": "🎭 Select / deselect roles...",
+        "selfrole_remove_role": "🗑️ Remove a role...",
+        "wizard_pick_roles": "👥 Select roles...",
+        "wizard_pick_channel": "📢 Select channel...",
+        "wizard_pick_verify_role": "🎭 Select verify role...",
+        "status_pick": "🤖 Select online status...",
+        "status_online_desc": "Bot appears as online",
+        "status_idle_desc": "Bot appears as away",
+        "status_dnd_desc": "Bot appears as do not disturb",
+        "status_invisible_desc": "Bot appears as offline",
+        "activity_pick": "🎮 Select activity type...",
+        "activity_playing_desc": "Playing [text]",
+        "activity_streaming_desc": "Streaming [text] on Twitch/YouTube",
+        "activity_listening_desc": "Listening to [text]",
+        "activity_watching_desc": "Watching [text]",
+        "delete_type_ph": "🗑️ What do you want to delete?",
+        "delete_tickets": "🎫 Ticket Panels",
+        "delete_tickets_desc": "{n} panel(s) available",
+        "delete_selfroles": "🎭 Self-Role Panels",
+        "delete_selfroles_desc": "{n} panel(s) available",
+        "delete_applications": "📋 Application Panels",
+        "delete_applications_desc": "{n} panel(s) available",
+        "delete_verify": "✅ Verify Panels",
+        "delete_verify_desc": "{n} panel(s) available",
+        "delete_joinroles": "👋 Auto-Join Roles",
+        "delete_joinroles_desc": "Remove all auto-join roles",
+        "delete_nothing": "— Nothing available —",
+        "delete_panel_ph": "Select panel..."
+>>>>>>> Stashed changes
     },
     "errors": {
         "role_not_found": "❌ This role no longer exists.",
@@ -241,7 +293,35 @@
         "warn_edit_reset": "✅ All warns for {mention} have been reset.",
         "pioneer_summary": "Analysis complete. Here is the summary:",
         "language_set": "✅ Language has been set to **English**.",
+<<<<<<< Updated upstream
         "skipped_entries": "\n\n⚠️ **Skipped entries:**\n{entries}"
+=======
+        "skipped_entries": "\n\n⚠️ **Skipped entries:**\n{entries}",
+        "application_step_done": "✅ Step {current}/{total} completed.\n`{bar}`\nClick **Continue** to proceed.",
+        "application_submitted": "✅ Your application was submitted successfully! We will get back to you.",
+        "application_panel_created": "✅ Application panel created (ID: `{id}`). Applications will be posted in {channel}.",
+        "application_panel_deleted": "✅ Application panel deleted.",
+        "application_accepted": "✅ {mention} has been informed of the acceptance.",
+        "application_declined": "✅ {mention} has been informed of the decline.",
+        "application_questioned": "✅ Question has been sent to {mention}.",
+        "join_roles_set": "✅ Auto-join roles set: {roles}",
+        "join_roles_removed": "✅ Auto-join roles have been removed.",
+        "app_setup_s1_done": "✅ Step 1 complete!\n**Title:** {title}\n**Review Channel:** {channel}\n**Reviewer Role(s):** {roles}\n\nNow choose your questions setting:",
+        "app_setup_q_added": "✅ {count} question(s) saved. Add more or finish?",
+        "wizard_preview_note": "👁️ **Preview** — This is how the application panel will look:",
+        "selfrole_pick_role_hint": "Select a role from the dropdown:",
+        "selfrole_remove_role_hint": "Select the role to remove:",
+        "wizard_select_done": "✅ Selection saved.",
+        "wizard_pick_roles_hint": "Select one or more roles:",
+        "wizard_pick_channel_hint": "Select the review channel:",
+        "status_wizard_pick_status_hint": "Select the bot's online status:",
+        "status_wizard_pick_activity_hint": "Select the activity type:",
+        "delete_wizard_start": "Select what you want to delete:",
+        "delete_wizard_back_hint": "Select a type again:",
+        "delete_wizard_done": "✅ Done.",
+        "panel_deleted_ok": "✅ Panel successfully deleted.",
+        "selfrole_no_change": "No changes made."
+>>>>>>> Stashed changes
     },
     "embeds": {
         "shared": {

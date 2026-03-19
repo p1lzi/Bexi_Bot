@@ -143,13 +143,8 @@
             }
         },
         "ticket_edit": {
-            "description": "Bearbeitet ein bestehendes Ticket-Panel",
-            "params": {
-                "message_id": "ID der Panel-Nachricht (Autocomplete verfügbar)",
-                "titel": "Neuer Titel (leer = unverändert)",
-                "beschreibung": "Neuer Beschreibungstext (leer = unverändert)",
-                "farbe": "Neue Farbe als Hex-Code, z.B. #FF0000 (leer = unverändert)"
-            }
+            "description": "Startet den interaktiven Ticket-Panel-Bearbeitungs-Wizard",
+            "params": {}
         },
         "ticket_delete": {
             "description": "Löscht ein Ticket-Panel",
@@ -166,6 +161,31 @@
         "ping": {
             "description": "Zeigt die aktuelle Bot-Latenz an",
             "params": {}
+<<<<<<< Updated upstream
+=======
+        },
+        "setup_application": {
+            "description": "Startet den interaktiven Einrichtungs-Assistenten für ein Bewerbungs-Panel",
+            "params": {}
+        },
+        "application_delete": {
+            "description": "Löscht ein bestehendes Bewerbungs-Panel",
+            "params": {
+                "message_id": "Nachrichten-ID des Panels (Rechtsklick → ID kopieren)"
+            }
+        },
+        "set_join_roles": {
+            "description": "Startet den interaktiven Auto-Join-Rollen-Wizard",
+            "params": {}
+        },
+        "remove_join_roles": {
+            "description": "Entfernt alle konfigurierten Auto-Join-Rollen",
+            "params": {}
+        },
+        "delete_wizard": {
+            "description": "Startet den interaktiven Lösch-Assistenten",
+            "params": {}
+>>>>>>> Stashed changes
         }
     },
     "buttons": {
@@ -180,7 +200,39 @@
         "ticket_close_placeholder": "z.B. Problem gelöst, keine Antwort erhalten..."
     },
     "selects": {
+<<<<<<< Updated upstream
         "ticket_placeholder": "📂 Wähle dein Anliegen..."
+=======
+        "ticket_placeholder": "📂 Wähle dein Anliegen...",
+        "selfrole_pick_role": "🎭 Rollen auswählen / abwählen...",
+        "selfrole_remove_role": "🗑️ Rolle entfernen...",
+        "wizard_pick_roles": "👥 Rollen auswählen...",
+        "wizard_pick_channel": "📢 Kanal auswählen...",
+        "wizard_pick_verify_role": "🎭 Verifizierungsrolle wählen...",
+        "status_pick": "🤖 Online-Status wählen...",
+        "status_online_desc": "Bot erscheint als Online",
+        "status_idle_desc": "Bot erscheint als Abwesend",
+        "status_dnd_desc": "Bot erscheint als Bitte nicht stören",
+        "status_invisible_desc": "Bot erscheint als Offline",
+        "activity_pick": "🎮 Aktivitäts-Typ wählen...",
+        "activity_playing_desc": "Spielt [Text]",
+        "activity_streaming_desc": "Streamt [Text] auf Twitch/YouTube",
+        "activity_listening_desc": "Hört [Text]",
+        "activity_watching_desc": "Schaut [Text]",
+        "delete_type_ph": "🗑️ Was möchtest du löschen?",
+        "delete_tickets": "🎫 Ticket Panels",
+        "delete_tickets_desc": "{n} Panel(s) vorhanden",
+        "delete_selfroles": "🎭 Self-Role Panels",
+        "delete_selfroles_desc": "{n} Panel(s) vorhanden",
+        "delete_applications": "📋 Bewerbungs-Panels",
+        "delete_applications_desc": "{n} Panel(s) vorhanden",
+        "delete_verify": "✅ Verifizierungs-Panels",
+        "delete_verify_desc": "{n} Panel(s) vorhanden",
+        "delete_joinroles": "👋 Auto-Join Rollen",
+        "delete_joinroles_desc": "Alle Auto-Join Rollen entfernen",
+        "delete_nothing": "— Nichts vorhanden —",
+        "delete_panel_ph": "Panel auswählen..."
+>>>>>>> Stashed changes
     },
     "errors": {
         "role_not_found": "❌ Diese Rolle existiert nicht mehr.",
@@ -241,7 +293,35 @@
         "warn_edit_reset": "✅ Alle Warns für {mention} wurden zurückgesetzt.",
         "pioneer_summary": "Die Analyse wurde abgeschlossen. Hier ist die Zusammenfassung:",
         "language_set": "✅ Sprache wurde auf **Deutsch** gesetzt.",
+<<<<<<< Updated upstream
         "skipped_entries": "\n\n⚠️ **Übersprungene Einträge:**\n{entries}"
+=======
+        "skipped_entries": "\n\n⚠️ **Übersprungene Einträge:**\n{entries}",
+        "application_step_done": "✅ Schritt {current}/{total} abgeschlossen.\n`{bar}`\nKlicke auf **Weiter** um fortzufahren.",
+        "application_submitted": "✅ Deine Bewerbung wurde erfolgreich eingereicht! Wir melden uns bei dir.",
+        "application_panel_created": "✅ Bewerbungs-Panel erstellt (ID: `{id}`). Bewerbungen gehen in {channel} ein.",
+        "application_panel_deleted": "✅ Bewerbungs-Panel gelöscht.",
+        "application_accepted": "✅ {mention} wurde über die Annahme informiert.",
+        "application_declined": "✅ {mention} wurde über die Ablehnung informiert.",
+        "application_questioned": "✅ Rückfrage wurde an {mention} gesendet.",
+        "join_roles_set": "✅ Auto-Join-Rollen gesetzt: {roles}",
+        "join_roles_removed": "✅ Auto-Join-Rollen wurden entfernt.",
+        "app_setup_s1_done": "✅ Schritt 1 abgeschlossen!\n**Titel:** {title}\n**Review-Kanal:** {channel}\n**Reviewer-Rolle(n):** {roles}\n\nWähle jetzt die Fragen-Einstellung:",
+        "app_setup_q_added": "✅ {count} Frage(n) gespeichert. Weitere hinzufügen oder fertigstellen?",
+        "wizard_preview_note": "👁️ **Vorschau** — So sieht das Bewerbungs-Panel aus:",
+        "selfrole_pick_role_hint": "Wähle eine Rolle aus dem Dropdown:",
+        "selfrole_remove_role_hint": "Wähle die zu entfernende Rolle:",
+        "wizard_select_done": "✅ Auswahl gespeichert.",
+        "wizard_pick_roles_hint": "Wähle eine oder mehrere Rollen:",
+        "wizard_pick_channel_hint": "Wähle den Review-Kanal:",
+        "status_wizard_pick_status_hint": "Wähle den Online-Status des Bots:",
+        "status_wizard_pick_activity_hint": "Wähle den Aktivitäts-Typ:",
+        "delete_wizard_start": "Wähle aus, was du löschen möchtest:",
+        "delete_wizard_back_hint": "Wähle erneut einen Typ:",
+        "delete_wizard_done": "✅ Fertig.",
+        "panel_deleted_ok": "✅ Panel erfolgreich gelöscht.",
+        "selfrole_no_change": "Keine Änderungen vorgenommen."
+>>>>>>> Stashed changes
     },
     "embeds": {
         "shared": {

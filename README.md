@@ -1,7 +1,7 @@
 # English
 <div align="center">
 
-# 🤖 Util
+# 🤖 Util Bot
 
 **A fully-featured Discord bot for roleplay servers and normal servers**
 

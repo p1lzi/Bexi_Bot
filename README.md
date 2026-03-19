@@ -1,7 +1,7 @@
-# English
+# 🇬🇧 English
 <div align="center">
 
-# 🤖 Util
+# 🤖 Util Bot
 
 **A fully-featured Discord bot for roleplay servers and normal servers**
 
@@ -14,7 +14,7 @@ Ticket System · Applications · Moderation · Verification · Self-Roles · Mul
 
 <br/>
 
-**🇬🇧 English** · [🇩🇪 Deutsch](#Deutsch)
+**🇬🇧 English** · [🇩🇪 Deutsch](#🇩🇪-Deutsch)
 
 </div>
 
@@ -420,7 +420,7 @@ This project is licensed under the [MIT License](LICENSE).
 ---
 ---
 ---
-# Deutsch
+# 🇩🇪 Deutsch
 
 <div align="center">
 
@@ -437,7 +437,7 @@ Ticket-System · Bewerbungen · Moderation · Verifizierung · Self-Roles · Meh
 
 <br/>
 
-[🇬🇧 English](#-English) · **🇩🇪 Deutsch**
+[🇬🇧 English](#🇬🇧-English) · **🇩🇪 Deutsch**
 
 </div>
 

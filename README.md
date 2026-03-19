@@ -1,3 +1,4 @@
+# English
 <div align="center">
 
 # 🤖 Util
@@ -12,7 +13,6 @@ Ticket System · Applications · Moderation · Verification · Self-Roles · Mul
 [![Docker](https://img.shields.io/badge/Docker-ARM64%20%2F%20x86-2496ED?style=for-the-badge&logo=docker&logoColor=white)](Docker/)
 
 <br/>
-# English
 
 **🇬🇧 English** · [🇩🇪 Deutsch](#-Deutsch)
 
@@ -420,6 +420,7 @@ This project is licensed under the [MIT License](LICENSE).
 ---
 ---
 ---
+# Deutsch
 
 <div align="center">
 
@@ -434,7 +435,6 @@ Ticket-System · Bewerbungen · Moderation · Verifizierung · Self-Roles · Meh
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-ARM64%20%2F%20x86-2496ED?style=for-the-badge&logo=docker&logoColor=white)](Docker/)
 
-# Deutsch
 <br/>
 
 [🇬🇧 English](#-English) · **🇩🇪 Deutsch**

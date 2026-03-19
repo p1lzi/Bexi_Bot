@@ -1,4 +1,4 @@
-#English
+# English
 <div align="center">
 
 # 🤖 Util
@@ -420,7 +420,7 @@ This project is licensed under the [MIT License](LICENSE).
 ---
 ---
 ---
-#Deutsch
+# Deutsch
 
 <div align="center">
 

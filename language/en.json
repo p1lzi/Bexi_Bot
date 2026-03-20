@@ -12,13 +12,8 @@
             }
         },
         "selfrole_erstellen": {
-            "description": "Creates a panel where users can assign themselves roles",
-            "params": {
-                "titel": "Title of the panel, e.g. 'Choose your roles'",
-                "beschreibung": "Description shown below the title",
-                "rollen": "Format: 🎮 Name|RoleID|Description — separate multiple with comma",
-                "farbe": "Hex color, e.g. #5865F2 (optional)"
-            }
+            "description": "Starts the interactive setup wizard for a self-role panel",
+            "params": {}
         },
         "selfrole_loeschen": {
             "description": "Deletes an existing self-role panel by message ID",
@@ -105,21 +100,12 @@
             }
         },
         "setup_verify": {
-            "description": "Creates a message with a verification button",
-            "params": {
-                "titel": "Heading of the verification panel",
-                "beschreibung": "Explanation text for users",
-                "rolle": "Role assigned after verification"
-            }
+            "description": "Starts the interactive setup wizard for a verification panel",
+            "params": {}
         },
         "status_config": {
-            "description": "Changes the online status and activity of the bot",
-            "params": {
-                "status": "Online status of the bot",
-                "typ": "Type of displayed activity",
-                "text": "Activity text shown below the bot name",
-                "stream_url": "Stream URL (only relevant for type 'Streaming')"
-            },
+            "description": "Starts the interactive bot status wizard",
+            "params": {},
             "choices": {
                 "status": {
                     "online": "Online",
@@ -136,11 +122,8 @@
             }
         },
         "setup_tickets": {
-            "description": "Creates a new support ticket panel",
-            "params": {
-                "supporter_rollen": "Roles allowed to handle tickets (mention or ID)",
-                "kategorien": "Categories in format: 'Name|Description', multiple in quotes"
-            }
+            "description": "Starts the interactive setup wizard for a ticket panel",
+            "params": {}
         },
         "ticket_edit": {
             "description": "Starts the interactive ticket panel edit wizard",
@@ -161,8 +144,6 @@
         "ping": {
             "description": "Shows the current bot latency",
             "params": {}
-<<<<<<< Updated upstream
-=======
         },
         "setup_application": {
             "description": "Starts the interactive setup wizard for an application panel",
@@ -185,24 +166,145 @@
         "delete_wizard": {
             "description": "Starts the interactive delete wizard",
             "params": {}
->>>>>>> Stashed changes
         }
     },
     "buttons": {
         "claim_ticket": "Claim Ticket",
         "close_ticket": "Close Ticket",
         "verify": "Verify Now",
-        "claimed_done": "Claimed"
+        "claimed_done": "Claimed",
+        "apply_now": "Apply Now",
+        "app_continue": "Continue →",
+        "app_cancel": "Cancel",
+        "app_accept": "✅ Accept",
+        "app_decline": "❌ Decline",
+        "app_question": "❓ Question",
+        "app_setup_use_default": "✅ Use Default Questions",
+        "app_setup_custom_q": "✏️ Add Custom Questions",
+        "app_setup_more_q": "➕ Add More Questions",
+        "app_setup_finish": "✅ Finish Setup",
+        "wizard_edit_info": "✏️ Edit Info",
+        "wizard_add_q": "➕ Add Questions",
+        "wizard_default_q": "✅ Default Questions",
+        "wizard_clear_q": "🗑️ Clear Questions",
+        "wizard_finish": "🚀 Finish & Create",
+        "wizard_cancel": "✖️ Cancel",
+        "selfrole_wizard_add": "➕ Add Role",
+        "selfrole_wizard_remove": "🗑️ Remove Last",
+        "ticket_wizard_add_cat": "➕ Add Category",
+        "ticket_wizard_remove_cat": "🗑️ Remove Last",
+        "wizard_add_section": "📂 Add Section",
+        "wizard_remove_last": "↩️ Remove Last",
+        "wizard_preview": "👁️ Preview",
+        "ticket_wizard_edit_embed": "🎨 Edit Embed",
+        "status_wizard_apply": "✅ Apply",
+        "joinroles_add": "➕ Add Role",
+        "joinroles_remove": "🗑️ Remove Last",
+        "wizard_pick_roles": "👥 Supporter Roles",
+        "wizard_pick_channel": "📢 Review Channel",
+        "wizard_pick_reviewer": "👥 Reviewer Role",
+        "wizard_pick_verify_role": "🎭 Verify Role",
+        "status_wizard_pick_status": "🟢 Status",
+        "status_wizard_pick_activity": "🎮 Activity",
+        "status_wizard_edit_text": "✏️ Text / URL",
+        "delete_wizard_back": "← Back",
+        "delete_wizard_more": "🗑️ Delete another"
     },
     "modals": {
         "ticket_close_title": "Close Ticket",
         "ticket_close_label": "Reason for closing",
-        "ticket_close_placeholder": "e.g. Issue resolved, no response received..."
+        "ticket_close_placeholder": "e.g. Issue resolved, no response received...",
+        "app_accept_title": "Accept Application",
+        "app_decline_title": "Decline Application",
+        "app_question_title": "Ask a Question",
+        "app_decision_label": "Message to the applicant",
+        "app_decision_placeholder": "e.g. Congratulations! / Unfortunately we cannot accept your application...",
+        "app_setup_s1_title": "Create Application Panel (1/2)",
+        "app_setup_title_label": "Panel Title",
+        "app_setup_title_ph": "e.g. Staff Application",
+        "app_setup_desc_label": "Description (optional)",
+        "app_setup_desc_ph": "Brief explanation for applicants...",
+        "app_setup_channel_label": "Review Channel (mention or ID)",
+        "app_setup_channel_ph": "e.g. #applications or 123456789",
+        "app_setup_q_title": "Add Question",
+        "app_setup_q_label": "Question (field label)",
+        "app_setup_q_ph": "Your question (leave empty to skip)",
+        "app_setup_role_label": "Reviewer Role (mention or ID)",
+        "app_setup_role_ph": "e.g. @Staff or 123456789 — leave empty = no filter",
+        "app_setup_edit_title": "Edit Panel Settings",
+        "app_setup_q_label_ph": "e.g. Why do you want to be staff?",
+        "app_setup_q_placeholder_label": "Placeholder text (optional)",
+        "app_setup_q_placeholder_ph": "e.g. Minimum 5 sentences...",
+        "app_setup_q_minlen_label": "Min. length (0 = no limit)",
+        "app_setup_q_minlen_ph": "e.g. 50",
+        "app_setup_q_style_label": "Type: paragraph or short",
+        "app_setup_q_style_ph": "paragraph (default) / short (single line)",
+        "selfrole_setup_info_title": "Set Up Self-Role Panel",
+        "selfrole_setup_title_label": "Panel Title",
+        "selfrole_setup_title_ph": "e.g. Choose your roles",
+        "selfrole_setup_desc_label": "Description (optional)",
+        "selfrole_setup_desc_ph": "Explanation text for users...",
+        "selfrole_setup_color_label": "Color (Hex, optional)",
+        "selfrole_setup_color_ph": "e.g. 5865F2 or #FF0000",
+        "selfrole_setup_role_title": "Add Role",
+        "selfrole_setup_role_label": "Role ID or mention",
+        "selfrole_setup_role_ph": "e.g. @Gamer or 123456789",
+        "selfrole_setup_name_label": "Button display name",
+        "selfrole_setup_name_ph": "e.g. Gamer",
+        "selfrole_setup_emoji_label": "Emoji (optional)",
+        "selfrole_setup_emoji_ph": "e.g. 🎮",
+        "selfrole_setup_roledesc_label": "Short description (optional)",
+        "selfrole_setup_roledesc_ph": "e.g. For all gamers",
+        "ticket_setup_info_title": "Set Up Ticket Panel",
+        "ticket_setup_title_label": "Panel Title",
+        "ticket_setup_title_ph": "e.g. Support Tickets",
+        "ticket_setup_roles_label": "Supporter Roles (IDs/mentions)",
+        "ticket_setup_roles_ph": "e.g. @Support @Admin or 123 456",
+        "ticket_setup_cat_title": "Add Category",
+        "ticket_setup_cat_label": "Category name",
+        "ticket_setup_cat_label_ph": "e.g. General Support",
+        "ticket_setup_cat_emoji": "Emoji (optional)",
+        "ticket_setup_cat_emoji_ph": "e.g. 🛠️",
+        "ticket_setup_cat_desc": "Description (optional)",
+        "ticket_setup_cat_desc_ph": "e.g. Questions about the server...",
+        "app_setup_section_title": "Set Section / Category",
+        "app_setup_section_label": "Section name",
+        "app_setup_section_ph": "e.g. Personal Info — leave empty to clear",
+        "ticket_setup_embed_title": "Style Embed",
+        "ticket_setup_embed_desc_label": "Description text",
+        "ticket_setup_embed_desc_ph": "e.g. Need help? Select a category...",
+        "ticket_setup_embed_color_label": "Color (Hex without #)",
+        "ticket_setup_embed_color_ph": "e.g. FFD700 for Gold, 5865F2 for Blurple",
+        "ticket_setup_embed_thumb_label": "Show server icon as thumbnail? (yes/no)",
+        "ticket_setup_embed_thumb_ph": "yes = show, no = hide",
+        "app_setup_section_desc_label": "Short description (optional)",
+        "app_setup_section_desc_ph": "e.g. Your personal details",
+        "status_wizard_title": "Configure Bot Status",
+        "status_wizard_status_label": "Online Status",
+        "status_wizard_status_ph": "online / idle / dnd / invisible",
+        "status_wizard_activity_label": "Activity Type",
+        "status_wizard_activity_ph": "playing / streaming / listening / watching",
+        "status_wizard_text_label": "Activity Text",
+        "status_wizard_text_ph": "e.g. 🎮 Bexi RP | !help",
+        "status_wizard_url_label": "Stream URL (streaming only)",
+        "status_wizard_url_ph": "https://twitch.tv/...",
+        "joinroles_add_title": "Add Roles",
+        "joinroles_add_label": "Roles (IDs or mentions)",
+        "joinroles_add_ph": "e.g. @Member @Guest or 123 456",
+        "verify_setup_info_title": "Set Up Verify Panel",
+        "verify_setup_role_label": "Role (ID or mention)",
+        "verify_setup_role_ph": "e.g. @Member or 123456789",
+        "verify_setup_title_label": "Title (optional)",
+        "verify_setup_title_ph": "✅ Verification",
+        "verify_setup_desc_label": "Description (optional)",
+        "verify_setup_desc_ph": "Explanation text for users...",
+        "verify_setup_embed_title": "Style Embed",
+        "verify_setup_color_label": "Color (Hex without #)",
+        "verify_setup_color_ph": "e.g. 57F287 for Green, 5865F2 for Blurple",
+        "verify_setup_thumb_label": "Server icon as thumbnail? (yes/no)",
+        "verify_setup_thumb_ph": "yes = show, no = hide"
     },
     "selects": {
-<<<<<<< Updated upstream
-        "ticket_placeholder": "📂 Select your topic..."
-=======
         "ticket_placeholder": "📂 Select your topic...",
         "selfrole_pick_role": "🎭 Select / deselect roles...",
         "selfrole_remove_role": "🗑️ Remove a role...",
@@ -232,7 +334,6 @@
         "delete_joinroles_desc": "Remove all auto-join roles",
         "delete_nothing": "— Nothing available —",
         "delete_panel_ph": "Select panel..."
->>>>>>> Stashed changes
     },
     "errors": {
         "role_not_found": "❌ This role no longer exists.",
@@ -264,7 +365,27 @@
         "no_categories": "❌ No valid categories found. Format: `Name|Description` — separate multiple with comma.",
         "no_categories_detail": "❌ No valid categories.\n\n**Errors:**\n{errors}",
         "generic_error": "❌ Error: {error}",
-        "ticket_edit_error": "❌ Error while editing panel: {error}"
+        "ticket_edit_error": "❌ Error while editing panel: {error}",
+        "application_not_yours": "❌ This is not your application.",
+        "application_cancelled": "❌ Application cancelled.",
+        "application_already_open": "⚠️ You already have an open application. Please complete it first.",
+        "application_no_review_channel": "❌ No review channel configured. Please contact an administrator.",
+        "no_permission_review": "❌ You don't have permission to process applications.",
+        "join_roles_none": "ℹ️ No auto-join roles configured.",
+        "setup_channel_not_found": "❌ Channel not found. Please provide a channel mention or ID.",
+        "wizard_incomplete": "❌ Please fill in at least the title and review channel.",
+        "app_answer_too_short": "❌ **{label}** — Minimum {min} characters required (you wrote {got}).",
+        "selfrole_max_roles": "❌ Maximum 25 roles per panel.",
+        "selfrole_no_roles_to_remove": "❌ No roles to remove.",
+        "selfrole_duplicate": "❌ This role is already in the panel.",
+        "ticket_max_cats": "❌ Maximum 25 categories per panel.",
+        "ticket_no_cats": "❌ No categories added yet.",
+        "app_no_questions": "❌ No questions to remove.",
+        "ticket_invalid_color": "❌ Invalid color. Please provide a hex code without #, e.g. `FFD700`.",
+        "status_invalid": "❌ Invalid status. Allowed: {options}",
+        "activity_invalid": "❌ Invalid activity type. Allowed: {options}",
+        "joinroles_none_to_remove": "❌ No roles to remove.",
+        "delete_nothing_found": "ℹ️ No deletable panels found on this server."
     },
     "success": {
         "log_channel_set": "✅ Log channel set to {channel}.",
@@ -293,9 +414,6 @@
         "warn_edit_reset": "✅ All warns for {mention} have been reset.",
         "pioneer_summary": "Analysis complete. Here is the summary:",
         "language_set": "✅ Language has been set to **English**.",
-<<<<<<< Updated upstream
-        "skipped_entries": "\n\n⚠️ **Skipped entries:**\n{entries}"
-=======
         "skipped_entries": "\n\n⚠️ **Skipped entries:**\n{entries}",
         "application_step_done": "✅ Step {current}/{total} completed.\n`{bar}`\nClick **Continue** to proceed.",
         "application_submitted": "✅ Your application was submitted successfully! We will get back to you.",
@@ -321,7 +439,6 @@
         "delete_wizard_done": "✅ Done.",
         "panel_deleted_ok": "✅ Panel successfully deleted.",
         "selfrole_no_change": "No changes made."
->>>>>>> Stashed changes
     },
     "embeds": {
         "shared": {
@@ -497,6 +614,106 @@
             "footer": "Role: {role}",
             "default_title": "✅ Verification",
             "default_desc": "Click the button below to verify yourself and gain access to the server."
+        },
+        "application": {
+            "default_title": "📋 Staff Application",
+            "default_desc": "Want to become part of our team?\n\nClick **Apply Now** and fill out the form. You will be guided through all questions step by step.\n\n> ⚠️ Answer all questions completely and honestly.",
+            "review_title": "{title} — New Application",
+            "review_desc": "New application from {mention}",
+            "dm_title": "📋 Application Submitted",
+            "dm_desc": "Your application was submitted successfully. Our team will review it as soon as possible. Please be patient. 🙂",
+            "footer": "Application System",
+            "panel_footer": "{name} • Application System",
+            "review_author": "{title} — New Application",
+            "review_applicant": "👤 **Applicant:**",
+            "review_account": "🎂 **Account created:**",
+            "review_joined": "📅 **Joined server:**",
+            "review_submitted": "📨 **Submitted:**",
+            "review_reviewer": "🛡️ Reviewer",
+            "review_note": "💬 Message",
+            "status_handled": "Handled",
+            "dm_accepted_title": "✅ Application Accepted!",
+            "dm_accepted_desc": "your application has been accepted. Welcome to the team! 🎉",
+            "dm_declined_title": "❌ Application Declined",
+            "dm_declined_desc": "unfortunately your application has been declined. You may apply again at a later time.",
+            "dm_question_title": "❓ Question About Your Application",
+            "dm_question_desc": "the team has a question about your application. Please respond as soon as possible.",
+            "question_thread_desc": "{mention}, a supporter has a follow-up question about your application.\n\n{reviewer} will be helping you.",
+            "no_reviewer_role": "*No role set*"
+        },
+        "wizard": {
+            "title": "⚙️ Application Panel Setup",
+            "f_step1": "📋 Step 1 — Basic Settings",
+            "f_step2": "❓ Step 2 — Questions",
+            "f_title": "**Title:**",
+            "f_channel": "**Review Channel:**",
+            "f_roles": "**Reviewer Role(s):**",
+            "not_set": "*not set*",
+            "q_default": "✅ Default questions (29 questions)",
+            "q_none": "*No questions — please add some*",
+            "q_more": "...and {n} more",
+            "done_title": "✅ Panel Created!",
+            "q_meta_short": "single line",
+            "q_meta_minlen": "min. {n} chars",
+            "q_meta_ph": "placeholder: {ph}",
+            "f_current_section": "📂 Active Section",
+            "preview_answer_ph": "*(user's answer)*"
+        },
+        "selfrole_wizard": {
+            "title": "⚙️ Self-Role Panel Setup",
+            "f_info": "📋 Panel Settings",
+            "f_title": "**Title:**",
+            "f_desc": "**Description:**",
+            "f_color": "**Color:**",
+            "f_roles": "🎭 Roles",
+            "color_default": "*Default (Blue)*",
+            "roles_empty": "*No roles yet — please add some*"
+        },
+        "ticket_wizard": {
+            "title": "⚙️ Ticket Panel Setup",
+            "f_info": "📋 Panel Settings",
+            "f_title": "**Title:**",
+            "f_roles": "**Supporter Roles:**",
+            "f_cats": "📂 Categories",
+            "cats_empty": "*No categories yet — please add some*",
+            "f_embed_style": "🎨 Embed Styling",
+            "f_desc": "**Description:**",
+            "f_color": "**Color:**",
+            "f_thumb": "**Thumbnail:**",
+            "color_default": "*Default (Gold)*",
+            "thumb_on": "✅ On",
+            "thumb_off": "❌ Off",
+            "preview_cats_title": "📂 Categories"
+        },
+        "status_wizard": {
+            "title": "⚙️ Bot Status Setup",
+            "f_settings": "🤖 Settings",
+            "f_status": "**Status:**",
+            "f_activity": "**Activity:**",
+            "f_text": "**Text:**",
+            "f_url": "**Stream URL:**",
+            "done_title": "✅ Status Updated!"
+        },
+        "joinroles_wizard": {
+            "title": "⚙️ Auto Join Roles",
+            "f_roles": "🎭 Roles",
+            "empty": "*No roles — please add some*",
+            "done_title": "✅ Roles Set!"
+        },
+        "verify_wizard": {
+            "title": "⚙️ Verify Panel Setup",
+            "f_settings": "⚙️ Settings",
+            "f_role": "**Role:**",
+            "f_title": "**Title:**",
+            "f_desc": "**Description:**",
+            "f_color": "**Color:**",
+            "f_thumb": "**Thumbnail:**",
+            "color_default": "*Default (Green)*"
+        },
+        "delete_wizard": {
+            "title": "{emoji} Delete {label}",
+            "desc": "{count} panel(s) found. Select one to delete:",
+            "untitled": "*(No title)*"
         }
     }
 }

@@ -7,4 +7,6 @@ services:
       - DISCORD_TOKEN=${Bot_Token}
       - DISCORD_GUILD_ID=${Guild_ID}
       - TZ=Europe/Berlin
+      - DEBUG=${debug}
+      - DEFAULT_LANG=${lang}
     platform: linux/arm64

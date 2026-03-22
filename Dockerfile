@@ -37,6 +37,8 @@ RUN echo "{}" > config.json
 ENV DISCORD_TOKEN=""
 ENV DISCORD_GUILD_ID=""
 ENV TZ="Europe/Berlin"
+ENV DEFAULT_LANG = ""
+ENV DEBUG="false"
 
 # Startbefehl für den Bot
 CMD ["python", "bot.py"]

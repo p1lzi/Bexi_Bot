@@ -1,1 +1,123 @@
-{}
+{
+    "1317429074058154084": {
+        "ticket_panels": [
+            {
+                "categories": [
+                    {
+                        "label": "sd",
+                        "value": "sd_0",
+                        "emoji": null,
+                        "description": null,
+                        "supporter_role_ids": null
+                    }
+                ],
+                "channel_id": 1317429074544562208,
+                "message_id": 1485555121302667266,
+                "supporter_role_ids": [
+                    1480965772603031848
+                ],
+                "created_at": "01.03.2050 10:45",
+                "title": "Test 122323"
+            }
+        ],
+        "category_counters": {
+            "sd_0": 1
+        },
+        "category_channels": {
+            "sd_0": 1484488354589446321
+        },
+        "log_channel_id": 1480966878091542570,
+        "verify_panels": [
+            {
+                "role_id": 1480965772603031848,
+                "message_id": 1485555124343406732,
+                "channel_id": 1317429074544562208,
+                "title": "\u2705 Verifizierung"
+            }
+        ],
+        "language": "en",
+        "application_panels": [
+            {
+                "message_id": 1485555127237480499,
+                "channel_id": 1317429074544562208,
+                "review_channel_id": 1317429074544562208,
+                "reviewer_role_ids": [],
+                "title": "Test",
+                "questions": null
+            },
+            {
+                "message_id": 1485555129343148096,
+                "channel_id": 1317429074544562208,
+                "review_channel_id": 1480966878091542570,
+                "reviewer_role_ids": [],
+                "title": "sd",
+                "questions": null
+            },
+            {
+                "message_id": 1485555132325298206,
+                "channel_id": 1317429074544562208,
+                "review_channel_id": 1480966878091542570,
+                "reviewer_role_ids": [
+                    1480965772603031848
+                ],
+                "title": "Tsd",
+                "questions": [
+                    {
+                        "label": "sd",
+                        "placeholder": "",
+                        "style": "paragraph",
+                        "required": true,
+                        "min_length": 0,
+                        "section": null
+                    }
+                ]
+            }
+        ]
+    },
+    "1317429037802721280": {
+        "verify_panels": [
+            {
+                "role_id": 1480517570988609638,
+                "message_id": 1484488151929192520,
+                "channel_id": 1317429038318485506,
+                "title": "\u2705 Verification"
+            }
+        ],
+        "ticket_panels": [
+            {
+                "categories": [
+                    {
+                        "label": "sd",
+                        "value": "sd_0",
+                        "emoji": null,
+                        "description": null,
+                        "supporter_role_ids": null
+                    }
+                ],
+                "channel_id": 1317429038318485506,
+                "message_id": 1484488270640582706,
+                "supporter_role_ids": [
+                    1479430671083634749
+                ],
+                "created_at": "20.03.2026 10:46",
+                "title": "sd"
+            }
+        ],
+        "language": "de",
+        "category_counters": {
+            "sd_0": 1
+        },
+        "category_channels": {
+            "sd_0": 1484488312868831264
+        }
+    },
+    "None": {
+        "language": "en"
+    },
+    "bot_presence": {
+        "status": "online",
+        "type": "listening",
+        "text": "Oleck",
+        "url": "https://twitch.tv/discord"
+    }
+}

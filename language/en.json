@@ -385,7 +385,15 @@
         "status_invalid": "❌ Invalid status. Allowed: {options}",
         "activity_invalid": "❌ Invalid activity type. Allowed: {options}",
         "joinroles_none_to_remove": "❌ No roles to remove.",
-        "delete_nothing_found": "ℹ️ No deletable panels found on this server."
+        "delete_nothing_found": "ℹ️ No deletable panels found on this server.",
+        "wizard_missing_title": "❌ Please set a **title** first (✏️ Edit Info).",
+        "wizard_missing_channel": "❌ Please select a **review channel** first (📢 Review Channel).",
+        "wizard_missing_roles": "❌ Please select at least one **supporter role** (👥 Supporter Roles).",
+        "wizard_missing_verify_role": "❌ Please select a **verify role** (🎭 Verify Role).",
+        "wizard_missing_categories": "❌ Please add at least one **category** (➕ Add Category).",
+        "wizard_missing_question_roles": "❌ Please select one or more **roles**.",
+        "wizard_missing_selfrole_title": "❌ Please set a **title** first (✏️ Edit Info).",
+        "wizard_missing_selfroles": "❌ Please add at least one **role** (➕ Add Role)."
     },
     "success": {
         "log_channel_set": "✅ Log channel set to {channel}.",
@@ -714,6 +722,26 @@
             "title": "{emoji} Delete {label}",
             "desc": "{count} panel(s) found. Select one to delete:",
             "untitled": "*(No title)*"
+        },
+        "log_language": {
+            "title": "🌐 Language Changed",
+            "desc": "The server language was set to **{lang}**."
+        },
+        "log_status": {
+            "title": "⚙️ Bot Status Changed",
+            "desc": "Status: `{status}` · Activity: `{activity}` · Text: `{text}`"
+        },
+        "log_config_export": {
+            "title": "📥 Config Exported",
+            "desc": "The server configuration was downloaded as a JSON file."
+        },
+        "log_config_import": {
+            "title": "📤 Config Imported",
+            "desc": "{panels} panel(s) recreated — {errors} error(s)."
+        },
+        "log_config_rollback": {
+            "title": "↩️ Config Import Rolled Back",
+            "desc": "The last config import was rolled back. {errors} error(s)."
         }
     }
 }

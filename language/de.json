@@ -385,7 +385,15 @@
         "status_invalid": "❌ Ungültiger Status. Erlaubt: {options}",
         "activity_invalid": "❌ Ungültiger Aktivitäts-Typ. Erlaubt: {options}",
         "joinroles_none_to_remove": "❌ Keine Rollen zum Entfernen.",
-        "delete_nothing_found": "ℹ️ Keine löschbaren Panels auf diesem Server gefunden."
+        "delete_nothing_found": "ℹ️ Keine löschbaren Panels auf diesem Server gefunden.",
+        "wizard_missing_title": "❌ Bitte lege zuerst einen **Titel** fest (✏️ Edit Info).",
+        "wizard_missing_channel": "❌ Bitte wähle zuerst einen **Review-Kanal** aus (📢 Review Channel).",
+        "wizard_missing_roles": "❌ Bitte wähle mindestens eine **Supporter-Rolle** aus (👥 Supporter Roles).",
+        "wizard_missing_verify_role": "❌ Bitte wähle eine **Verifizierungs-Rolle** aus (🎭 Verify Role).",
+        "wizard_missing_categories": "❌ Bitte füge mindestens eine **Kategorie** hinzu (➕ Add Category).",
+        "wizard_missing_question_roles": "❌ Bitte wähle eine oder mehrere **Rollen** aus.",
+        "wizard_missing_selfrole_title": "❌ Bitte lege zuerst einen **Titel** fest (✏️ Edit Info).",
+        "wizard_missing_selfroles": "❌ Bitte füge mindestens eine **Rolle** hinzu (➕ Add Role)."
     },
     "success": {
         "log_channel_set": "✅ Log-Kanal wurde auf {channel} gesetzt.",
@@ -714,6 +722,26 @@
             "title": "{emoji} {label} löschen",
             "desc": "{count} Panel(s) gefunden. Wähle eines zum Löschen aus:",
             "untitled": "*(Kein Titel)*"
+        },
+        "log_language": {
+            "title": "🌐 Sprache geändert",
+            "desc": "Die Server-Sprache wurde auf **{lang}** gesetzt."
+        },
+        "log_status": {
+            "title": "⚙️ Bot-Status geändert",
+            "desc": "Status: `{status}` · Aktivität: `{activity}` · Text: `{text}`"
+        },
+        "log_config_export": {
+            "title": "📥 Config exportiert",
+            "desc": "Die Server-Konfiguration wurde als JSON-Datei heruntergeladen."
+        },
+        "log_config_import": {
+            "title": "📤 Config importiert",
+            "desc": "{panels} Panel(s) neu erstellt — {errors} Fehler."
+        },
+        "log_config_rollback": {
+            "title": "↩️ Config-Import rückgängig gemacht",
+            "desc": "Der letzte Config-Import wurde rückgängig gemacht. {errors} Fehler."
         }
     }
 }

@@ -710,6 +710,13 @@ class TicketSelect(discord.ui.Select):
             }
             category = await guild.create_category(name=main_category_name, overwrites=overwrites)
 
+        # Resolve human-readable label for this category value
+        cat_label = selected_value
+        for cat in self.categories_full_data:
+            if cat.get("value") == selected_value:
+                cat_label = cat.get("label", selected_value)
+                break
+
         config[guild_id].setdefault("category_channels", {})
         cached_channel_id = config[guild_id]["category_channels"].get(selected_value)
         target_channel = None
@@ -718,7 +725,11 @@ class TicketSelect(discord.ui.Select):
             target_channel = guild.get_channel(cached_channel_id)
 
         if not target_channel:
-            channel_name = f"{selected_value.lower().replace(' ', '-')}-tickets"
+            # cat_label is the human-readable label — use directly for channel name
+            clean_label  = cat_label.strip()
+            channel_name = re.sub(r'[^a-z0-9\-]', '-',
+                                  clean_label.lower().replace(' ', '-'))[:80].strip('-') + "-tickets"
+            channel_name = re.sub(r'-+', '-', channel_name)  # collapse multiple dashes
             target_channel = discord.utils.get(category.text_channels, name=channel_name)
 
             if not target_channel:
@@ -748,12 +759,12 @@ class TicketSelect(discord.ui.Select):
                     name=channel_name,
                     category=category,
                     overwrites=overwrites,
-                    topic=f"Tickets: {selected_value}"
+                    topic="Tickets: " + clean_label
                 )
 
                 info_embed = discord.Embed(
-                    title=t("embeds","ticket_channel","title", category=selected_value),
-                    description=t("embeds","ticket_channel","desc", category=selected_value),
+                    title=t("embeds","ticket_channel","title", category=clean_label),
+                    description=t("embeds","ticket_channel","desc", category=clean_label),
                     color=discord.Color.blurple()
                 )
                 if guild.icon:
@@ -765,8 +776,9 @@ class TicketSelect(discord.ui.Select):
 
         save_config(config)
 
-        clean_username = interaction.user.display_name.replace(' ', '-').lower()
-        thread_name = f"{selected_value.lower()[:5]}-{formatted_id}-{clean_username}"
+        clean_username  = interaction.user.display_name.replace(' ', '-').lower()
+        clean_cat_short = cat_label.lower()[:5]
+        thread_name = f"{clean_cat_short}-{formatted_id}-{clean_username}"
 
         thread = await target_channel.create_thread(
             name=thread_name,
@@ -774,7 +786,7 @@ class TicketSelect(discord.ui.Select):
         )
 
         await interaction.response.send_message(
-            t("success","ticket_created_reply", id=formatted_id, category=selected_value,
+            t("success","ticket_created_reply", id=formatted_id, category=cat_label,
               mention=thread.mention, url=thread.jump_url),
             ephemeral=True
         )
@@ -796,13 +808,13 @@ class TicketSelect(discord.ui.Select):
                             pass
 
         ticket_embed = discord.Embed(
-            title=t("embeds","ticket_thread","title", id=formatted_id, category=selected_value),
+            title=t("embeds","ticket_thread","title", id=formatted_id, category=cat_label),
             description=t("embeds","ticket_thread","desc", mention=interaction.user.mention),
             color=discord.Color.green(),
             timestamp=now_timestamp()
         )
         ticket_embed.add_field(name=t("embeds","ticket_thread","f_number"), value=f"`#{formatted_id}`", inline=True)
-        ticket_embed.add_field(name=t("embeds","ticket_thread","f_category"), value=f"`{selected_value}`", inline=True)
+        ticket_embed.add_field(name=t("embeds","ticket_thread","f_category"), value=f"`{cat_label}`", inline=True)
         ticket_embed.add_field(name=t("embeds","ticket_thread","f_created_by"), value=interaction.user.mention, inline=True)
         ticket_embed.add_field(
             name=t("embeds","ticket_thread","f_next_steps"),
@@ -1122,8 +1134,14 @@ class AppSetupMainView(discord.ui.View):
     def __init__(self, user_id: int):
         super().__init__(timeout=600)
         self.user_id = user_id
+        state = _setup_wizard_state.get(user_id, {})
+        has_title   = bool(state.get("title"))
+        has_channel = bool(state.get("review_channel_id"))
+
         self.edit_info_btn.label     = t("buttons", "wizard_edit_info")
+        self.edit_info_btn.style     = discord.ButtonStyle.secondary if has_title else discord.ButtonStyle.danger
         self.pick_channel_btn.label  = t("buttons", "wizard_pick_channel")
+        self.pick_channel_btn.style  = discord.ButtonStyle.secondary if has_channel else discord.ButtonStyle.danger
         self.pick_reviewer_btn.label = t("buttons", "wizard_pick_reviewer")
         self.add_q_btn.label         = t("buttons", "wizard_add_q")
         self.add_section_btn.label   = t("buttons", "wizard_add_section")
@@ -1138,12 +1156,12 @@ class AppSetupMainView(discord.ui.View):
         return interaction.user.id == self.user_id
 
     async def _refresh(self, interaction: discord.Interaction):
-        """Re-render the wizard embed in place."""
+        """Re-render the wizard embed in place — rebuild view so button colors update."""
         state = _setup_wizard_state.get(self.user_id)
         if not state:
             return
         embed = _build_wizard_embed(state, interaction.guild)
-        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.response.edit_message(embed=embed, view=AppSetupMainView(self.user_id))
 
     # ── Row 0 ──────────────────────────────────────────────────────────────────
     @discord.ui.button(label="✏️ Edit Info",     style=discord.ButtonStyle.secondary, row=0)
@@ -1283,10 +1301,12 @@ class AppSetupMainView(discord.ui.View):
         if not self._check(interaction):
             return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
         state = _setup_wizard_state.get(self.user_id)
-        if not state or not state.get("title") or not state.get("review_channel_id"):
-            return await interaction.response.send_message(
-                t("errors", "wizard_incomplete"), ephemeral=True
-            )
+        if not state:
+            return await interaction.response.send_message(t("errors", "panel_not_found"), ephemeral=True)
+        if not state.get("title"):
+            return await interaction.response.send_message(t("errors", "wizard_missing_title"), ephemeral=True)
+        if not state.get("review_channel_id"):
+            return await interaction.response.send_message(t("errors", "wizard_missing_channel"), ephemeral=True)
         await self._finalize(interaction)
 
     @discord.ui.button(label="✖️ Cancel",           style=discord.ButtonStyle.secondary, row=2)
@@ -1656,6 +1676,9 @@ class ApplicationModal(discord.ui.Modal):
         self.questions = questions
         self.inputs = []
         self.input_labels = []
+        # Safety guard — should never be empty if apply_btn validated correctly
+        if not steps or step >= len(steps) or not steps[step]:
+            raise ValueError(f"ApplicationModal: steps={steps!r} step={step!r} — no questions to display")
         for q in steps[step]:
             label_str = q["label"][:45]
             min_len   = max(0, min(int(q.get("min_length") or 0), 1023))
@@ -1842,8 +1865,24 @@ class ApplicationPanelView(discord.ui.View):
             return await interaction.response.send_message(t("errors", "application_no_review_channel"), ephemeral=True)
         if interaction.user.id in pending_applications:
             return await interaction.response.send_message(t("errors", "application_already_open"), ephemeral=True)
-        questions = panel.get("questions") or DEFAULT_APPLICATION_QUESTIONS
+        # None = use defaults; [] or missing = try reload, then error
+        questions = panel.get("questions")
+        if questions is None:
+            questions = DEFAULT_APPLICATION_QUESTIONS
+        if not questions:
+            questions = _load_default_application()
+        if not questions:
+            return await interaction.response.send_message(
+                "\u274c Keine Fragen konfiguriert. Bitte `configs/default_application.json` "
+                "pr\u00fcfen oder das Panel neu erstellen.",
+                ephemeral=True
+            )
         steps = get_application_steps(questions)
+        if not steps:
+            return await interaction.response.send_message(
+                "\u274c Fehler: Fragen konnten nicht geladen werden. Bitte das Panel neu erstellen.",
+                ephemeral=True
+            )
         panel_title = panel.get("title", t("embeds", "application", "default_title"))
         modal = ApplicationModal(
             user_id=interaction.user.id, guild_id=interaction.guild_id,
@@ -2202,8 +2241,14 @@ class SelfRoleSetupMainView(discord.ui.View):
     def __init__(self, user_id: int):
         super().__init__(timeout=600)
         self.user_id = user_id
+        state = _selfrole_wizard_state.get(user_id, {})
+        has_title = bool(state.get("title"))
+        has_roles = bool(state.get("roles"))
+
         self.edit_info_btn.label   = t("buttons", "wizard_edit_info")
+        self.edit_info_btn.style   = discord.ButtonStyle.secondary if has_title else discord.ButtonStyle.danger
         self.add_role_btn.label    = t("buttons", "selfrole_wizard_add")
+        self.add_role_btn.style    = discord.ButtonStyle.blurple if has_roles else discord.ButtonStyle.danger
         self.remove_role_btn.label = t("buttons", "selfrole_wizard_remove")
         self.finish_btn.label      = t("buttons", "wizard_finish")
         self.cancel_btn.label      = t("buttons", "wizard_cancel")
@@ -2250,10 +2295,12 @@ class SelfRoleSetupMainView(discord.ui.View):
         if not self._check(interaction):
             return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
         state = _selfrole_wizard_state.get(self.user_id)
-        if not state or not state.get("title"):
-            return await interaction.response.send_message(t("errors", "wizard_incomplete"), ephemeral=True)
+        if not state:
+            return await interaction.response.send_message(t("errors", "panel_not_found"), ephemeral=True)
+        if not state.get("title"):
+            return await interaction.response.send_message(t("errors", "wizard_missing_selfrole_title"), ephemeral=True)
         if not state.get("roles"):
-            return await interaction.response.send_message(t("errors", "selfrole_no_roles_to_remove"), ephemeral=True)
+            return await interaction.response.send_message(t("errors", "wizard_missing_selfroles"), ephemeral=True)
         await self._finalize(interaction)
 
     @discord.ui.button(label="✖️ Cancel",        style=discord.ButtonStyle.secondary, row=1)
@@ -2516,9 +2563,9 @@ class TicketSetupCategoryModal(discord.ui.Modal):
             if not emoji:
                 emoji = emoji_raw[:10]
 
-        # Use label + count as value to ensure uniqueness
-        cat_count = len(_ticket_wizard_state[uid].get("categories", []))
-        unique_val = (label[:90] + "_" + str(cat_count))[:100]
+        # value must be unique per panel — use label + short uuid suffix (hidden from users)
+        import uuid as _uuid
+        unique_val = (label[:85] + "_" + _uuid.uuid4().hex[:6])[:100]
         _ticket_wizard_state[uid].setdefault("categories", []).append({
             "label":             label,
             "value":             unique_val,
@@ -2542,10 +2589,18 @@ class TicketSetupMainView(discord.ui.View):
     def __init__(self, user_id: int):
         super().__init__(timeout=600)
         self.user_id = user_id
+        state = _ticket_wizard_state.get(user_id, {})
+        has_title = bool(state.get("title"))
+        has_roles = bool(state.get("supporter_role_ids"))
+        has_cats  = bool(state.get("categories"))
+
         self.edit_info_btn.label   = t("buttons", "wizard_edit_info")
+        self.edit_info_btn.style   = discord.ButtonStyle.secondary if has_title else discord.ButtonStyle.danger
         self.pick_roles_btn.label  = t("buttons", "wizard_pick_roles")
+        self.pick_roles_btn.style  = discord.ButtonStyle.secondary if has_roles else discord.ButtonStyle.danger
         self.edit_embed_btn.label  = t("buttons", "ticket_wizard_edit_embed")
         self.add_cat_btn.label     = t("buttons", "ticket_wizard_add_cat")
+        self.add_cat_btn.style     = discord.ButtonStyle.blurple if has_cats else discord.ButtonStyle.danger
         self.remove_cat_btn.label  = t("buttons", "ticket_wizard_remove_cat")
         self.preview_btn.label     = t("buttons", "wizard_preview")
         self.finish_btn.label      = t("buttons", "wizard_finish")
@@ -2597,7 +2652,7 @@ class TicketSetupMainView(discord.ui.View):
             return await interaction.response.send_message(t("errors", "ticket_no_cats"), ephemeral=True)
         state["categories"].pop()
         embed = _build_ticket_embed(state, interaction.guild)
-        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.response.edit_message(embed=embed, view=TicketSetupMainView(self.user_id))
 
     @discord.ui.button(label="👁️ Preview",         style=discord.ButtonStyle.secondary, row=1)
     async def preview_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -2645,10 +2700,14 @@ class TicketSetupMainView(discord.ui.View):
         if not self._check(interaction):
             return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
         state = _ticket_wizard_state.get(self.user_id)
-        if not state or not state.get("title") or not state.get("supporter_role_ids"):
-            return await interaction.response.send_message(t("errors", "wizard_incomplete"), ephemeral=True)
+        if not state:
+            return await interaction.response.send_message(t("errors", "panel_not_found"), ephemeral=True)
+        if not state.get("title"):
+            return await interaction.response.send_message(t("errors", "wizard_missing_title"), ephemeral=True)
+        if not state.get("supporter_role_ids"):
+            return await interaction.response.send_message(t("errors", "wizard_missing_roles"), ephemeral=True)
         if not state.get("categories"):
-            return await interaction.response.send_message(t("errors", "ticket_no_cats"), ephemeral=True)
+            return await interaction.response.send_message(t("errors", "wizard_missing_categories"), ephemeral=True)
         await self._finalize(interaction)
 
     @discord.ui.button(label="✖️ Cancel",          style=discord.ButtonStyle.secondary, row=2)
@@ -2907,6 +2966,15 @@ class StatusWizardView(discord.ui.View):
             color=discord.Color.green()
         )
         await interaction.response.edit_message(embed=done_embed, view=None)
+        await send_log(
+            interaction.guild,
+            t("embeds", "log_status", "title"),
+            t("embeds", "log_status", "desc",
+              status=state["status"], activity=act, text=text),
+            discord.Color.blurple(),
+            interaction.user,
+            moderator=interaction.user,
+        )
 
     @discord.ui.button(label="✖️ Cancel", style=discord.ButtonStyle.secondary, row=0)
     async def cancel_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -2984,7 +3052,11 @@ class JoinRolesWizardView(discord.ui.View):
     def __init__(self, user_id: int):
         super().__init__(timeout=300)
         self.user_id = user_id
+        state = _joinroles_wizard_state.get(user_id, {})
+        has_roles = bool(state.get("role_ids"))
+
         self.add_btn.label    = t("buttons", "joinroles_add")
+        self.add_btn.style    = discord.ButtonStyle.blurple if has_roles else discord.ButtonStyle.danger
         self.remove_btn.label = t("buttons", "joinroles_remove")
         self.apply_btn.label  = t("buttons", "status_wizard_apply")
         self.cancel_btn.label = t("buttons", "wizard_cancel")
@@ -3027,7 +3099,7 @@ class JoinRolesWizardView(discord.ui.View):
             return await interaction.response.send_message(t("errors", "joinroles_none_to_remove"), ephemeral=True)
         state["role_ids"].pop()
         embed = _build_joinroles_embed(state, interaction.guild)
-        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.response.edit_message(embed=embed, view=JoinRolesWizardView(self.user_id))
 
     @discord.ui.button(label="✅ Apply",         style=discord.ButtonStyle.green,     row=1)
     async def apply_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -3038,7 +3110,7 @@ class JoinRolesWizardView(discord.ui.View):
             return await interaction.response.send_message(t("errors", "panel_not_found"), ephemeral=True)
         role_ids = state.get("role_ids", [])
         if not role_ids:
-            return await interaction.response.send_message(t("errors", "no_valid_role"), ephemeral=True)
+            return await interaction.response.send_message(t("errors", "wizard_missing_question_roles"), ephemeral=True)
         gid = str(interaction.guild_id)
         config = load_config()
         config.setdefault(gid, {})["join_roles"] = role_ids
@@ -3204,8 +3276,13 @@ class VerifyWizardMainView(discord.ui.View):
     def __init__(self, user_id: int):
         super().__init__(timeout=300)
         self.user_id = user_id
+        state = _verify_wizard_state.get(user_id, {})
+        has_role  = bool(state.get("role_id"))
+        has_title = bool(state.get("title"))
+
         self.edit_info_btn.label  = t("buttons", "wizard_edit_info")
         self.pick_role_btn.label  = t("buttons", "wizard_pick_verify_role")
+        self.pick_role_btn.style  = discord.ButtonStyle.blurple if has_role else discord.ButtonStyle.danger
         self.edit_embed_btn.label = t("buttons", "ticket_wizard_edit_embed")
         self.preview_btn.label    = t("buttons", "wizard_preview")
         self.finish_btn.label     = t("buttons", "wizard_finish")
@@ -3255,9 +3332,12 @@ class VerifyWizardMainView(discord.ui.View):
     async def finish_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self._check(interaction):
             return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        state = _verify_wizard_state.get(self.user_id)
+        if not state:
+            return await interaction.response.send_message(t("errors", "panel_not_found"), ephemeral=True)
+        if not state.get("role_id"):
+            return await interaction.response.send_message(t("errors", "wizard_missing_verify_role"), ephemeral=True)
         state = _verify_wizard_state.pop(self.user_id, None)
-        if not state or not state.get("role_id"):
-            return await interaction.response.send_message(t("errors", "wizard_incomplete"), ephemeral=True)
 
         guild = interaction.guild
         panel_embed = _build_verify_embed_preview(state, guild)
@@ -3815,8 +3895,8 @@ class TicketEditCategoryModal(discord.ui.Modal):
         if not emoji and self.f_emoji.value.strip():
             emoji = self.f_emoji.value.strip()[:10]
 
-        cat_count = len(panel.get("categories", []))
-        unique_val = (label[:90] + "_" + str(cat_count))[:100]
+        import uuid as _uuid
+        unique_val = (label[:85] + "_" + _uuid.uuid4().hex[:6])[:100]
         panel.setdefault("categories", []).append({
             "label":       label,
             "value":       unique_val,
@@ -4028,6 +4108,360 @@ class TicketEditMainView(discord.ui.View):
             return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
         _ticket_edit_state.pop(self.user_id, None)
         await interaction.response.edit_message(content=t("errors", "application_cancelled"), embed=None, view=None)
+
+
+# ─────────────────────────────────────────────
+#  CONFIG IMPORT / EXPORT
+# ─────────────────────────────────────────────
+
+async def _recreate_panels(guild: discord.Guild, config: dict, guild_id: str):
+    """Delete old panel messages and recreate all panels from config."""
+    gdata  = config.get(guild_id, {})
+    issues = []
+
+    async def _del_msg(ch_id, msg_id):
+        try:
+            ch  = guild.get_channel(int(ch_id)) or await guild.fetch_channel(int(ch_id))
+            msg = await ch.fetch_message(int(msg_id))
+            await msg.delete()
+        except Exception:
+            pass
+
+    # ── Ticket Panels ─────────────────────────────────────────────────────────
+    for panel in gdata.get("ticket_panels", []):
+        ch_id  = panel.get("channel_id")
+        msg_id = panel.get("message_id")
+        if ch_id and msg_id:
+            await _del_msg(ch_id, msg_id)
+        if not ch_id:
+            issues.append("Ticket panel '" + str(panel.get("title")) + "': channel_id missing")
+            continue
+        try:
+            ch = guild.get_channel(int(ch_id)) or await guild.fetch_channel(int(ch_id))
+            color_hex = panel.get("embed_color") or ""
+            try:
+                color = discord.Color(int(color_hex.lstrip("#"), 16)) if color_hex else discord.Color.gold()
+            except (ValueError, TypeError):
+                color = discord.Color.gold()
+            embed = discord.Embed(
+                title=panel.get("title") or t("embeds", "ticket_panel", "title"),
+                description=panel.get("embed_desc") or t("embeds", "ticket_panel", "desc"),
+                color=color
+            )
+            if panel.get("embed_thumbnail", True) and guild.icon:
+                embed.set_thumbnail(url=guild.icon.url)
+            embed.set_footer(text=t("embeds", "ticket_panel", "footer", name=guild.name))
+            cats     = panel.get("categories", [])
+            role_ids = panel.get("supporter_role_ids", [])
+            new_msg  = await ch.send(embed=embed, view=TicketView(cats, role_ids))
+            panel["message_id"] = new_msg.id
+        except Exception as e:
+            issues.append("Ticket panel '" + str(panel.get("title")) + "': " + str(e))
+
+    # ── Self-Role Panels ──────────────────────────────────────────────────────
+    for panel in gdata.get("selfrole_panels", []):
+        ch_id  = panel.get("channel_id")
+        msg_id = panel.get("message_id")
+        if ch_id and msg_id:
+            await _del_msg(ch_id, msg_id)
+        if not ch_id:
+            issues.append("Self-role panel '" + str(panel.get("title")) + "': channel_id missing")
+            continue
+        try:
+            ch = guild.get_channel(int(ch_id)) or await guild.fetch_channel(int(ch_id))
+            color_hex = panel.get("color_hex", "")
+            try:
+                color = discord.Color(int(color_hex.lstrip("#"), 16)) if color_hex else discord.Color.blue()
+            except (ValueError, TypeError):
+                color = discord.Color.blue()
+            roles    = panel.get("roles", [])
+            panel_id = str(panel.get("panel_id") or panel.get("message_id") or "default")
+            embed = discord.Embed(
+                title=panel.get("title", ""),
+                description=format_discord_text(panel.get("desc", "")),
+                color=color,
+                timestamp=now_timestamp()
+            )
+            if guild.icon:
+                embed.set_thumbnail(url=guild.icon.url)
+                embed.set_footer(text=t("embeds", "selfrole", "panel_footer",
+                                        name=guild.name, count=len(roles)),
+                                 icon_url=guild.icon.url)
+            new_msg = await ch.send(embed=embed, view=SelfRoleView(roles, panel_id))
+            panel["message_id"] = new_msg.id
+            panel["panel_id"]   = str(new_msg.id)
+        except Exception as e:
+            issues.append("Self-role panel '" + str(panel.get("title")) + "': " + str(e))
+
+    # ── Verify Panels ─────────────────────────────────────────────────────────
+    for panel in gdata.get("verify_panels", []):
+        ch_id  = panel.get("channel_id")
+        msg_id = panel.get("message_id") or panel.get("msg_id")
+        if ch_id and msg_id:
+            await _del_msg(ch_id, msg_id)
+        if not ch_id:
+            issues.append("Verify panel: channel_id missing")
+            continue
+        try:
+            ch      = guild.get_channel(int(ch_id)) or await guild.fetch_channel(int(ch_id))
+            role_id = panel.get("role_id")
+            role    = guild.get_role(int(role_id)) if role_id else None
+            color_hex = panel.get("color_hex", "")
+            try:
+                color = discord.Color(int(color_hex.lstrip("#"), 16)) if color_hex else discord.Color.green()
+            except (ValueError, TypeError):
+                color = discord.Color.green()
+            embed = discord.Embed(
+                title=panel.get("title") or t("embeds", "verify_panel", "default_title"),
+                description=panel.get("desc") or t("embeds", "verify_panel", "default_desc"),
+                color=color
+            )
+            if panel.get("thumbnail", True) and guild.icon:
+                embed.set_thumbnail(url=guild.icon.url)
+            embed.set_footer(text=t("embeds", "verify_panel", "footer",
+                                    role=role.name if role else str(role_id)))
+            view    = VerifyView(int(role_id)) if role_id else discord.ui.View()
+            new_msg = await ch.send(embed=embed, view=view)
+            panel["message_id"] = new_msg.id
+            panel["channel_id"] = ch.id
+        except Exception as e:
+            issues.append("Verify panel: " + str(e))
+
+    # ── Application Panels ────────────────────────────────────────────────────
+    for idx, panel in enumerate(gdata.get("application_panels", [])):
+        ch_id  = panel.get("channel_id")
+        msg_id = panel.get("message_id")
+        if ch_id and msg_id:
+            await _del_msg(ch_id, msg_id)
+        if not ch_id:
+            issues.append("Application panel '" + str(panel.get("title")) + "': channel_id missing")
+            continue
+        try:
+            ch    = guild.get_channel(int(ch_id)) or await guild.fetch_channel(int(ch_id))
+            embed = discord.Embed(
+                title=panel.get("title") or t("embeds", "application", "default_title"),
+                description=panel.get("desc") or t("embeds", "application", "default_desc"),
+                color=discord.Color.blurple(),
+                timestamp=now_timestamp()
+            )
+            if guild.icon:
+                embed.set_thumbnail(url=guild.icon.url)
+            embed.set_footer(text=t("embeds", "application", "panel_footer", name=guild.name))
+            new_msg = await ch.send(embed=embed, view=ApplicationPanelView(panel_index=idx))
+            panel["message_id"] = new_msg.id
+        except Exception as e:
+            issues.append("Application panel '" + str(panel.get("title")) + "': " + str(e))
+
+    save_config(config)
+    return issues
+
+
+class ConfigUploadView(discord.ui.View):
+    """Confirmation view shown after uploading a new config."""
+    def __init__(self, user_id: int, new_config: dict, guild_id: str, preview: str):
+        super().__init__(timeout=120)
+        self.user_id    = user_id
+        self.new_config = new_config
+        self.guild_id   = guild_id
+        self.preview    = preview
+
+    def _check(self, interaction: discord.Interaction) -> bool:
+        return interaction.user.id == self.user_id
+
+    @discord.ui.button(label="✅ Apply & Recreate", style=discord.ButtonStyle.green)
+    async def confirm_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        await interaction.response.defer(ephemeral=True)
+
+        # ── Snapshot BEFORE applying — used for rollback ──────────────────────
+        snapshot_config   = load_config()
+        snapshot_open_apps = load_open_apps()
+
+        config = dict(snapshot_config)  # working copy
+        # Merge: preserve bot_presence, overwrite guild data
+        for key, val in self.new_config.items():
+            if key not in ("bot_presence", "open_applications"):
+                config[key] = val
+        save_config(config)
+
+        # Restore open_applications if present in the imported config
+        imported_open_apps = self.new_config.get("open_applications", {})
+        if imported_open_apps:
+            existing_open_apps = load_open_apps()
+            existing_open_apps.update(imported_open_apps)
+            with open(OPEN_APPS_FILE, 'w', encoding='utf-8') as _f:
+                json.dump(existing_open_apps, _f, indent=4)
+            for entry in imported_open_apps.values():
+                try:
+                    bot.add_view(ApplicationReviewView(
+                        applicant_id=entry["applicant_id"],
+                        thread_id=entry["thread_id"],
+                        review_channel_id=entry["review_channel_id"]
+                    ))
+                except Exception:
+                    pass
+
+        # Re-register persistent views
+        for gid_str, data in config.items():
+            if not isinstance(data, dict):
+                continue
+            for panel in data.get("verify_panels", []):
+                try: bot.add_view(VerifyView(panel["role_id"]))
+                except Exception: pass
+            for t_panel in data.get("ticket_panels", []):
+                supp = t_panel.get("supporter_role_ids", [])
+                try: bot.add_view(TicketView(t_panel.get("categories", []), supp))
+                except Exception: pass
+            for s_panel in data.get("selfrole_panels", []):
+                try: bot.add_view(SelfRoleView(s_panel["roles"], str(s_panel.get("message_id", "default"))))
+                except Exception: pass
+            for idx2, _ap in enumerate(data.get("application_panels", [])):
+                try: bot.add_view(ApplicationPanelView(panel_index=idx2))
+                except Exception: pass
+
+        issues = await _recreate_panels(interaction.guild, config, self.guild_id)
+
+        restored_apps = len(imported_open_apps)
+        result_lines = [
+            "✅ Config importiert und alle Panels neu erstellt."
+            + (" " + str(restored_apps) + " offene Bewerbung(en) wiederhergestellt." if restored_apps else "")
+        ]
+        if issues:
+            result_lines.append("")
+            result_lines.append("⚠️ " + str(len(issues)) + " Fehler:")
+            for iss in issues[:10]:
+                result_lines.append("• " + iss)
+
+        panel_count = (
+            len(self.new_config.get(self.guild_id, {}).get("ticket_panels", [])) +
+            len(self.new_config.get(self.guild_id, {}).get("selfrole_panels", [])) +
+            len(self.new_config.get(self.guild_id, {}).get("application_panels", [])) +
+            len(self.new_config.get(self.guild_id, {}).get("verify_panels", []))
+        )
+        await send_log(
+            interaction.guild,
+            t("embeds", "log_config_import", "title"),
+            t("embeds", "log_config_import", "desc",
+              panels=panel_count, errors=len(issues)),
+            discord.Color.orange() if issues else discord.Color.green(),
+            interaction.user,
+            moderator=interaction.user,
+        )
+
+        # ── Show result + rollback button ─────────────────────────────────────
+        result_embed = discord.Embed(
+            title="✅ Config Import abgeschlossen",
+            description="\n".join(result_lines),
+            color=discord.Color.orange() if issues else discord.Color.green()
+        )
+        if interaction.guild.icon:
+            result_embed.set_footer(
+                text=interaction.guild.name + " • Import kann rückgängig gemacht werden",
+                icon_url=interaction.guild.icon.url
+            )
+        rollback_view = ConfigRollbackView(
+            user_id=self.user_id,
+            snapshot_config=snapshot_config,
+            snapshot_open_apps=snapshot_open_apps,
+            guild_id=self.guild_id
+        )
+        await interaction.followup.send(embed=result_embed, view=rollback_view, ephemeral=True)
+
+    @discord.ui.button(label="✖️ Cancel", style=discord.ButtonStyle.secondary)
+    async def cancel_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        await interaction.response.edit_message(content="❌ Import abgebrochen.", embed=None, view=None)
+
+
+class ConfigRollbackView(discord.ui.View):
+    """Shown after a successful import — allows rolling back to the previous config."""
+    def __init__(self, user_id: int, snapshot_config: dict,
+                 snapshot_open_apps: dict, guild_id: str):
+        super().__init__(timeout=300)  # 5 minutes to decide
+        self.user_id            = user_id
+        self.snapshot_config    = snapshot_config
+        self.snapshot_open_apps = snapshot_open_apps
+        self.guild_id           = guild_id
+
+    def _check(self, interaction: discord.Interaction) -> bool:
+        return interaction.user.id == self.user_id
+
+    @discord.ui.button(label="↩️ Rollback", style=discord.ButtonStyle.danger, emoji="↩️")
+    async def rollback_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        await interaction.response.defer(ephemeral=True)
+
+        # ── Restore config ────────────────────────────────────────────────────
+        save_config(self.snapshot_config)
+
+        # ── Restore open_applications ─────────────────────────────────────────
+        with open(OPEN_APPS_FILE, 'w', encoding='utf-8') as _f:
+            json.dump(self.snapshot_open_apps, _f, indent=4)
+
+        # ── Re-register persistent views for restored config ──────────────────
+        for gid_str, data in self.snapshot_config.items():
+            if not isinstance(data, dict):
+                continue
+            for panel in data.get("verify_panels", []):
+                try: bot.add_view(VerifyView(panel["role_id"]))
+                except Exception: pass
+            for t_panel in data.get("ticket_panels", []):
+                supp = t_panel.get("supporter_role_ids", [])
+                try: bot.add_view(TicketView(t_panel.get("categories", []), supp))
+                except Exception: pass
+            for s_panel in data.get("selfrole_panels", []):
+                try: bot.add_view(SelfRoleView(s_panel["roles"], str(s_panel.get("message_id", "default"))))
+                except Exception: pass
+            for idx2, _ap in enumerate(data.get("application_panels", [])):
+                try: bot.add_view(ApplicationPanelView(panel_index=idx2))
+                except Exception: pass
+        for entry in self.snapshot_open_apps.values():
+            try:
+                bot.add_view(ApplicationReviewView(
+                    applicant_id=entry["applicant_id"],
+                    thread_id=entry["thread_id"],
+                    review_channel_id=entry["review_channel_id"]
+                ))
+            except Exception:
+                pass
+
+        # ── Recreate panels from snapshot ─────────────────────────────────────
+        issues = await _recreate_panels(
+            interaction.guild, self.snapshot_config, self.guild_id
+        )
+
+        await send_log(
+            interaction.guild,
+            t("embeds", "log_config_rollback", "title"),
+            t("embeds", "log_config_rollback", "desc", errors=len(issues)),
+            discord.Color.red(),
+            interaction.user,
+            moderator=interaction.user,
+        )
+
+        result_embed = discord.Embed(
+            title="↩️ Rollback abgeschlossen",
+            description="✅ Die vorherige Config wurde wiederhergestellt."
+                        + ("\n⚠️ " + str(len(issues)) + " Fehler beim Neuerstellen." if issues else ""),
+            color=discord.Color.red()
+        )
+        if interaction.guild.icon:
+            result_embed.set_footer(text=interaction.guild.name, icon_url=interaction.guild.icon.url)
+        # Disable the button after rollback so it can't be used twice
+        self.rollback_btn.disabled = True
+        await interaction.followup.send(embed=result_embed, ephemeral=True)
+
+    @discord.ui.button(label="✅ Behalten", style=discord.ButtonStyle.secondary)
+    async def keep_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
+        await interaction.response.edit_message(
+            content="✅ Import beibehalten. Rollback nicht mehr möglich.",
+            embed=None, view=None
+        )
 
 
 # ─────────────────────────────────────────────
@@ -4864,6 +5298,128 @@ async def set_language_cmd(interaction: discord.Interaction, sprache: app_comman
     await interaction.response.send_message(
         t("success", "language_set"), ephemeral=True
     )
+    lang_names = {"de": "🇩🇪 Deutsch", "en": "🇬🇧 English"}
+    await send_log(
+        interaction.guild,
+        t("embeds", "log_language", "title"),
+        t("embeds", "log_language", "desc", lang=lang_names.get(sprache.value, sprache.value)),
+        discord.Color.blurple(),
+        interaction.user,
+        moderator=interaction.user,
+    )
+
+
+@bot.tree.command(name="config_export", description="Lädt die aktuelle Server-Config als JSON-Datei herunter")
+@app_commands.default_permissions(administrator=True)
+async def config_export(interaction: discord.Interaction):
+    """Download current server config as JSON."""
+    await interaction.response.defer(ephemeral=True)
+    config   = load_config()
+    guild_id = str(interaction.guild_id)
+    gdata    = config.get(guild_id, {})
+
+    if not gdata:
+        return await interaction.followup.send(
+            "ℹ️ Keine Konfiguration für diesen Server gefunden.", ephemeral=True
+        )
+
+    import io
+    open_apps = load_open_apps()
+    # Only export open applications that belong to this guild
+    # (filter by review_channel_id being in a channel of this guild)
+    guild_channel_ids = {ch.id for ch in interaction.guild.channels}
+    guild_open_apps = {
+        tid: entry for tid, entry in open_apps.items()
+        if entry.get("review_channel_id") in guild_channel_ids
+    }
+    export = {
+        guild_id:         gdata,
+        "open_applications": guild_open_apps
+    }
+    buf = io.BytesIO(json.dumps(export, indent=4, ensure_ascii=False).encode("utf-8"))
+    buf.seek(0)
+    open_apps_count = len(guild_open_apps)
+    file = discord.File(buf, filename="config_" + guild_id + ".json")
+    await interaction.followup.send(
+        "📥 Hier ist die aktuelle Config deines Servers:"
+        + (" (" + str(open_apps_count) + " offene Bewerbung(en) enthalten)" if open_apps_count else ""),
+        file=file,
+        ephemeral=True
+    )
+    await send_log(
+        interaction.guild,
+        t("embeds", "log_config_export", "title"),
+        t("embeds", "log_config_export", "desc"),
+        discord.Color.blurple(),
+        interaction.user,
+        moderator=interaction.user,
+    )
+
+
+@bot.tree.command(name="config_import", description="Lädt eine neue Config hoch und migriert alle Panels")
+@app_commands.default_permissions(administrator=True)
+@app_commands.describe(datei="Die config.json Datei die importiert werden soll")
+async def config_import(interaction: discord.Interaction, datei: discord.Attachment):
+    """Upload a new config JSON and migrate all panels."""
+    if not datei.filename.endswith(".json"):
+        return await interaction.response.send_message(
+            "❌ Bitte eine `.json` Datei hochladen.", ephemeral=True
+        )
+    await interaction.response.defer(ephemeral=True)
+
+    try:
+        raw = await datei.read()
+        new_config = json.loads(raw.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        return await interaction.followup.send(
+            "❌ Ungültige JSON-Datei: " + str(e), ephemeral=True
+        )
+
+    guild_id = str(interaction.guild_id)
+
+    # Accept {guild_id: {...}} format or direct guild data
+    if guild_id in new_config and isinstance(new_config[guild_id], dict):
+        guild_data  = new_config[guild_id]
+        full_config = new_config
+    elif any(k.isdigit() and isinstance(v, dict) for k, v in new_config.items()):
+        # Has some numeric guild ID — remap to current guild
+        guild_data  = next(v for k, v in new_config.items() if k.isdigit() and isinstance(v, dict))
+        full_config = {guild_id: guild_data}
+    else:
+        # Assume raw guild data dict
+        guild_data  = new_config
+        full_config = {guild_id: guild_data}
+
+    # Build preview
+    lines = ["**📋 Config-Vorschau:**", ""]
+    imported_open_apps = new_config.get("open_applications", {})
+    preview_items = [
+        ("🎫 Ticket Panels",         len(guild_data.get("ticket_panels", []))),
+        ("🎭 Self-Role Panels",       len(guild_data.get("selfrole_panels", []))),
+        ("📋 Bewerbungs-Panels",      len(guild_data.get("application_panels", []))),
+        ("✅ Verify Panels",          len(guild_data.get("verify_panels", []))),
+        ("👋 Auto-Join Rollen",       len(guild_data.get("join_roles", []))),
+        ("⚠️ Verwarnungen",           len(guild_data.get("warns", {}))),
+        ("📨 Offene Bewerbungen",      len(imported_open_apps)),
+    ]
+    for name, count in preview_items:
+        if count:
+            lines.append(name + ": **" + str(count) + "**")
+
+    lines.append("")
+    lines.append("⚠️ Alle alten Panel-Nachrichten werden **gelöscht** und **neu erstellt**.")
+    lines.append("Fortfahren?")
+
+    embed = discord.Embed(
+        title="📤 Config Import",
+        description="\n".join(lines),
+        color=discord.Color.orange()
+    )
+    if interaction.guild.icon:
+        embed.set_footer(text=interaction.guild.name, icon_url=interaction.guild.icon.url)
+
+    view = ConfigUploadView(interaction.user.id, full_config, guild_id, "\n".join(lines))
+    await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
 
 @bot.tree.command(name="ping", description=td("ping"))

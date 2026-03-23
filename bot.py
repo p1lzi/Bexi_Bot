@@ -4349,24 +4349,35 @@ class ConfigUploadView(discord.ui.View):
             moderator=interaction.user,
         )
 
-        # ── Show result + rollback button ─────────────────────────────────────
-        result_embed = discord.Embed(
-            title="✅ Config Import abgeschlossen",
-            description="\n".join(result_lines),
-            color=discord.Color.orange() if issues else discord.Color.green()
-        )
-        if interaction.guild.icon:
-            result_embed.set_footer(
-                text=interaction.guild.name + " • Import kann rückgängig gemacht werden",
-                icon_url=interaction.guild.icon.url
-            )
-        rollback_view = ConfigRollbackView(
-            user_id=self.user_id,
-            snapshot_config=snapshot_config,
-            snapshot_open_apps=snapshot_open_apps,
-            guild_id=self.guild_id
-        )
-        await interaction.followup.send(embed=result_embed, view=rollback_view, ephemeral=True)
+        # ── Confirm to user (ephemeral) ───────────────────────────────────────
+        await interaction.followup.send("\n".join(result_lines), ephemeral=True)
+
+        # ── Post rollback button to log channel (visible to all admins) ───────
+        config_after = load_config()
+        log_ch_id = config_after.get(self.guild_id, {}).get("log_channel_id")
+        if log_ch_id:
+            log_ch = interaction.guild.get_channel(log_ch_id)
+            if log_ch:
+                rollback_embed = discord.Embed(
+                    title="❌→ Config Import — Rollback verfügbar",
+                    description=(
+                        interaction.user.mention + " hat einen Config-Import durchgeführt.\n\n"
+                        "Klicke auf den Button um den Import rükgängig zu machen."
+                    ),
+                    color=discord.Color.orange(),
+                    timestamp=now_timestamp()
+                )
+                if interaction.guild.icon:
+                    rollback_embed.set_footer(
+                        text=interaction.guild.name + " • Nur Admins können Rollback ausführen",
+                        icon_url=interaction.guild.icon.url
+                    )
+                rollback_view = ConfigRollbackView(
+                    snapshot_config=snapshot_config,
+                    snapshot_open_apps=snapshot_open_apps,
+                    guild_id=self.guild_id
+                )
+                await log_ch.send(embed=rollback_embed, view=rollback_view)
 
     @discord.ui.button(label="✖️ Cancel", style=discord.ButtonStyle.secondary)
     async def cancel_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -4376,23 +4387,25 @@ class ConfigUploadView(discord.ui.View):
 
 
 class ConfigRollbackView(discord.ui.View):
-    """Shown after a successful import — allows rolling back to the previous config."""
-    def __init__(self, user_id: int, snapshot_config: dict,
-                 snapshot_open_apps: dict, guild_id: str):
-        super().__init__(timeout=300)  # 5 minutes to decide
-        self.user_id            = user_id
+    """Posted in the log channel after an import — any admin can trigger rollback."""
+    def __init__(self, snapshot_config: dict, snapshot_open_apps: dict, guild_id: str):
+        super().__init__(timeout=None)
         self.snapshot_config    = snapshot_config
         self.snapshot_open_apps = snapshot_open_apps
         self.guild_id           = guild_id
 
-    def _check(self, interaction: discord.Interaction) -> bool:
-        return interaction.user.id == self.user_id
-
-    @discord.ui.button(label="↩️ Rollback", style=discord.ButtonStyle.danger, emoji="↩️")
+    @discord.ui.button(
+        label="\u21a9\ufe0f Import r\u00fckg\u00e4ngig machen",
+        style=discord.ButtonStyle.danger,
+        custom_id="config_rollback_btn"
+    )
     async def rollback_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not self._check(interaction):
-            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
-        await interaction.response.defer(ephemeral=True)
+        if not interaction.user.guild_permissions.administrator:
+            return await interaction.response.send_message(
+                "\u274c Nur Administratoren k\u00f6nnen den Import r\u00fckg\u00e4ngig machen.",
+                ephemeral=True
+            )
+        await interaction.response.defer()
 
         # ── Restore config ────────────────────────────────────────────────────
         save_config(self.snapshot_config)
@@ -4433,6 +4446,7 @@ class ConfigRollbackView(discord.ui.View):
             interaction.guild, self.snapshot_config, self.guild_id
         )
 
+        # ── Log ───────────────────────────────────────────────────────────────
         await send_log(
             interaction.guild,
             t("embeds", "log_config_rollback", "title"),
@@ -4442,27 +4456,25 @@ class ConfigRollbackView(discord.ui.View):
             moderator=interaction.user,
         )
 
-        result_embed = discord.Embed(
-            title="↩️ Rollback abgeschlossen",
-            description="✅ Die vorherige Config wurde wiederhergestellt."
-                        + ("\n⚠️ " + str(len(issues)) + " Fehler beim Neuerstellen." if issues else ""),
-            color=discord.Color.red()
+        # ── Disable button on log message so it can't be used twice ──────────
+        button.disabled = True
+        button.label    = "\u21a9\ufe0f R\u00fckg\u00e4ngig gemacht von " + interaction.user.display_name
+        await interaction.message.edit(view=self)
+
+        # ── Reply in log channel ──────────────────────────────────────────────
+        done_embed = discord.Embed(
+            title="\u21a9\ufe0f Rollback abgeschlossen",
+            description=(
+                interaction.user.mention + " hat den Import r\u00fckg\u00e4ngig gemacht.\n"
+                + ("\u26a0\ufe0f " + str(len(issues)) + " Fehler beim Neuerstellen." if issues
+                   else "\u2705 Alle Panels wurden erfolgreich wiederhergestellt.")
+            ),
+            color=discord.Color.red(),
+            timestamp=now_timestamp()
         )
         if interaction.guild.icon:
-            result_embed.set_footer(text=interaction.guild.name, icon_url=interaction.guild.icon.url)
-        # Disable the button after rollback so it can't be used twice
-        self.rollback_btn.disabled = True
-        await interaction.followup.send(embed=result_embed, ephemeral=True)
-
-    @discord.ui.button(label="✅ Behalten", style=discord.ButtonStyle.secondary)
-    async def keep_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not self._check(interaction):
-            return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
-        await interaction.response.edit_message(
-            content="✅ Import beibehalten. Rollback nicht mehr möglich.",
-            embed=None, view=None
-        )
-
+            done_embed.set_footer(text=interaction.guild.name, icon_url=interaction.guild.icon.url)
+        await interaction.followup.send(embed=done_embed)
 
 # ─────────────────────────────────────────────
 #  BOT

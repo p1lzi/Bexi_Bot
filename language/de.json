@@ -166,6 +166,14 @@
         "delete_wizard": {
             "description": "Startet den interaktiven Lösch-Assistenten",
             "params": {}
+        },
+        "edit": {
+            "description": "Bearbeite bestehende Panels (Tickets, Self-Roles, Bewerbungen, Verify)",
+            "params": {}
+        },
+        "adminpanel": {
+            "description": "Öffnet das Admin-Panel für User- und Chat-Verwaltung",
+            "params": {}
         }
     },
     "buttons": {
@@ -208,7 +216,37 @@
         "status_wizard_pick_activity": "🎮 Activity",
         "status_wizard_edit_text": "✏️ Text / URL",
         "delete_wizard_back": "← Zurück",
-        "delete_wizard_more": "🗑️ Weiteres löschen"
+        "delete_wizard_more": "🗑️ Weiteres löschen",
+        "edit_btn_embed": "🎨 Embed bearbeiten",
+        "edit_btn_roles": "👥 Supporter Roles",
+        "edit_btn_edit_cat": "📂 Kategorie bearbeiten",
+        "edit_btn_add_cat": "➕ Kategorie hinzufügen",
+        "edit_btn_remove_cat": "🗑️ Kategorie entfernen",
+        "edit_btn_save": "✅ Speichern",
+        "edit_btn_cancel": "✖️ Abbrechen",
+        "edit_btn_info": "✏️ Info bearbeiten",
+        "edit_btn_edit_role": "🎭 Rolle bearbeiten",
+        "edit_btn_remove_role": "🗑️ Rolle entfernen",
+        "edit_btn_change_role": "🎭 Rolle ändern",
+        "edit_btn_channel": "📢 Review-Kanal",
+        "edit_btn_reviewer_roles": "👥 Reviewer Rollen",
+        "edit_btn_default_q": "✅ Standard-Fragen",
+        "edit_btn_questions": "❓ Fragen bearbeiten",
+        "edit_btn_add_q": "➕ Frage hinzufügen",
+        "edit_btn_remove_last_q": "↩️ Letzte entfernen",
+        "admin_pick_user": "👤 Nutzer auswählen",
+        "admin_userinfo": "ℹ️ Nutzerinfo",
+        "admin_timeout": "⏳ Timeout",
+        "admin_extend_timeout": "⏳+ Verlängern",
+        "admin_remove_timeout": "⏳✖ Aufheben",
+        "admin_warn": "⚠️ Verwarnen",
+        "admin_kick": "👢 Kicken",
+        "admin_ban": "🔨 Bannen",
+        "admin_lock": "🔒 Sperren",
+        "admin_unlock": "🔓 Entsperren",
+        "admin_slowmode": "🐌 Slowmode",
+        "admin_purge": "🗑️ Nachrichten löschen",
+        "admin_back": "← Zurück"
     },
     "modals": {
         "ticket_close_title": "Ticket schließen",
@@ -302,7 +340,40 @@
         "verify_setup_color_label": "Farbe (Hex ohne #)",
         "verify_setup_color_ph": "z.B. 57F287 für Grün, 5865F2 für Blurple",
         "verify_setup_thumb_label": "Server-Icon als Thumbnail? (yes/no)",
-        "verify_setup_thumb_ph": "yes = anzeigen, no = ausblenden"
+        "verify_setup_thumb_ph": "yes = anzeigen, no = ausblenden",
+        "edit_embed_title": "Embed bearbeiten",
+        "edit_info_title": "Panel-Info bearbeiten",
+        "edit_cat_title": "Kategorie bearbeiten",
+        "edit_role_title": "Rolle bearbeiten",
+        "edit_verify_title": "Verify-Panel bearbeiten",
+        "edit_label_title": "Titel",
+        "edit_label_desc": "Beschreibung",
+        "edit_label_desc_opt": "Beschreibung (optional)",
+        "edit_label_color": "Farbe (Hex ohne #)",
+        "edit_label_thumb": "Thumbnail (yes/no)",
+        "edit_label_name": "Name",
+        "edit_label_emoji": "Emoji (optional)",
+        "edit_label_display_name": "Anzeigename",
+        "edit_label_role_desc": "Kurzbeschreibung (optional)",
+        "admin_pick_user_title": "Nutzer auswählen",
+        "admin_pick_user_label": "Nutzer (ID, @Mention oder Name)",
+        "admin_pick_user_ph": "z.B. 123456789 oder Max Mustermann",
+        "admin_timeout_title": "Timeout verhängen",
+        "admin_extend_timeout_title": "Timeout verlängern",
+        "admin_timeout_label": "Dauer in Minuten",
+        "admin_timeout_ph": "z.B. 30",
+        "admin_reason_label": "Grund (optional)",
+        "admin_reason_ph": "z.B. Regelverstoss",
+        "admin_warn_title": "Nutzer verwarnen",
+        "admin_kick_title": "Nutzer kicken",
+        "admin_ban_title": "Nutzer bannen",
+        "admin_slowmode_title": "Slowmode setzen",
+        "admin_slowmode_label": "Sekunden (0 = deaktivieren)",
+        "admin_slowmode_ph": "z.B. 10 (max. 21600)",
+        "admin_purge_title": "Nachrichten löschen",
+        "admin_purge_label": "Anzahl Nachrichten",
+        "admin_purge_ph": "z.B. 10 (max. 1000)",
+        "edit_q_title": "Frage bearbeiten"
     },
     "selects": {
         "ticket_placeholder": "📂 Wähle dein Anliegen...",
@@ -333,7 +404,22 @@
         "delete_joinroles": "👋 Auto-Join Rollen",
         "delete_joinroles_desc": "Alle Auto-Join Rollen entfernen",
         "delete_nothing": "— Nichts vorhanden —",
-        "delete_panel_ph": "Panel auswählen..."
+        "delete_panel_ph": "Panel auswählen...",
+        "edit_type_ph": "✏️ Was möchtest du bearbeiten?",
+        "edit_tickets": "🎫 Ticket Panels",
+        "edit_selfroles": "🎭 Self-Role Panels",
+        "edit_applications": "📋 Bewerbungs-Panels",
+        "edit_verify": "✅ Verify Panels",
+        "edit_panels_count": "{n} Panel(s)",
+        "edit_cat_ph": "📂 Kategorie zum Bearbeiten wählen...",
+        "edit_role_ph": "🎭 Rolle zum Bearbeiten wählen...",
+        "admin_type_ph": "⚙️ Was möchtest du verwalten?",
+        "admin_user": "👤 Nutzer",
+        "admin_user_desc": "Timeout, Warn, Kick, Ban, Infos",
+        "admin_chat": "💬 Chat",
+        "admin_chat_desc": "Sperren, Slowmode, Nachrichten löschen",
+        "edit_q_ph": "❓ Frage zum Bearbeiten wählen...",
+        "admin_pick_member_ph": "👤 Mitglied auswählen..."
     },
     "errors": {
         "role_not_found": "❌ Diese Rolle existiert nicht mehr.",
@@ -393,7 +479,13 @@
         "wizard_missing_categories": "❌ Bitte füge mindestens eine **Kategorie** hinzu (➕ Add Category).",
         "wizard_missing_question_roles": "❌ Bitte wähle eine oder mehrere **Rollen** aus.",
         "wizard_missing_selfrole_title": "❌ Bitte lege zuerst einen **Titel** fest (✏️ Edit Info).",
-        "wizard_missing_selfroles": "❌ Bitte füge mindestens eine **Rolle** hinzu (➕ Add Role)."
+        "wizard_missing_selfroles": "❌ Bitte füge mindestens eine **Rolle** hinzu (➕ Add Role).",
+        "edit_discord_update_failed": "⚠️ Config gespeichert, Discord-Nachricht konnte nicht aktualisiert werden: ",
+        "admin_user_not_found": "❌ Nutzer nicht gefunden.",
+        "admin_invalid_number": "❌ Bitte eine gültige Zahl eingeben.",
+        "admin_slowmode_invalid": "❌ Ungültige Dauer. Erlaubt: 0–21600 Sekunden.",
+        "admin_purge_invalid": "❌ Ungültige Anzahl. Erlaubt: 1–1000.",
+        "admin_chat_error": "❌ Fehler: "
     },
     "success": {
         "log_channel_set": "✅ Log-Kanal wurde auf {channel} gesetzt.",
@@ -446,7 +538,23 @@
         "delete_wizard_back_hint": "Wähle erneut einen Typ:",
         "delete_wizard_done": "✅ Fertig.",
         "panel_deleted_ok": "✅ Panel erfolgreich gelöscht.",
-        "selfrole_no_change": "Keine Änderungen vorgenommen."
+        "selfrole_no_change": "Keine Änderungen vorgenommen.",
+        "edit_pick_type": "✏️ **Was möchtest du bearbeiten?**",
+        "edit_pick_panel": "📋 Welches Panel möchtest du bearbeiten?",
+        "edit_pick_cat": "📂 Welche Kategorie möchtest du bearbeiten?",
+        "edit_remove_cat": "🗑️ Welche Kategorie entfernen?",
+        "edit_pick_role": "🎭 Welche Rolle möchtest du bearbeiten?",
+        "edit_remove_role": "🗑️ Welche Rolle entfernen?",
+        "edit_saved": "Die Änderungen wurden gespeichert und das Panel wurde aktualisiert.",
+        "admin_timeout_set": "✅ **{user}** wurde für {minutes} Minute(n) in den Timeout versetzt.",
+        "admin_timeout_removed": "✅ Timeout von **{user}** wurde aufgehoben.",
+        "admin_chat_locked": "🔒 {channel} wurde gesperrt.",
+        "admin_chat_unlocked": "🔓 {channel} wurde entsperrt.",
+        "admin_slowmode_set": "🐌 Slowmode in {channel} auf {seconds} Sekunden gesetzt.",
+        "admin_slowmode_off": "🐌 Slowmode in {channel} deaktiviert.",
+        "admin_purge_done": "🗑️ {count} Nachricht(en) in {channel} gelöscht.",
+        "edit_pick_question": "❓ Welche Frage möchtest du bearbeiten?",
+        "edit_q_removed": "✅ Letzte Frage entfernt."
     },
     "embeds": {
         "shared": {
@@ -742,6 +850,51 @@
         "log_config_rollback": {
             "title": "↩️ Config-Import rückgängig gemacht",
             "desc": "Der letzte Config-Import wurde rückgängig gemacht. {errors} Fehler."
+        },
+        "edit_shared": {
+            "f_settings": "📋 Einstellungen",
+            "f_categories": "📂 Kategorien",
+            "f_roles": "🎭 Rollen",
+            "done_title": "✅ Panel gespeichert"
+        },
+        "edit_ticket": {
+            "title": "✏️ Ticket-Panel bearbeiten"
+        },
+        "edit_selfrole": {
+            "title": "✏️ Self-Role-Panel bearbeiten"
+        },
+        "edit_verify": {
+            "title": "✏️ Verify-Panel bearbeiten"
+        },
+        "edit_application": {
+            "title": "✏️ Bewerbungs-Panel bearbeiten",
+            "f_questions": "❓ Fragen"
+        },
+        "admin_panel": {
+            "title": "⚙️ Admin-Panel",
+            "desc": "Wähle einen Bereich:",
+            "user_title": "👤 Nutzer-Verwaltung",
+            "user_desc": "Wähle einen Nutzer über den Button aus.",
+            "user_selected": "Ausgewählter Nutzer: **{user}**\n\nNutze die Buttons um eine Aktion auszuführen.",
+            "chat_title": "💬 Chat-Verwaltung",
+            "chat_desc": "Nutze die Buttons um den aktuellen Kanal zu verwalten.",
+            "user_select_desc": "Wähle ein Mitglied aus dem Dropdown:"
+        },
+        "log_chat_lock": {
+            "title": "🔒 Kanal gesperrt",
+            "desc": "{channel} wurde gesperrt."
+        },
+        "log_chat_unlock": {
+            "title": "🔓 Kanal entsperrt",
+            "desc": "{channel} wurde entsperrt."
+        },
+        "log_slowmode": {
+            "title": "🐌 Slowmode geändert",
+            "desc": "Slowmode in {channel} auf {seconds} Sekunden gesetzt."
+        },
+        "log_purge": {
+            "title": "🗑️ Nachrichten gelöscht",
+            "desc": "{count} Nachrichten in {channel} gelöscht."
         }
     }
 }

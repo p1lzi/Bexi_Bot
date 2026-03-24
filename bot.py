@@ -4279,9 +4279,9 @@ class ConfigUploadView(discord.ui.View):
         snapshot_open_apps = load_open_apps()
 
         config = dict(snapshot_config)  # working copy
-        # Merge: preserve bot_presence, overwrite guild data
+        # Merge: preserve bot_presence, open_applications, open_tickets
         for key, val in self.new_config.items():
-            if key not in ("bot_presence", "open_applications"):
+            if key not in ("bot_presence", "open_applications", "open_tickets"):
                 config[key] = val
         save_config(config)
 
@@ -4299,6 +4299,29 @@ class ConfigUploadView(discord.ui.View):
                         thread_id=entry["thread_id"],
                         review_channel_id=entry["review_channel_id"]
                     ))
+                except Exception:
+                    pass
+
+        # Restore open tickets — re-add members to threads that still exist
+        imported_open_tickets = self.new_config.get("open_tickets", {})
+        tickets_restored = 0
+        if imported_open_tickets:
+            for entry in imported_open_tickets.values():
+                try:
+                    thread = (
+                        interaction.guild.get_channel(entry["thread_id"])
+                        or await interaction.guild.fetch_channel(entry["thread_id"])
+                    )
+                    if thread and not thread.archived and not thread.locked:
+                        for member_id in entry.get("member_ids", []):
+                            member = interaction.guild.get_member(member_id)
+                            if member:
+                                try:
+                                    await thread.add_user(member)
+                                except Exception:
+                                    pass
+                        bot.add_view(TicketControlView())
+                        tickets_restored += 1
                 except Exception:
                     pass
 
@@ -4322,10 +4345,22 @@ class ConfigUploadView(discord.ui.View):
 
         issues = await _recreate_panels(interaction.guild, config, self.guild_id)
 
-        restored_apps = len(imported_open_apps)
+        # ── Collect new message IDs for rollback cleanup ──────────────────────
+        config_after_import = load_config()
+        gdata_after         = config_after_import.get(self.guild_id, {})
+        imported_msg_ids    = []
+        for panel_type in ("ticket_panels","selfrole_panels","application_panels","verify_panels"):
+            for p in gdata_after.get(panel_type, []):
+                ch_id  = p.get("channel_id")
+                msg_id = p.get("message_id") or p.get("msg_id")
+                if ch_id and msg_id:
+                    imported_msg_ids.append((ch_id, msg_id))
+
+        restored_apps    = len(imported_open_apps)
         result_lines = [
             t("success","config_import_done")
             + (" " + str(restored_apps) + " " + t("success","config_import_apps") if restored_apps else "")
+            + (" " + str(tickets_restored) + " " + t("success","config_import_tickets") if tickets_restored else "")
         ]
         if issues:
             result_lines.append("")
@@ -4375,7 +4410,8 @@ class ConfigUploadView(discord.ui.View):
                 rollback_view = ConfigRollbackView(
                     snapshot_config=snapshot_config,
                     snapshot_open_apps=snapshot_open_apps,
-                    guild_id=self.guild_id
+                    guild_id=self.guild_id,
+                    imported_msg_ids=imported_msg_ids
                 )
                 await log_ch.send(embed=rollback_embed, view=rollback_view)
 
@@ -4388,22 +4424,24 @@ class ConfigUploadView(discord.ui.View):
 
 class ConfigRollbackView(discord.ui.View):
     """Posted in the log channel after an import — any admin can trigger rollback."""
-    def __init__(self, snapshot_config: dict, snapshot_open_apps: dict, guild_id: str):
+    def __init__(self, snapshot_config: dict, snapshot_open_apps: dict,
+                 guild_id: str, imported_msg_ids: list = None):
         super().__init__(timeout=None)
         self.snapshot_config    = snapshot_config
         self.snapshot_open_apps = snapshot_open_apps
         self.guild_id           = guild_id
+        self.imported_msg_ids   = imported_msg_ids or []  # [(channel_id, message_id), ...]
+        self.rollback_btn.label = t("buttons", "config_rollback_btn_label")
 
     @discord.ui.button(
-        label="\u21a9\ufe0f Import r\u00fckg\u00e4ngig machen",
+        label="↩️",
         style=discord.ButtonStyle.danger,
         custom_id="config_rollback_btn"
     )
     async def rollback_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not interaction.user.guild_permissions.administrator:
             return await interaction.response.send_message(
-                "\u274c Nur Administratoren k\u00f6nnen den Import r\u00fckg\u00e4ngig machen.",
-                ephemeral=True
+                t("errors","config_rollback_no_perm"), ephemeral=True
             )
         await interaction.response.defer()
 
@@ -4413,6 +4451,25 @@ class ConfigRollbackView(discord.ui.View):
         # ── Restore open_applications ─────────────────────────────────────────
         with open(OPEN_APPS_FILE, 'w', encoding='utf-8') as _f:
             json.dump(self.snapshot_open_apps, _f, indent=4)
+
+        # ── Restore open tickets from snapshot ────────────────────────────────
+        snapshot_open_tickets = self.snapshot_config.get("open_tickets", {})
+        for entry in snapshot_open_tickets.values():
+            try:
+                thread = (
+                    interaction.guild.get_channel(entry["thread_id"])
+                    or await interaction.guild.fetch_channel(entry["thread_id"])
+                )
+                if thread and not thread.archived:
+                    for mid in entry.get("member_ids", []):
+                        member = interaction.guild.get_member(mid)
+                        if member:
+                            try:
+                                await thread.add_user(member)
+                            except Exception:
+                                pass
+            except Exception:
+                pass
 
         # ── Re-register persistent views for restored config ──────────────────
         for gid_str, data in self.snapshot_config.items():
@@ -4438,6 +4495,15 @@ class ConfigRollbackView(discord.ui.View):
                     thread_id=entry["thread_id"],
                     review_channel_id=entry["review_channel_id"]
                 ))
+            except Exception:
+                pass
+
+        # ── Delete panels that were created during the import ────────────────
+        for ch_id, msg_id in self.imported_msg_ids:
+            try:
+                ch  = interaction.guild.get_channel(int(ch_id)) or await interaction.guild.fetch_channel(int(ch_id))
+                msg = await ch.fetch_message(int(msg_id))
+                await msg.delete()
             except Exception:
                 pass
 
@@ -7147,25 +7213,59 @@ async def config_export(interaction: discord.Interaction):
         )
 
     import io
-    open_apps = load_open_apps()
-    # Only export open applications that belong to this guild
-    # (filter by review_channel_id being in a channel of this guild)
+
     guild_channel_ids = {ch.id for ch in interaction.guild.channels}
+
+    # ── Open applications ─────────────────────────────────────────────────────
+    open_apps = load_open_apps()
     guild_open_apps = {
         tid: entry for tid, entry in open_apps.items()
         if entry.get("review_channel_id") in guild_channel_ids
     }
+
+    # ── Open tickets (private threads in ticket channels) ─────────────────────
+    open_tickets = {}
+    ticket_channel_ids = set(gdata.get("category_channels", {}).values())
+    for ch_id in ticket_channel_ids:
+        ch = interaction.guild.get_channel(int(ch_id))
+        if not ch:
+            continue
+        try:
+            async for thread in ch.archived_threads(private=False):
+                pass  # just to trigger cache — real threads come from active
+        except Exception:
+            pass
+        for thread in ch.threads:
+            if thread.archived or thread.locked:
+                continue
+            members = [m.id for m in thread.members if not interaction.guild.get_member(m.id) or not interaction.guild.get_member(m.id).bot]
+            open_tickets[str(thread.id)] = {
+                "thread_id":   thread.id,
+                "thread_name": thread.name,
+                "channel_id":  ch_id,
+                "member_ids":  members,
+            }
+
     export = {
-        guild_id:         gdata,
-        "open_applications": guild_open_apps
+        guild_id:              gdata,
+        "open_applications":   guild_open_apps,
+        "open_tickets":        open_tickets,
     }
     buf = io.BytesIO(json.dumps(export, indent=4, ensure_ascii=False).encode("utf-8"))
     buf.seek(0)
-    open_apps_count = len(guild_open_apps)
+    open_apps_count    = len(guild_open_apps)
+    open_tickets_count = len(open_tickets)
     file = discord.File(buf, filename="config_" + guild_id + ".json")
+
+    summary_parts = []
+    if open_apps_count:
+        summary_parts.append(str(open_apps_count) + " " + t("success","config_export_apps"))
+    if open_tickets_count:
+        summary_parts.append(str(open_tickets_count) + " " + t("success","config_export_tickets"))
+    suffix = " (" + ", ".join(summary_parts) + ")" if summary_parts else ""
+
     await interaction.followup.send(
-        t("success","config_export_done")
-        + (" (" + str(open_apps_count) + " " + t("success","config_export_apps") + ")" if open_apps_count else ""),
+        t("success","config_export_done") + suffix,
         file=file,
         ephemeral=True
     )
@@ -7215,15 +7315,17 @@ async def config_import(interaction: discord.Interaction, datei: discord.Attachm
 
     # Build preview
     lines = ["**📋 Config-Vorschau:**", ""]
-    imported_open_apps = new_config.get("open_applications", {})
+    imported_open_apps    = new_config.get("open_applications", {})
+    imported_open_tickets = new_config.get("open_tickets", {})
     preview_items = [
-        (t("selects", "edit_tickets"),         len(guild_data.get("ticket_panels", []))),
-        (t("selects", "edit_selfroles"),       len(guild_data.get("selfrole_panels", []))),
-        (t("selects", "edit_applications"),      len(guild_data.get("application_panels", []))),
-        (t("selects", "edit_verify"),          len(guild_data.get("verify_panels", []))),
-        ("👋 Auto-Join Rollen",       len(guild_data.get("join_roles", []))),
-        ("⚠️ Verwarnungen",           len(guild_data.get("warns", {}))),
-        ("📨 Offene Bewerbungen",      len(imported_open_apps)),
+        (t("selects", "edit_tickets"),                   len(guild_data.get("ticket_panels", []))),
+        (t("selects", "edit_selfroles"),                 len(guild_data.get("selfrole_panels", []))),
+        (t("selects", "edit_applications"),              len(guild_data.get("application_panels", []))),
+        (t("selects", "edit_verify"),                    len(guild_data.get("verify_panels", []))),
+        (t("success", "config_preview_join_roles"),      len(guild_data.get("join_roles", []))),
+        (t("success", "config_preview_warns"),           len(guild_data.get("warns", {}))),
+        (t("success", "config_preview_open_apps"),       len(imported_open_apps)),
+        (t("success", "config_preview_open_tickets"),    len(imported_open_tickets)),
     ]
     for name, count in preview_items:
         if count:

@@ -262,7 +262,8 @@
         "admin_purge": "🗑️ Nachrichten löschen",
         "admin_back": "← Zurück",
         "setup_back_menu": "← Zurück zum Menü",
-        "config_rollback_done": "↩️ Rückgängig gemacht von"
+        "config_rollback_done": "↩️ Rückgängig gemacht von",
+        "config_rollback_btn_label": "↩️ Import rückgängig machen"
     },
     "modals": {
         "ticket_close_title": "Ticket schließen",
@@ -523,7 +524,8 @@
         "config_import_not_json": "❌ Bitte eine `.json` Datei hochladen.",
         "config_import_invalid": "❌ Ungültige JSON-Datei: ",
         "config_import_cancelled": "❌ Import abgebrochen.",
-        "config_rollback_errors": "⚠️ {n} Fehler beim Neuerstellen."
+        "config_rollback_errors": "⚠️ {n} Fehler beim Neuerstellen.",
+        "config_rollback_no_perm": "❌ Nur Administratoren können den Import rückgängig machen."
     },
     "success": {
         "log_channel_set": "✅ Log-Kanal wurde auf {channel} gesetzt.",
@@ -602,7 +604,13 @@
         "config_rollback_by": "hat den Import rückgängig gemacht.",
         "config_rollback_ok": "✅ Alle Panels wurden erfolgreich wiederhergestellt.",
         "config_rollback_hint": "Klicke auf den Button um den Import rückgängig zu machen.",
-        "config_rollback_admin_only": "Nur Admins können Rollback ausführen"
+        "config_rollback_admin_only": "Nur Admins können Rollback ausführen",
+        "config_export_tickets": "offenes Ticket(s) enthalten",
+        "config_import_tickets": "Ticket(s) wiederhergestellt.",
+        "config_preview_join_roles": "👋 Auto-Join Rollen",
+        "config_preview_warns": "⚠️ Verwarnungen",
+        "config_preview_open_apps": "📨 Offene Bewerbungen",
+        "config_preview_open_tickets": "🎫 Offene Tickets"
     },
     "embeds": {
         "shared": {

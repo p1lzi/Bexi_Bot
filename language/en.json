@@ -262,7 +262,8 @@
         "admin_purge": "🗑️ Delete Messages",
         "admin_back": "← Back",
         "setup_back_menu": "← Back to Menu",
-        "config_rollback_done": "↩️ Rolled back by"
+        "config_rollback_done": "↩️ Rolled back by",
+        "config_rollback_btn_label": "↩️ Undo Import"
     },
     "modals": {
         "ticket_close_title": "Close Ticket",
@@ -523,7 +524,8 @@
         "config_import_not_json": "❌ Please upload a `.json` file.",
         "config_import_invalid": "❌ Invalid JSON file: ",
         "config_import_cancelled": "❌ Import cancelled.",
-        "config_rollback_errors": "⚠️ {n} error(s) during recreation."
+        "config_rollback_errors": "⚠️ {n} error(s) during recreation.",
+        "config_rollback_no_perm": "❌ Only administrators can undo the import."
     },
     "success": {
         "log_channel_set": "✅ Log channel set to {channel}.",
@@ -602,7 +604,13 @@
         "config_rollback_by": "rolled back the import.",
         "config_rollback_ok": "✅ All panels were successfully restored.",
         "config_rollback_hint": "Click the button to undo the import.",
-        "config_rollback_admin_only": "Only admins can perform rollback"
+        "config_rollback_admin_only": "Only admins can perform rollback",
+        "config_export_tickets": "open ticket(s) included",
+        "config_import_tickets": "ticket(s) restored.",
+        "config_preview_join_roles": "👋 Auto-Join Roles",
+        "config_preview_warns": "⚠️ Warnings",
+        "config_preview_open_apps": "📨 Open Applications",
+        "config_preview_open_tickets": "🎫 Open Tickets"
     },
     "embeds": {
         "shared": {

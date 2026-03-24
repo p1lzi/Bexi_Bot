@@ -174,6 +174,20 @@
         "adminpanel": {
             "description": "Öffnet das Admin-Panel für User- und Chat-Verwaltung",
             "params": {}
+        },
+        "setup": {
+            "description": "Startet den universellen Setup-Assistenten",
+            "params": {}
+        },
+        "config_export": {
+            "description": "Exportiert die Server-Konfiguration als JSON-Datei",
+            "params": {}
+        },
+        "config_import": {
+            "description": "Importiert eine Config-Datei und migriert alle Panels",
+            "params": {
+                "datei": "Die config.json Datei die importiert werden soll"
+            }
         }
     },
     "buttons": {
@@ -246,7 +260,9 @@
         "admin_unlock": "🔓 Entsperren",
         "admin_slowmode": "🐌 Slowmode",
         "admin_purge": "🗑️ Nachrichten löschen",
-        "admin_back": "← Zurück"
+        "admin_back": "← Zurück",
+        "setup_back_menu": "← Zurück zum Menü",
+        "config_rollback_done": "↩️ Rückgängig gemacht von"
     },
     "modals": {
         "ticket_close_title": "Ticket schließen",
@@ -419,7 +435,24 @@
         "admin_chat": "💬 Chat",
         "admin_chat_desc": "Sperren, Slowmode, Nachrichten löschen",
         "edit_q_ph": "❓ Frage zum Bearbeiten wählen...",
-        "admin_pick_member_ph": "👤 Mitglied auswählen..."
+        "admin_pick_member_ph": "👤 Mitglied auswählen...",
+        "setup_ph": "⚙️ Was möchtest du einrichten?",
+        "setup_tickets": "🎫 Ticket-System",
+        "setup_verify": "✅ Verifizierung",
+        "setup_selfroles": "🎭 Self-Roles",
+        "setup_application": "📋 Bewerbungssystem",
+        "setup_log": "📋 Log-Kanal",
+        "setup_log_desc": "Kanal für Moderations-Logs",
+        "setup_log_ph": "📋 Log-Kanal auswählen...",
+        "setup_welcome": "👋 Willkommens-Kanal",
+        "setup_welcome_desc": "Kanal für Willkommensnachrichten",
+        "setup_welcome_ph": "👋 Willkommens-Kanal auswählen...",
+        "setup_waiting_room": "🎵 Support-Musik Warteraum",
+        "setup_waiting_room_desc": "Sprachkanal für Support-Musik",
+        "setup_waiting_room_ph": "🎵 Warteraum auswählen...",
+        "setup_join_roles": "🚪 Auto-Join Rollen",
+        "setup_status": "⚙️ Bot-Status",
+        "setup_language": "🌐 Sprache"
     },
     "errors": {
         "role_not_found": "❌ Diese Rolle existiert nicht mehr.",
@@ -485,7 +518,12 @@
         "admin_invalid_number": "❌ Bitte eine gültige Zahl eingeben.",
         "admin_slowmode_invalid": "❌ Ungültige Dauer. Erlaubt: 0–21600 Sekunden.",
         "admin_purge_invalid": "❌ Ungültige Anzahl. Erlaubt: 1–1000.",
-        "admin_chat_error": "❌ Fehler: "
+        "admin_chat_error": "❌ Fehler: ",
+        "config_export_empty": "ℹ️ Keine Konfiguration für diesen Server gefunden.",
+        "config_import_not_json": "❌ Bitte eine `.json` Datei hochladen.",
+        "config_import_invalid": "❌ Ungültige JSON-Datei: ",
+        "config_import_cancelled": "❌ Import abgebrochen.",
+        "config_rollback_errors": "⚠️ {n} Fehler beim Neuerstellen."
     },
     "success": {
         "log_channel_set": "✅ Log-Kanal wurde auf {channel} gesetzt.",
@@ -554,7 +592,17 @@
         "admin_slowmode_off": "🐌 Slowmode in {channel} deaktiviert.",
         "admin_purge_done": "🗑️ {count} Nachricht(en) in {channel} gelöscht.",
         "edit_pick_question": "❓ Welche Frage möchtest du bearbeiten?",
-        "edit_q_removed": "✅ Letzte Frage entfernt."
+        "edit_q_removed": "✅ Letzte Frage entfernt.",
+        "setup_done": "✅ Setup abgeschlossen.",
+        "config_export_done": "📥 Hier ist die aktuelle Config deines Servers",
+        "config_export_apps": "offene Bewerbung(en) enthalten",
+        "config_import_done": "✅ Config importiert und alle Panels neu erstellt.",
+        "config_import_apps": "offene Bewerbung(en) wiederhergestellt.",
+        "config_import_by": "hat einen Config-Import durchgeführt.",
+        "config_rollback_by": "hat den Import rückgängig gemacht.",
+        "config_rollback_ok": "✅ Alle Panels wurden erfolgreich wiederhergestellt.",
+        "config_rollback_hint": "Klicke auf den Button um den Import rückgängig zu machen.",
+        "config_rollback_admin_only": "Nur Admins können Rollback ausführen"
     },
     "embeds": {
         "shared": {
@@ -845,7 +893,8 @@
         },
         "log_config_import": {
             "title": "📤 Config importiert",
-            "desc": "{panels} Panel(s) neu erstellt — {errors} Fehler."
+            "desc": "{panels} Panel(s) neu erstellt — {errors} Fehler.",
+            "rollback_title": "📤 Config Import — Rollback verfügbar"
         },
         "log_config_rollback": {
             "title": "↩️ Config-Import rückgängig gemacht",
@@ -895,6 +944,12 @@
         "log_purge": {
             "title": "🗑️ Nachrichten gelöscht",
             "desc": "{count} Nachrichten in {channel} gelöscht."
+        },
+        "setup": {
+            "title": "⚙️ Setup-Assistent",
+            "desc": "Wähle aus dem Dropdown was du einrichten möchtest:",
+            "language_hint": "Wähle die Sprache des Bots für diesen Server:",
+            "channel_hint": "Wähle einen Kanal aus dem Dropdown:"
         }
     }
 }

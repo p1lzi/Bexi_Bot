@@ -4324,8 +4324,8 @@ class ConfigUploadView(discord.ui.View):
 
         restored_apps = len(imported_open_apps)
         result_lines = [
-            "✅ Config importiert und alle Panels neu erstellt."
-            + (" " + str(restored_apps) + " offene Bewerbung(en) wiederhergestellt." if restored_apps else "")
+            t("success","config_import_done")
+            + (" " + str(restored_apps) + " " + t("success","config_import_apps") if restored_apps else "")
         ]
         if issues:
             result_lines.append("")
@@ -4359,17 +4359,17 @@ class ConfigUploadView(discord.ui.View):
             log_ch = interaction.guild.get_channel(log_ch_id)
             if log_ch:
                 rollback_embed = discord.Embed(
-                    title="❌→ Config Import — Rollback verfügbar",
+                    title=t("embeds","log_config_import","rollback_title"),
                     description=(
-                        interaction.user.mention + " hat einen Config-Import durchgeführt.\n\n"
-                        "Klicke auf den Button um den Import rükgängig zu machen."
+                        interaction.user.mention + " " + t("success","config_import_by") + "\n\n"
+                        + t("success","config_rollback_hint")
                     ),
                     color=discord.Color.orange(),
                     timestamp=now_timestamp()
                 )
                 if interaction.guild.icon:
                     rollback_embed.set_footer(
-                        text=interaction.guild.name + " • Nur Admins können Rollback ausführen",
+                        text=interaction.guild.name + " • " + t("success","config_rollback_admin_only"),
                         icon_url=interaction.guild.icon.url
                     )
                 rollback_view = ConfigRollbackView(
@@ -4383,7 +4383,7 @@ class ConfigUploadView(discord.ui.View):
     async def cancel_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self._check(interaction):
             return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
-        await interaction.response.edit_message(content="❌ Import abgebrochen.", embed=None, view=None)
+        await interaction.response.edit_message(content=t("errors","config_import_cancelled"), embed=None, view=None)
 
 
 class ConfigRollbackView(discord.ui.View):
@@ -4458,16 +4458,16 @@ class ConfigRollbackView(discord.ui.View):
 
         # ── Disable button on log message so it can't be used twice ──────────
         button.disabled = True
-        button.label    = "\u21a9\ufe0f R\u00fckg\u00e4ngig gemacht von " + interaction.user.display_name
+        button.label    = t("buttons","config_rollback_done") + " " + interaction.user.display_name
         await interaction.message.edit(view=self)
 
         # ── Reply in log channel ──────────────────────────────────────────────
         done_embed = discord.Embed(
-            title="\u21a9\ufe0f Rollback abgeschlossen",
+            title=t("embeds","log_config_rollback","title"),
             description=(
-                interaction.user.mention + " hat den Import r\u00fckg\u00e4ngig gemacht.\n"
-                + ("\u26a0\ufe0f " + str(len(issues)) + " Fehler beim Neuerstellen." if issues
-                   else "\u2705 Alle Panels wurden erfolgreich wiederhergestellt.")
+                interaction.user.mention + " " + t("success","config_rollback_by") + "\n"
+                + (t("errors","config_rollback_errors", n=len(issues)) if issues
+                   else t("success","config_rollback_ok"))
             ),
             color=discord.Color.red(),
             timestamp=now_timestamp()
@@ -5830,7 +5830,15 @@ class AdminUserView(discord.ui.View):
             return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         try:
             await self.target.timeout(None, reason="Admin Panel — Timeout removed")
-            await interaction.response.send_message(
+            try:
+                updated = await interaction.guild.fetch_member(self.target.id)
+            except Exception:
+                updated = self.target
+            updated_embed = _build_userinfo_embed(updated, interaction.guild)
+            await interaction.response.edit_message(
+                embed=updated_embed, view=AdminUserView(self.user_id, updated)
+            )
+            await interaction.followup.send(
                 t("success","admin_timeout_removed", user=self.target.display_name), ephemeral=True
             )
         except Exception as e:
@@ -5920,7 +5928,40 @@ class AdminTimeoutModal(discord.ui.Modal):
 
         try:
             await self.target.timeout(duration, reason=reason)
-            await interaction.response.send_message(
+
+            # ── DM to target ──────────────────────────────────────────────────
+            until_dt  = discord.utils.utcnow() + duration
+            until_str = discord.utils.format_dt(until_dt, "R")
+            dm_embed  = make_dm_embed(
+                title=t("embeds","dm_timeout","title"),
+                description=t("embeds","dm_timeout","desc",
+                              server=interaction.guild.name, until=until_str),
+                color=discord.Color.light_grey(),
+                guild=interaction.guild,
+                fields=[
+                    (t("embeds","dm_timeout","f_server"), interaction.guild.name,  True),
+                    (t("embeds","dm_timeout","f_mod"),    str(interaction.user),   True),
+                    (t("embeds","dm_timeout","f_dur"),
+                     t("embeds","dm_timeout","dur_val", minutes=minutes),          True),
+                    (t("embeds","dm_timeout","f_ends"),   until_str,               True),
+                    (t("embeds","dm_timeout","f_reason"), reason,                  False),
+                ],
+                footer_system=t("embeds","shared","footer_mod")
+            )
+            await send_dm(self.target, embed=dm_embed)
+
+            # ── Update embed with fresh userinfo (includes new timeout) ───────
+            # Need to re-fetch member so timed_out_until is current
+            try:
+                updated = await interaction.guild.fetch_member(self.target.id)
+            except Exception:
+                updated = self.target
+            updated_embed = _build_userinfo_embed(updated, interaction.guild)
+            await interaction.response.edit_message(
+                embed=updated_embed,
+                view=AdminUserView(self.user_id, updated)
+            )
+            await interaction.followup.send(
                 t("success","admin_timeout_set",
                   user=self.target.display_name, minutes=minutes), ephemeral=True
             )
@@ -7091,7 +7132,7 @@ async def set_language_cmd(interaction: discord.Interaction, sprache: app_comman
     )
 
 
-@bot.tree.command(name="config_export", description="Lädt die aktuelle Server-Config als JSON-Datei herunter")
+@bot.tree.command(name="config_export", description=td("config_export"))
 @app_commands.default_permissions(administrator=True)
 async def config_export(interaction: discord.Interaction):
     """Download current server config as JSON."""
@@ -7102,7 +7143,7 @@ async def config_export(interaction: discord.Interaction):
 
     if not gdata:
         return await interaction.followup.send(
-            "ℹ️ Keine Konfiguration für diesen Server gefunden.", ephemeral=True
+            t("errors","config_export_empty"), ephemeral=True
         )
 
     import io
@@ -7123,8 +7164,8 @@ async def config_export(interaction: discord.Interaction):
     open_apps_count = len(guild_open_apps)
     file = discord.File(buf, filename="config_" + guild_id + ".json")
     await interaction.followup.send(
-        "📥 Hier ist die aktuelle Config deines Servers:"
-        + (" (" + str(open_apps_count) + " offene Bewerbung(en) enthalten)" if open_apps_count else ""),
+        t("success","config_export_done")
+        + (" (" + str(open_apps_count) + " " + t("success","config_export_apps") + ")" if open_apps_count else ""),
         file=file,
         ephemeral=True
     )
@@ -7138,14 +7179,14 @@ async def config_export(interaction: discord.Interaction):
     )
 
 
-@bot.tree.command(name="config_import", description="Lädt eine neue Config hoch und migriert alle Panels")
+@bot.tree.command(name="config_import", description=td("config_import"))
 @app_commands.default_permissions(administrator=True)
-@app_commands.describe(datei="Die config.json Datei die importiert werden soll")
+@app_commands.describe(datei=tp("config_import","datei"))
 async def config_import(interaction: discord.Interaction, datei: discord.Attachment):
     """Upload a new config JSON and migrate all panels."""
     if not datei.filename.endswith(".json"):
         return await interaction.response.send_message(
-            "❌ Bitte eine `.json` Datei hochladen.", ephemeral=True
+            t("errors","config_import_not_json"), ephemeral=True
         )
     await interaction.response.defer(ephemeral=True)
 
@@ -7154,7 +7195,7 @@ async def config_import(interaction: discord.Interaction, datei: discord.Attachm
         new_config = json.loads(raw.decode("utf-8"))
     except (json.JSONDecodeError, UnicodeDecodeError) as e:
         return await interaction.followup.send(
-            "❌ Ungültige JSON-Datei: " + str(e), ephemeral=True
+            t("errors","config_import_invalid") + str(e), ephemeral=True
         )
 
     guild_id = str(interaction.guild_id)
@@ -7221,6 +7262,284 @@ async def adminpanel_cmd(interaction: discord.Interaction):
         view=AdminStartView(interaction.user.id),
         ephemeral=True
     )
+
+
+@bot.tree.command(name="setup", description=td("setup"))
+@app_commands.default_permissions(administrator=True)
+async def setup_cmd(interaction: discord.Interaction):
+    """Unified setup wizard — choose what to set up."""
+    embed = discord.Embed(
+        title=t("embeds","setup","title"),
+        description=t("embeds","setup","desc"),
+        color=discord.Color.blurple(),
+        timestamp=now_timestamp()
+    )
+    if interaction.guild.icon:
+        embed.set_footer(text=interaction.guild.name, icon_url=interaction.guild.icon.url)
+    await interaction.response.send_message(embed=embed, view=SetupMenuView(interaction.user.id), ephemeral=True)
+    _wizard_interactions[interaction.user.id] = interaction
+
+
+class SetupMenuSelect(discord.ui.Select):
+    """One dropdown — all setup options."""
+    def __init__(self, user_id: int, guild_id: str):
+        self.user_id  = user_id
+        self.guild_id = guild_id
+        options = [
+            discord.SelectOption(label=t("selects","setup_tickets"),      value="tickets",      emoji="🎫"),
+            discord.SelectOption(label=t("selects","setup_verify"),       value="verify",       emoji="✅"),
+            discord.SelectOption(label=t("selects","setup_selfroles"),    value="selfroles",    emoji="🎭"),
+            discord.SelectOption(label=t("selects","setup_application"),  value="application",  emoji="📋"),
+            discord.SelectOption(label=t("selects","setup_log"),          value="log",          emoji="📋",
+                                 description=t("selects","setup_log_desc")),
+            discord.SelectOption(label=t("selects","setup_welcome"),      value="welcome",      emoji="👋",
+                                 description=t("selects","setup_welcome_desc")),
+            discord.SelectOption(label=t("selects","setup_waiting_room"), value="waiting_room", emoji="🎵",
+                                 description=t("selects","setup_waiting_room_desc")),
+            discord.SelectOption(label=t("selects","setup_join_roles"),   value="join_roles",   emoji="🚪"),
+            discord.SelectOption(label=t("selects","setup_status"),       value="status",       emoji="⚙️"),
+            discord.SelectOption(label=t("selects","setup_language"),     value="language",     emoji="🌐"),
+        ]
+        super().__init__(
+            placeholder=t("selects","setup_ph"),
+            min_values=1, max_values=1,
+            options=options
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.user_id:
+            return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        val = self.values[0]
+        uid = self.user_id
+        gid = self.guild_id
+
+        if val == "tickets":
+            _ticket_wizard_state[uid] = {"title": "", "supporter_role_ids": [], "categories": []}
+            embed = _build_ticket_embed(_ticket_wizard_state[uid], interaction.guild)
+            view  = TicketSetupMainView(uid)
+            await interaction.response.edit_message(embed=embed, view=view)
+
+        elif val == "verify":
+            _verify_wizard_state[uid] = {"thumbnail": True, "title": "", "desc": "", "color_hex": "", "role_id": None}
+            embed = _build_verify_wizard_embed(_verify_wizard_state[uid], interaction.guild)
+            view  = VerifyWizardMainView(uid)
+            await interaction.response.edit_message(embed=embed, view=view)
+
+        elif val == "selfroles":
+            _selfrole_wizard_state[uid] = {"title": "", "desc": "", "color_hex": "", "roles": []}
+            embed = _build_selfrole_embed(_selfrole_wizard_state[uid], interaction.guild)
+            view  = SelfRoleSetupMainView(uid)
+            await interaction.response.edit_message(embed=embed, view=view)
+
+        elif val == "application":
+            _setup_wizard_state[uid] = {
+                "title": "", "desc": "", "review_channel_id": None,
+                "reviewer_role_ids": [], "questions": None, "current_section": None,
+            }
+            embed = _build_wizard_embed(_setup_wizard_state[uid], interaction.guild)
+            view  = AppSetupMainView(uid)
+            await interaction.response.edit_message(embed=embed, view=view)
+
+        elif val == "join_roles":
+            config   = load_config()
+            existing = config.get(gid, {}).get("join_roles", [])
+            _joinroles_wizard_state[uid] = {"role_ids": list(existing)}
+            embed = _build_joinroles_embed(_joinroles_wizard_state[uid], interaction.guild)
+            view  = JoinRolesWizardView(uid)
+            await interaction.response.edit_message(embed=embed, view=view)
+
+        elif val == "status":
+            config = load_config()
+            pres   = config.get("bot_presence", {})
+            _status_wizard_state[uid] = {
+                "status":     pres.get("status", "online"),
+                "activity":   pres.get("type", "playing"),
+                "text":       pres.get("text", ""),
+                "stream_url": pres.get("url", "https://twitch.tv/discord"),
+            }
+            embed = _build_status_embed(_status_wizard_state[uid])
+            view  = StatusWizardView(uid)
+            await interaction.response.edit_message(embed=embed, view=view)
+
+        elif val == "language":
+            await interaction.response.edit_message(
+                content=None,
+                embed=discord.Embed(
+                    title="🌐 " + t("selects","setup_language"),
+                    description=t("embeds","setup","language_hint"),
+                    color=discord.Color.blurple()
+                ),
+                view=SetupLanguageView(uid)
+            )
+
+        elif val == "log":
+            view = discord.ui.View(timeout=120)
+            view.add_item(SetupChannelSelect(uid, "log_channel_id", t("selects","setup_log_ph"), gid))
+            await interaction.response.edit_message(
+                content=None,
+                embed=discord.Embed(title="📋 " + t("selects","setup_log"),
+                                    description=t("embeds","setup","channel_hint"),
+                                    color=discord.Color.blurple()),
+                view=view
+            )
+
+        elif val == "welcome":
+            view = discord.ui.View(timeout=120)
+            view.add_item(SetupChannelSelect(uid, "welcome_channel_id", t("selects","setup_welcome_ph"), gid))
+            await interaction.response.edit_message(
+                content=None,
+                embed=discord.Embed(title="👋 " + t("selects","setup_welcome"),
+                                    description=t("embeds","setup","channel_hint"),
+                                    color=discord.Color.blurple()),
+                view=view
+            )
+
+        elif val == "waiting_room":
+            view = discord.ui.View(timeout=120)
+            view.add_item(SetupVoiceChannelSelect(uid, "waiting_room_id", t("selects","setup_waiting_room_ph"), gid))
+            await interaction.response.edit_message(
+                content=None,
+                embed=discord.Embed(title="🎵 " + t("selects","setup_waiting_room"),
+                                    description=t("embeds","setup","channel_hint"),
+                                    color=discord.Color.blurple()),
+                view=view
+            )
+
+
+class SetupMenuView(discord.ui.View):
+    def __init__(self, user_id: int):
+        super().__init__(timeout=300)
+        self.add_item(SetupMenuSelect(user_id, ""))
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        # Update guild_id on first real interaction
+        for item in self.children:
+            if hasattr(item, "guild_id"):
+                item.guild_id = str(interaction.guild_id)
+        return True
+
+
+class SetupChannelSelect(discord.ui.ChannelSelect):
+    """Generic text channel selector for log/welcome channels."""
+    def __init__(self, user_id: int, config_key: str, placeholder: str, guild_id: str):
+        self.user_id    = user_id
+        self.config_key = config_key
+        self.guild_id   = guild_id
+        super().__init__(
+            placeholder=placeholder,
+            min_values=1, max_values=1,
+            channel_types=[discord.ChannelType.text]
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.user_id:
+            return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        gid = str(interaction.guild_id)
+        ch  = self.values[0]
+        config = load_config()
+        config.setdefault(gid, {})[self.config_key] = ch.id
+        save_config(config)
+
+        success_keys = {
+            "log_channel_id":     ("success","log_channel_set"),
+            "welcome_channel_id": ("success","welcome_channel_set"),
+        }
+        sk = success_keys.get(self.config_key, ("success","log_channel_set"))
+        msg = t(sk[0], sk[1], channel=ch.mention)
+
+        done_embed = discord.Embed(
+            title="✅ " + msg, color=discord.Color.green()
+        )
+        if interaction.guild.icon:
+            done_embed.set_footer(text=interaction.guild.name, icon_url=interaction.guild.icon.url)
+        await interaction.response.edit_message(
+            embed=done_embed,
+            view=SetupBackView(self.user_id)
+        )
+
+
+class SetupVoiceChannelSelect(discord.ui.ChannelSelect):
+    """Voice channel selector for waiting room."""
+    def __init__(self, user_id: int, config_key: str, placeholder: str, guild_id: str):
+        self.user_id    = user_id
+        self.config_key = config_key
+        self.guild_id   = guild_id
+        super().__init__(
+            placeholder=placeholder,
+            min_values=1, max_values=1,
+            channel_types=[discord.ChannelType.voice]
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.user_id:
+            return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        gid = str(interaction.guild_id)
+        ch  = self.values[0]
+        config = load_config()
+        config.setdefault(gid, {})[self.config_key] = ch.id
+        save_config(config)
+        done_embed = discord.Embed(
+            title="✅ " + t("success","waiting_room_set", channel=ch.mention),
+            color=discord.Color.green()
+        )
+        if interaction.guild.icon:
+            done_embed.set_footer(text=interaction.guild.name, icon_url=interaction.guild.icon.url)
+        await interaction.response.edit_message(embed=done_embed, view=SetupBackView(self.user_id))
+
+
+class SetupLanguageView(discord.ui.View):
+    def __init__(self, user_id: int):
+        super().__init__(timeout=120)
+        self.user_id = user_id
+
+    @discord.ui.button(label="🇩🇪 Deutsch", style=discord.ButtonStyle.secondary)
+    async def de_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.user_id:
+            return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        set_language("de", guild_id=str(interaction.guild_id))
+        done = discord.Embed(title="✅ " + t("success","language_set"), color=discord.Color.green())
+        await interaction.response.edit_message(embed=done, view=SetupBackView(self.user_id))
+
+    @discord.ui.button(label="🇬🇧 English", style=discord.ButtonStyle.secondary)
+    async def en_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.user_id:
+            return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        set_language("en", guild_id=str(interaction.guild_id))
+        done = discord.Embed(title="✅ " + t("success","language_set"), color=discord.Color.green())
+        await interaction.response.edit_message(embed=done, view=SetupBackView(self.user_id))
+
+
+class SetupBackView(discord.ui.View):
+    """After completing a simple setup step — offers to go back to menu."""
+    def __init__(self, user_id: int):
+        super().__init__(timeout=120)
+        self.user_id = user_id
+        self.back_btn.label   = t("buttons","setup_back_menu")
+        self.finish_btn.label = t("buttons","wizard_cancel")
+
+    @discord.ui.button(label="←", style=discord.ButtonStyle.blurple)
+    async def back_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.user_id:
+            return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        embed = discord.Embed(
+            title=t("embeds","setup","title"),
+            description=t("embeds","setup","desc"),
+            color=discord.Color.blurple()
+        )
+        if interaction.guild.icon:
+            embed.set_footer(text=interaction.guild.name, icon_url=interaction.guild.icon.url)
+        await interaction.response.edit_message(
+            embed=embed,
+            view=SetupMenuView(self.user_id)
+        )
+
+    @discord.ui.button(label="✖️", style=discord.ButtonStyle.secondary)
+    async def finish_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.user_id:
+            return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        await interaction.response.edit_message(
+            content=t("success","setup_done"), embed=None, view=None
+        )
 
 
 @bot.tree.command(name="ping", description=td("ping"))

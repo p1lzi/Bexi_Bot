@@ -174,6 +174,20 @@
         "adminpanel": {
             "description": "Opens the admin panel for user and chat management",
             "params": {}
+        },
+        "setup": {
+            "description": "Starts the universal setup wizard",
+            "params": {}
+        },
+        "config_export": {
+            "description": "Exports the server configuration as a JSON file",
+            "params": {}
+        },
+        "config_import": {
+            "description": "Imports a config file and migrates all panels",
+            "params": {
+                "datei": "The config.json file to import"
+            }
         }
     },
     "buttons": {
@@ -246,7 +260,9 @@
         "admin_unlock": "🔓 Unlock",
         "admin_slowmode": "🐌 Slowmode",
         "admin_purge": "🗑️ Delete Messages",
-        "admin_back": "← Back"
+        "admin_back": "← Back",
+        "setup_back_menu": "← Back to Menu",
+        "config_rollback_done": "↩️ Rolled back by"
     },
     "modals": {
         "ticket_close_title": "Close Ticket",
@@ -419,7 +435,24 @@
         "admin_chat": "💬 Chat",
         "admin_chat_desc": "Lock, Slowmode, Delete messages",
         "edit_q_ph": "❓ Choose a question to edit...",
-        "admin_pick_member_ph": "👤 Select a member..."
+        "admin_pick_member_ph": "👤 Select a member...",
+        "setup_ph": "⚙️ What do you want to set up?",
+        "setup_tickets": "🎫 Ticket System",
+        "setup_verify": "✅ Verification",
+        "setup_selfroles": "🎭 Self-Roles",
+        "setup_application": "📋 Application System",
+        "setup_log": "📋 Log Channel",
+        "setup_log_desc": "Channel for moderation logs",
+        "setup_log_ph": "📋 Select log channel...",
+        "setup_welcome": "👋 Welcome Channel",
+        "setup_welcome_desc": "Channel for welcome messages",
+        "setup_welcome_ph": "👋 Select welcome channel...",
+        "setup_waiting_room": "🎵 Support Music Waiting Room",
+        "setup_waiting_room_desc": "Voice channel for support music",
+        "setup_waiting_room_ph": "🎵 Select waiting room...",
+        "setup_join_roles": "🚪 Auto-Join Roles",
+        "setup_status": "⚙️ Bot Status",
+        "setup_language": "🌐 Language"
     },
     "errors": {
         "role_not_found": "❌ This role no longer exists.",
@@ -485,7 +518,12 @@
         "admin_invalid_number": "❌ Please enter a valid number.",
         "admin_slowmode_invalid": "❌ Invalid duration. Allowed: 0–21600 seconds.",
         "admin_purge_invalid": "❌ Invalid amount. Allowed: 1–1000.",
-        "admin_chat_error": "❌ Error: "
+        "admin_chat_error": "❌ Error: ",
+        "config_export_empty": "ℹ️ No configuration found for this server.",
+        "config_import_not_json": "❌ Please upload a `.json` file.",
+        "config_import_invalid": "❌ Invalid JSON file: ",
+        "config_import_cancelled": "❌ Import cancelled.",
+        "config_rollback_errors": "⚠️ {n} error(s) during recreation."
     },
     "success": {
         "log_channel_set": "✅ Log channel set to {channel}.",
@@ -554,7 +592,17 @@
         "admin_slowmode_off": "🐌 Slowmode in {channel} has been disabled.",
         "admin_purge_done": "🗑️ Deleted {count} message(s) in {channel}.",
         "edit_pick_question": "❓ Which question do you want to edit?",
-        "edit_q_removed": "✅ Last question removed."
+        "edit_q_removed": "✅ Last question removed.",
+        "setup_done": "✅ Setup complete.",
+        "config_export_done": "📥 Here is the current config for your server",
+        "config_export_apps": "open application(s) included",
+        "config_import_done": "✅ Config imported and all panels recreated.",
+        "config_import_apps": "open application(s) restored.",
+        "config_import_by": "performed a config import.",
+        "config_rollback_by": "rolled back the import.",
+        "config_rollback_ok": "✅ All panels were successfully restored.",
+        "config_rollback_hint": "Click the button to undo the import.",
+        "config_rollback_admin_only": "Only admins can perform rollback"
     },
     "embeds": {
         "shared": {
@@ -845,7 +893,8 @@
         },
         "log_config_import": {
             "title": "📤 Config Imported",
-            "desc": "{panels} panel(s) recreated — {errors} error(s)."
+            "desc": "{panels} panel(s) recreated — {errors} error(s).",
+            "rollback_title": "📤 Config Import — Rollback Available"
         },
         "log_config_rollback": {
             "title": "↩️ Config Import Rolled Back",
@@ -895,6 +944,12 @@
         "log_purge": {
             "title": "🗑️ Messages Deleted",
             "desc": "Deleted {count} message(s) in {channel}."
+        },
+        "setup": {
+            "title": "⚙️ Setup Wizard",
+            "desc": "Select from the dropdown what you want to set up:",
+            "language_hint": "Choose the bot language for this server:",
+            "channel_hint": "Select a channel from the dropdown:"
         }
     }
 }

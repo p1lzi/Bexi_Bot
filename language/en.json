@@ -188,6 +188,10 @@
             "params": {
                 "datei": "The config.json file to import"
             }
+        },
+        "embed_create": {
+            "description": "Opens the embed generator",
+            "params": {}
         }
     },
     "buttons": {
@@ -263,7 +267,17 @@
         "admin_back": "← Back",
         "setup_back_menu": "← Back to Menu",
         "config_rollback_done": "↩️ Rolled back by",
-        "config_rollback_btn_label": "↩️ Undo Import"
+        "config_rollback_btn_label": "↩️ Undo Import",
+        "embed_gen_base": "✏️ Title & Description",
+        "embed_gen_media": "🖼️ Images",
+        "embed_gen_authorfooter": "👤 Author & Footer",
+        "embed_gen_add_field": "➕ Add Field",
+        "embed_gen_remove_field": "🗑️ Remove Last Field",
+        "embed_gen_timestamp_on": "⏱️ Timestamp: On",
+        "embed_gen_timestamp_off": "⏱️ Timestamp: Off",
+        "embed_gen_send_channel": "📤 Send to Channel",
+        "embed_gen_send_here": "📨 Send Here",
+        "config_import_apply": "✅ Import & Recreate"
     },
     "modals": {
         "ticket_close_title": "Close Ticket",
@@ -390,7 +404,34 @@
         "admin_purge_title": "Delete Messages",
         "admin_purge_label": "Number of messages",
         "admin_purge_ph": "e.g. 10 (max. 1000)",
-        "edit_q_title": "Edit Question"
+        "edit_q_title": "Edit Question",
+        "embed_gen_base_title": "Title, Description & Color",
+        "embed_gen_title_label": "Title",
+        "embed_gen_title_ph": "e.g. Welcome to our server!",
+        "embed_gen_desc_label": "Description",
+        "embed_gen_desc_ph": "Embed content... (Markdown supported)",
+        "embed_gen_color_label": "Color (Hex without #)",
+        "embed_gen_color_ph": "e.g. FF0000 for Red, 5865F2 for Blurple",
+        "embed_gen_media_title": "Images",
+        "embed_gen_image_label": "Image URL (large, bottom)",
+        "embed_gen_thumb_label": "Thumbnail URL (small, right)",
+        "embed_gen_url_ph": "https://...",
+        "embed_gen_authorfooter_title": "Author & Footer",
+        "embed_gen_author_name_label": "Author Name",
+        "embed_gen_author_ph": "e.g. Bexi Bot",
+        "embed_gen_author_icon_label": "Author Icon URL",
+        "embed_gen_footer_label": "Footer Text",
+        "embed_gen_footer_ph": "e.g. Server Name • Date",
+        "embed_gen_footer_icon_label": "Footer Icon URL",
+        "embed_gen_field_title": "Add Field",
+        "embed_gen_field_name_label": "Field Name",
+        "embed_gen_field_name_ph": "e.g. 📋 Rules",
+        "embed_gen_field_value_label": "Field Content",
+        "embed_gen_field_value_ph": "Field content...",
+        "embed_gen_field_inline_label": "Inline? (yes/no)",
+        "embed_gen_send_title": "Send to Channel",
+        "embed_gen_send_channel_label": "Channel (name or #mention)",
+        "embed_gen_send_channel_ph": "e.g. #general or 123456789"
     },
     "selects": {
         "ticket_placeholder": "📂 Select your topic...",
@@ -525,7 +566,9 @@
         "config_import_invalid": "❌ Invalid JSON file: ",
         "config_import_cancelled": "❌ Import cancelled.",
         "config_rollback_errors": "⚠️ {n} error(s) during recreation.",
-        "config_rollback_no_perm": "❌ Only administrators can undo the import."
+        "config_rollback_no_perm": "❌ Only administrators can undo the import.",
+        "embed_gen_max_fields": "❌ Maximum 25 fields per embed.",
+        "embed_gen_no_fields": "❌ No fields to remove."
     },
     "success": {
         "log_channel_set": "✅ Log channel set to {channel}.",
@@ -610,7 +653,12 @@
         "config_preview_join_roles": "👋 Auto-Join Roles",
         "config_preview_warns": "⚠️ Warnings",
         "config_preview_open_apps": "📨 Open Applications",
-        "config_preview_open_tickets": "🎫 Open Tickets"
+        "config_preview_open_tickets": "🎫 Open Tickets",
+        "embed_gen_sent": "✅ Embed sent to {channel}.",
+        "config_preview_title": "**📋 Config Preview:**",
+        "config_import_warning": "⚠️ All existing panel messages will be **deleted** and **recreated**.",
+        "config_import_confirm": "Continue?",
+        "config_import_errors": "⚠️ {n} error(s):"
     },
     "embeds": {
         "shared": {
@@ -958,6 +1006,22 @@
             "desc": "Select from the dropdown what you want to set up:",
             "language_hint": "Choose the bot language for this server:",
             "channel_hint": "Select a channel from the dropdown:"
+        },
+        "embed_gen": {
+            "title": "⚙️ Embed Generator",
+            "f_settings": "📋 Settings",
+            "f_title": "**Title:**",
+            "f_desc": "**Description:**",
+            "f_color": "**Color:**",
+            "f_author": "**Author:**",
+            "f_footer": "**Footer:**",
+            "f_image": "**Image:**",
+            "f_thumbnail": "**Thumbnail:**",
+            "f_timestamp": "**Timestamp:**",
+            "f_fields": "**Fields:**"
+        },
+        "config_import": {
+            "title": "📤 Config Import"
         }
     }
 }

@@ -4264,21 +4264,25 @@ class ConfigUploadView(discord.ui.View):
         self.new_config = new_config
         self.guild_id   = guild_id
         self.preview    = preview
+        self.confirm_btn.label = t("buttons","config_import_apply")
+        self.cancel_btn.label  = t("buttons","wizard_cancel")
 
     def _check(self, interaction: discord.Interaction) -> bool:
         return interaction.user.id == self.user_id
 
-    @discord.ui.button(label="✅ Apply & Recreate", style=discord.ButtonStyle.green)
+    @discord.ui.button(label="✅", style=discord.ButtonStyle.green)
     async def confirm_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self._check(interaction):
             return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
         await interaction.response.defer(ephemeral=True)
 
         # ── Snapshot BEFORE applying — used for rollback ──────────────────────
-        snapshot_config   = load_config()
+        # Deep copy so _recreate_panels cannot mutate the snapshot in-place
+        import copy as _copy
+        snapshot_config    = _copy.deepcopy(load_config())
         snapshot_open_apps = load_open_apps()
 
-        config = dict(snapshot_config)  # working copy
+        config = _copy.deepcopy(snapshot_config)  # working copy
         # Merge: preserve bot_presence, open_applications, open_tickets
         for key, val in self.new_config.items():
             if key not in ("bot_presence", "open_applications", "open_tickets"):
@@ -4364,7 +4368,7 @@ class ConfigUploadView(discord.ui.View):
         ]
         if issues:
             result_lines.append("")
-            result_lines.append("⚠️ " + str(len(issues)) + " Fehler:")
+            result_lines.append(t("success","config_import_errors", n=len(issues)))
             for iss in issues[:10]:
                 result_lines.append("• " + iss)
 
@@ -4415,7 +4419,7 @@ class ConfigUploadView(discord.ui.View):
                 )
                 await log_ch.send(embed=rollback_embed, view=rollback_view)
 
-    @discord.ui.button(label="✖️ Cancel", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="✖️", style=discord.ButtonStyle.secondary)
     async def cancel_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self._check(interaction):
             return await interaction.response.send_message(t("errors", "application_not_yours"), ephemeral=True)
@@ -6325,6 +6329,443 @@ class AdminPurgeModal(discord.ui.Modal):
         except Exception as e:
             await interaction.followup.send(t("errors","admin_chat_error") + str(e), ephemeral=True)
 
+
+# ─────────────────────────────────────────────
+#  EMBED GENERATOR
+# ─────────────────────────────────────────────
+
+_embed_gen_state: dict = {}  # user_id -> embed data dict
+
+
+def _default_embed_state() -> dict:
+    return {
+        "title":        "",
+        "description":  "",
+        "color":        "5865F2",
+        "author_name":  "",
+        "author_icon":  "",
+        "footer_text":  "",
+        "footer_icon":  "",
+        "image_url":    "",
+        "thumbnail_url":"",
+        "fields":       [],   # [{"name": str, "value": str, "inline": bool}]
+        "timestamp":    False,
+    }
+
+
+def _build_preview_embed(state: dict) -> discord.Embed:
+    """Build the actual embed from current state."""
+    color_hex = state.get("color", "5865F2")
+    try:
+        color = discord.Color(int(color_hex.lstrip("#"), 16))
+    except (ValueError, TypeError):
+        color = discord.Color.blurple()
+
+    embed = discord.Embed(
+        title       = state.get("title") or None,
+        description = state.get("description") or None,
+        color       = color,
+        timestamp   = now_timestamp() if state.get("timestamp") else None
+    )
+    if state.get("author_name"):
+        embed.set_author(name=state["author_name"], icon_url=state.get("author_icon") or None)
+    if state.get("footer_text"):
+        embed.set_footer(text=state["footer_text"], icon_url=state.get("footer_icon") or None)
+    if state.get("image_url"):
+        embed.set_image(url=state["image_url"])
+    if state.get("thumbnail_url"):
+        embed.set_thumbnail(url=state["thumbnail_url"])
+    for field in state.get("fields", []):
+        embed.add_field(
+            name   = field.get("name", "​"),
+            value  = field.get("value", "​"),
+            inline = field.get("inline", False)
+        )
+    return embed
+
+
+def _build_embed_gen_status(state: dict, guild) -> discord.Embed:
+    """Builder status embed — shows current settings."""
+    color_hex = state.get("color", "5865F2")
+    try:
+        color = discord.Color(int(color_hex.lstrip("#"), 16))
+    except (ValueError, TypeError):
+        color = discord.Color.blurple()
+
+    embed = discord.Embed(title=t("embeds","embed_gen","title"), color=color)
+
+    lines = [
+        t("embeds","embed_gen","f_title")       + " " + (state.get("title")       or t("embeds","wizard","not_set")),
+        t("embeds","embed_gen","f_desc")        + " " + ((state.get("description") or "")[:40] + "…" if len(state.get("description",""))>40 else (state.get("description") or t("embeds","wizard","not_set"))),
+        t("embeds","embed_gen","f_color")       + " #" + color_hex,
+        t("embeds","embed_gen","f_author")      + " " + (state.get("author_name") or t("embeds","wizard","not_set")),
+        t("embeds","embed_gen","f_footer")      + " " + (state.get("footer_text") or t("embeds","wizard","not_set")),
+        t("embeds","embed_gen","f_image")       + " " + ("✅" if state.get("image_url") else "—"),
+        t("embeds","embed_gen","f_thumbnail")   + " " + ("✅" if state.get("thumbnail_url") else "—"),
+        t("embeds","embed_gen","f_timestamp")   + " " + ("✅" if state.get("timestamp") else "—"),
+        t("embeds","embed_gen","f_fields")      + " " + str(len(state.get("fields", []))),
+    ]
+    embed.add_field(name=t("embeds","embed_gen","f_settings"), value="\n".join(lines), inline=False)
+
+    if guild and guild.icon:
+        embed.set_footer(text=guild.name, icon_url=guild.icon.url)
+    return embed
+
+
+# ── Modals ────────────────────────────────────────────────────────────────────
+
+class EmbedGenBaseModal(discord.ui.Modal):
+    def __init__(self, user_id: int):
+        super().__init__(title=t("modals","embed_gen_base_title"))
+        self.user_id = user_id
+        state = _embed_gen_state.get(user_id, _default_embed_state())
+        self.f_title = discord.ui.TextInput(
+            label=t("modals","embed_gen_title_label"),
+            placeholder=t("modals","embed_gen_title_ph"),
+            default=state.get("title",""),
+            style=discord.TextStyle.short, required=False, max_length=256
+        )
+        self.f_desc = discord.ui.TextInput(
+            label=t("modals","embed_gen_desc_label"),
+            placeholder=t("modals","embed_gen_desc_ph"),
+            default=state.get("description",""),
+            style=discord.TextStyle.paragraph, required=False, max_length=4000
+        )
+        self.f_color = discord.ui.TextInput(
+            label=t("modals","embed_gen_color_label"),
+            placeholder=t("modals","embed_gen_color_ph"),
+            default=state.get("color","5865F2"),
+            style=discord.TextStyle.short, required=False, max_length=10
+        )
+        self.add_item(self.f_title)
+        self.add_item(self.f_desc)
+        self.add_item(self.f_color)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        uid = self.user_id
+        color_raw = self.f_color.value.strip().lstrip("#") or "5865F2"
+        try:
+            int(color_raw, 16)
+        except ValueError:
+            color_raw = "5865F2"
+        _embed_gen_state[uid].update({
+            "title":       self.f_title.value.strip(),
+            "description": self.f_desc.value.strip(),
+            "color":       color_raw,
+        })
+        await interaction.response.defer(ephemeral=True)
+        orig = _wizard_interactions.get(uid)
+        if orig:
+            try:
+                await orig.edit_original_response(
+                    embed=_build_embed_gen_status(_embed_gen_state[uid], interaction.guild),
+                    view=EmbedGenView(uid)
+                )
+            except Exception:
+                pass
+
+
+class EmbedGenMediaModal(discord.ui.Modal):
+    def __init__(self, user_id: int):
+        super().__init__(title=t("modals","embed_gen_media_title"))
+        self.user_id = user_id
+        state = _embed_gen_state.get(user_id, _default_embed_state())
+        self.f_image = discord.ui.TextInput(
+            label=t("modals","embed_gen_image_label"),
+            placeholder=t("modals","embed_gen_url_ph"),
+            default=state.get("image_url",""),
+            style=discord.TextStyle.short, required=False, max_length=500
+        )
+        self.f_thumb = discord.ui.TextInput(
+            label=t("modals","embed_gen_thumb_label"),
+            placeholder=t("modals","embed_gen_url_ph"),
+            default=state.get("thumbnail_url",""),
+            style=discord.TextStyle.short, required=False, max_length=500
+        )
+        self.add_item(self.f_image)
+        self.add_item(self.f_thumb)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        uid = self.user_id
+        _embed_gen_state[uid].update({
+            "image_url":     self.f_image.value.strip(),
+            "thumbnail_url": self.f_thumb.value.strip(),
+        })
+        await interaction.response.defer(ephemeral=True)
+        orig = _wizard_interactions.get(uid)
+        if orig:
+            try:
+                await orig.edit_original_response(
+                    embed=_build_embed_gen_status(_embed_gen_state[uid], interaction.guild),
+                    view=EmbedGenView(uid)
+                )
+            except Exception:
+                pass
+
+
+class EmbedGenAuthorFooterModal(discord.ui.Modal):
+    def __init__(self, user_id: int):
+        super().__init__(title=t("modals","embed_gen_authorfooter_title"))
+        self.user_id = user_id
+        state = _embed_gen_state.get(user_id, _default_embed_state())
+        self.f_author_name = discord.ui.TextInput(
+            label=t("modals","embed_gen_author_name_label"),
+            placeholder=t("modals","embed_gen_author_ph"),
+            default=state.get("author_name",""),
+            style=discord.TextStyle.short, required=False, max_length=256
+        )
+        self.f_author_icon = discord.ui.TextInput(
+            label=t("modals","embed_gen_author_icon_label"),
+            placeholder=t("modals","embed_gen_url_ph"),
+            default=state.get("author_icon",""),
+            style=discord.TextStyle.short, required=False, max_length=500
+        )
+        self.f_footer = discord.ui.TextInput(
+            label=t("modals","embed_gen_footer_label"),
+            placeholder=t("modals","embed_gen_footer_ph"),
+            default=state.get("footer_text",""),
+            style=discord.TextStyle.short, required=False, max_length=2048
+        )
+        self.f_footer_icon = discord.ui.TextInput(
+            label=t("modals","embed_gen_footer_icon_label"),
+            placeholder=t("modals","embed_gen_url_ph"),
+            default=state.get("footer_icon",""),
+            style=discord.TextStyle.short, required=False, max_length=500
+        )
+        self.add_item(self.f_author_name)
+        self.add_item(self.f_author_icon)
+        self.add_item(self.f_footer)
+        self.add_item(self.f_footer_icon)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        uid = self.user_id
+        _embed_gen_state[uid].update({
+            "author_name": self.f_author_name.value.strip(),
+            "author_icon": self.f_author_icon.value.strip(),
+            "footer_text": self.f_footer.value.strip(),
+            "footer_icon": self.f_footer_icon.value.strip(),
+        })
+        await interaction.response.defer(ephemeral=True)
+        orig = _wizard_interactions.get(uid)
+        if orig:
+            try:
+                await orig.edit_original_response(
+                    embed=_build_embed_gen_status(_embed_gen_state[uid], interaction.guild),
+                    view=EmbedGenView(uid)
+                )
+            except Exception:
+                pass
+
+
+class EmbedGenAddFieldModal(discord.ui.Modal):
+    def __init__(self, user_id: int):
+        super().__init__(title=t("modals","embed_gen_field_title"))
+        self.user_id = user_id
+        self.f_name = discord.ui.TextInput(
+            label=t("modals","embed_gen_field_name_label"),
+            placeholder=t("modals","embed_gen_field_name_ph"),
+            style=discord.TextStyle.short, required=True, max_length=256
+        )
+        self.f_value = discord.ui.TextInput(
+            label=t("modals","embed_gen_field_value_label"),
+            placeholder=t("modals","embed_gen_field_value_ph"),
+            style=discord.TextStyle.paragraph, required=True, max_length=1024
+        )
+        self.f_inline = discord.ui.TextInput(
+            label=t("modals","embed_gen_field_inline_label"),
+            placeholder="yes / no",
+            default="no",
+            style=discord.TextStyle.short, required=False, max_length=5
+        )
+        self.add_item(self.f_name)
+        self.add_item(self.f_value)
+        self.add_item(self.f_inline)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        uid    = self.user_id
+        fields = _embed_gen_state[uid].get("fields", [])
+        if len(fields) >= 25:
+            return await interaction.response.send_message(
+                t("errors","embed_gen_max_fields"), ephemeral=True
+            )
+        inline = self.f_inline.value.strip().lower() in ("yes","y","ja","true","1")
+        fields.append({
+            "name":   self.f_name.value.strip(),
+            "value":  self.f_value.value.strip(),
+            "inline": inline,
+        })
+        _embed_gen_state[uid]["fields"] = fields
+        await interaction.response.defer(ephemeral=True)
+        orig = _wizard_interactions.get(uid)
+        if orig:
+            try:
+                await orig.edit_original_response(
+                    embed=_build_embed_gen_status(_embed_gen_state[uid], interaction.guild),
+                    view=EmbedGenView(uid)
+                )
+            except Exception:
+                pass
+
+
+class EmbedGenSendModal(discord.ui.Modal):
+    """Choose target channel to send the embed to."""
+    def __init__(self, user_id: int):
+        super().__init__(title=t("modals","embed_gen_send_title"))
+        self.user_id = user_id
+        self.f_channel = discord.ui.TextInput(
+            label=t("modals","embed_gen_send_channel_label"),
+            placeholder=t("modals","embed_gen_send_channel_ph"),
+            style=discord.TextStyle.short, required=True, max_length=100
+        )
+        self.add_item(self.f_channel)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        uid = self.user_id
+        raw = self.f_channel.value.strip()
+
+        # Resolve channel
+        channel = None
+        raw_id  = raw.strip("<#>")
+        if raw_id.isdigit():
+            channel = interaction.guild.get_channel(int(raw_id))
+        if not channel:
+            channel = discord.utils.find(
+                lambda c: c.name.lower() == raw.lstrip("#").lower(),
+                interaction.guild.text_channels
+            )
+        if not channel:
+            return await interaction.response.send_message(
+                t("errors","setup_channel_not_found"), ephemeral=True
+            )
+
+        state = _embed_gen_state.pop(uid, _default_embed_state())
+        try:
+            embed = _build_preview_embed(state)
+            await channel.send(embed=embed)
+            await interaction.response.send_message(
+                t("success","embed_gen_sent", channel=channel.mention), ephemeral=True
+            )
+        except Exception as e:
+            await interaction.response.send_message(
+                t("errors","generic_error", error=str(e)), ephemeral=True
+            )
+
+
+# ── Main View ─────────────────────────────────────────────────────────────────
+
+class EmbedGenView(discord.ui.View):
+    def __init__(self, user_id: int):
+        super().__init__(timeout=600)
+        self.user_id = user_id
+        state = _embed_gen_state.get(user_id, {})
+        self.base_btn.label        = t("buttons","embed_gen_base")
+        self.media_btn.label       = t("buttons","embed_gen_media")
+        self.authorfooter_btn.label= t("buttons","embed_gen_authorfooter")
+        self.add_field_btn.label   = t("buttons","embed_gen_add_field")
+        self.remove_field_btn.label= t("buttons","embed_gen_remove_field")
+        self.timestamp_btn.label   = t("buttons","embed_gen_timestamp_on") if not state.get("timestamp") else t("buttons","embed_gen_timestamp_off")
+        self.preview_btn.label     = t("buttons","wizard_preview")
+        self.send_channel_btn.label= t("buttons","embed_gen_send_channel")
+        self.send_here_btn.label   = t("buttons","embed_gen_send_here")
+        self.cancel_btn.label      = t("buttons","wizard_cancel")
+
+        # Disable remove field if no fields
+        self.remove_field_btn.disabled = len(state.get("fields", [])) == 0
+
+    def _check(self, i): return i.user.id == self.user_id
+
+    @discord.ui.button(label="✏️", style=discord.ButtonStyle.blurple, row=0)
+    async def base_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        await interaction.response.send_modal(EmbedGenBaseModal(self.user_id))
+
+    @discord.ui.button(label="🖼️", style=discord.ButtonStyle.secondary, row=0)
+    async def media_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        await interaction.response.send_modal(EmbedGenMediaModal(self.user_id))
+
+    @discord.ui.button(label="👤", style=discord.ButtonStyle.secondary, row=0)
+    async def authorfooter_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        await interaction.response.send_modal(EmbedGenAuthorFooterModal(self.user_id))
+
+    @discord.ui.button(label="➕", style=discord.ButtonStyle.secondary, row=1)
+    async def add_field_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        await interaction.response.send_modal(EmbedGenAddFieldModal(self.user_id))
+
+    @discord.ui.button(label="🗑️", style=discord.ButtonStyle.danger, row=1)
+    async def remove_field_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        state = _embed_gen_state.get(self.user_id, {})
+        if not state.get("fields"):
+            return await interaction.response.send_message(t("errors","embed_gen_no_fields"), ephemeral=True)
+        state["fields"].pop()
+        await interaction.response.defer(ephemeral=True)
+        orig = _wizard_interactions.get(self.user_id)
+        if orig:
+            try:
+                await orig.edit_original_response(
+                    embed=_build_embed_gen_status(state, interaction.guild),
+                    view=EmbedGenView(self.user_id)
+                )
+            except Exception:
+                pass
+
+    @discord.ui.button(label="⏱️", style=discord.ButtonStyle.secondary, row=1)
+    async def timestamp_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        state = _embed_gen_state.get(self.user_id, {})
+        state["timestamp"] = not state.get("timestamp", False)
+        await interaction.response.defer(ephemeral=True)
+        orig = _wizard_interactions.get(self.user_id)
+        if orig:
+            try:
+                await orig.edit_original_response(
+                    embed=_build_embed_gen_status(state, interaction.guild),
+                    view=EmbedGenView(self.user_id)
+                )
+            except Exception:
+                pass
+
+    @discord.ui.button(label="👁️", style=discord.ButtonStyle.secondary, row=2)
+    async def preview_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        state = _embed_gen_state.get(self.user_id, _default_embed_state())
+        try:
+            preview = _build_preview_embed(state)
+            await interaction.response.send_message(
+                content=t("success","wizard_preview_note"),
+                embed=preview, ephemeral=True
+            )
+        except Exception as e:
+            await interaction.response.send_message(t("errors","generic_error", error=str(e)), ephemeral=True)
+
+    @discord.ui.button(label="📤", style=discord.ButtonStyle.green, row=2)
+    async def send_channel_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        await interaction.response.send_modal(EmbedGenSendModal(self.user_id))
+
+    @discord.ui.button(label="📨", style=discord.ButtonStyle.green, row=2)
+    async def send_here_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        state = _embed_gen_state.pop(self.user_id, _default_embed_state())
+        try:
+            embed = _build_preview_embed(state)
+            await interaction.channel.send(embed=embed)
+            await interaction.response.edit_message(
+                content=t("success","embed_gen_sent", channel=interaction.channel.mention),
+                embed=None, view=None
+            )
+        except Exception as e:
+            await interaction.response.send_message(t("errors","generic_error", error=str(e)), ephemeral=True)
+
+    @discord.ui.button(label="✖️", style=discord.ButtonStyle.secondary, row=2)
+    async def cancel_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        _embed_gen_state.pop(self.user_id, None)
+        await interaction.response.edit_message(content=t("errors","application_cancelled"), embed=None, view=None)
+
 # ─────────────────────────────────────────────
 #  BOT
 # ─────────────────────────────────────────────
@@ -7314,7 +7755,7 @@ async def config_import(interaction: discord.Interaction, datei: discord.Attachm
         full_config = {guild_id: guild_data}
 
     # Build preview
-    lines = ["**📋 Config-Vorschau:**", ""]
+    lines = [t("success","config_preview_title"), ""]
     imported_open_apps    = new_config.get("open_applications", {})
     imported_open_tickets = new_config.get("open_tickets", {})
     preview_items = [
@@ -7332,11 +7773,11 @@ async def config_import(interaction: discord.Interaction, datei: discord.Attachm
             lines.append(name + ": **" + str(count) + "**")
 
     lines.append("")
-    lines.append("⚠️ Alle alten Panel-Nachrichten werden **gelöscht** und **neu erstellt**.")
-    lines.append("Fortfahren?")
+    lines.append(t("success","config_import_warning"))
+    lines.append(t("success","config_import_confirm"))
 
     embed = discord.Embed(
-        title="📤 Config Import",
+        title=t("embeds","config_import","title"),
         description="\n".join(lines),
         color=discord.Color.orange()
     )
@@ -7642,6 +8083,17 @@ class SetupBackView(discord.ui.View):
         await interaction.response.edit_message(
             content=t("success","setup_done"), embed=None, view=None
         )
+
+
+@bot.tree.command(name="embed_create", description=td("embed_create"))
+@app_commands.default_permissions(administrator=True)
+async def embed_create_cmd(interaction: discord.Interaction):
+    """Opens the embed generator wizard."""
+    uid = interaction.user.id
+    _embed_gen_state[uid] = _default_embed_state()
+    status_embed = _build_embed_gen_status(_embed_gen_state[uid], interaction.guild)
+    await interaction.response.send_message(embed=status_embed, view=EmbedGenView(uid), ephemeral=True)
+    _wizard_interactions[uid] = interaction
 
 
 @bot.tree.command(name="ping", description=td("ping"))

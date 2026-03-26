@@ -277,7 +277,10 @@
         "embed_gen_timestamp_off": "⏱️ Timestamp: Off",
         "embed_gen_send_channel": "📤 Send to Channel",
         "embed_gen_send_here": "📨 Send Here",
-        "config_import_apply": "✅ Import & Recreate"
+        "config_import_apply": "✅ Import & Recreate",
+        "embed_gen_edit_field": "✏️ Edit Field",
+        "embed_gen_delete_field": "🗑️ Delete Field",
+        "config_rollback_expired": "⏰ Rollback Expired"
     },
     "modals": {
         "ticket_close_title": "Close Ticket",
@@ -431,7 +434,9 @@
         "embed_gen_field_inline_label": "Inline? (yes/no)",
         "embed_gen_send_title": "Send to Channel",
         "embed_gen_send_channel_label": "Channel (name or #mention)",
-        "embed_gen_send_channel_ph": "e.g. #general or 123456789"
+        "embed_gen_send_channel_ph": "e.g. #general or 123456789",
+        "embed_gen_field_edit_title": "Edit Field",
+        "embed_gen_field_image_label": "Image URL for this field (optional)"
     },
     "selects": {
         "ticket_placeholder": "📂 Select your topic...",
@@ -494,7 +499,9 @@
         "setup_waiting_room_ph": "🎵 Select waiting room...",
         "setup_join_roles": "🚪 Auto-Join Roles",
         "setup_status": "⚙️ Bot Status",
-        "setup_language": "🌐 Language"
+        "setup_language": "🌐 Language",
+        "embed_gen_edit_field_ph": "✏️ Which field to edit?",
+        "embed_gen_delete_field_ph": "🗑️ Which field to delete?"
     },
     "errors": {
         "role_not_found": "❌ This role no longer exists.",
@@ -658,7 +665,10 @@
         "config_preview_title": "**📋 Config Preview:**",
         "config_import_warning": "⚠️ All existing panel messages will be **deleted** and **recreated**.",
         "config_import_confirm": "Continue?",
-        "config_import_errors": "⚠️ {n} error(s):"
+        "config_import_errors": "⚠️ {n} error(s):",
+        "embed_gen_field_deleted": "✅ Field deleted.",
+        "embed_gen_pick_field_edit": "✏️ Which field do you want to edit?",
+        "embed_gen_pick_field_delete": "🗑️ Which field do you want to delete?"
     },
     "embeds": {
         "shared": {
@@ -1018,7 +1028,9 @@
             "f_image": "**Image:**",
             "f_thumbnail": "**Thumbnail:**",
             "f_timestamp": "**Timestamp:**",
-            "f_fields": "**Fields:**"
+            "f_fields": "**Fields:**",
+            "f_fields_list": "📋 Fields",
+            "field_image_note": "Image"
         },
         "config_import": {
             "title": "📤 Config Import"

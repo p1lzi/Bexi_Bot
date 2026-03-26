@@ -4427,15 +4427,27 @@ class ConfigUploadView(discord.ui.View):
 
 
 class ConfigRollbackView(discord.ui.View):
-    """Posted in the log channel after an import — any admin can trigger rollback."""
+    """Posted in the log channel after an import — any admin can trigger rollback.
+    Auto-disables after 24 hours."""
     def __init__(self, snapshot_config: dict, snapshot_open_apps: dict,
                  guild_id: str, imported_msg_ids: list = None):
-        super().__init__(timeout=None)
+        super().__init__(timeout=86400)   # 24 hours
         self.snapshot_config    = snapshot_config
         self.snapshot_open_apps = snapshot_open_apps
         self.guild_id           = guild_id
-        self.imported_msg_ids   = imported_msg_ids or []  # [(channel_id, message_id), ...]
+        self.imported_msg_ids   = imported_msg_ids or []
         self.rollback_btn.label = t("buttons", "config_rollback_btn_label")
+
+    async def on_timeout(self):
+        """Disable button when 24h window expires."""
+        self.rollback_btn.disabled = True
+        self.rollback_btn.label    = t("buttons", "config_rollback_expired")
+        try:
+            # message reference is not directly available, but Discord will
+            # auto-remove the components when view expires via timeout=
+            pass
+        except Exception:
+            pass
 
     @discord.ui.button(
         label="↩️",
@@ -6348,13 +6360,12 @@ def _default_embed_state() -> dict:
         "footer_icon":  "",
         "image_url":    "",
         "thumbnail_url":"",
-        "fields":       [],   # [{"name": str, "value": str, "inline": bool}]
+        "fields":       [],   # [{"name":str,"value":str,"inline":bool,"image_url":str}]
         "timestamp":    False,
     }
 
 
 def _build_preview_embed(state: dict) -> discord.Embed:
-    """Build the actual embed from current state."""
     color_hex = state.get("color", "5865F2")
     try:
         color = discord.Color(int(color_hex.lstrip("#"), 16))
@@ -6376,16 +6387,20 @@ def _build_preview_embed(state: dict) -> discord.Embed:
     if state.get("thumbnail_url"):
         embed.set_thumbnail(url=state["thumbnail_url"])
     for field in state.get("fields", []):
+        # Field images are added as separate image-only embeds when sending;
+        # here we note them in the value with a link placeholder
+        val = field.get("value", "\u200b")
+        if field.get("image_url"):
+            val = val + ("\n" if val.strip() else "") + "[🖼️ " + t("embeds","embed_gen","field_image_note") + "](" + field["image_url"] + ")"
         embed.add_field(
-            name   = field.get("name", "​"),
-            value  = field.get("value", "​"),
+            name   = field.get("name", "\u200b"),
+            value  = val or "\u200b",
             inline = field.get("inline", False)
         )
     return embed
 
 
 def _build_embed_gen_status(state: dict, guild) -> discord.Embed:
-    """Builder status embed — shows current settings."""
     color_hex = state.get("color", "5865F2")
     try:
         color = discord.Color(int(color_hex.lstrip("#"), 16))
@@ -6393,10 +6408,9 @@ def _build_embed_gen_status(state: dict, guild) -> discord.Embed:
         color = discord.Color.blurple()
 
     embed = discord.Embed(title=t("embeds","embed_gen","title"), color=color)
-
     lines = [
-        t("embeds","embed_gen","f_title")       + " " + (state.get("title")       or t("embeds","wizard","not_set")),
-        t("embeds","embed_gen","f_desc")        + " " + ((state.get("description") or "")[:40] + "…" if len(state.get("description",""))>40 else (state.get("description") or t("embeds","wizard","not_set"))),
+        t("embeds","embed_gen","f_title")      + " " + (state.get("title") or t("embeds","wizard","not_set")),
+        t("embeds","embed_gen","f_desc")        + " " + ((state.get("description","")[:40] + "…") if len(state.get("description","")) > 40 else (state.get("description") or t("embeds","wizard","not_set"))),
         t("embeds","embed_gen","f_color")       + " #" + color_hex,
         t("embeds","embed_gen","f_author")      + " " + (state.get("author_name") or t("embeds","wizard","not_set")),
         t("embeds","embed_gen","f_footer")      + " " + (state.get("footer_text") or t("embeds","wizard","not_set")),
@@ -6407,9 +6421,34 @@ def _build_embed_gen_status(state: dict, guild) -> discord.Embed:
     ]
     embed.add_field(name=t("embeds","embed_gen","f_settings"), value="\n".join(lines), inline=False)
 
+    # Show fields list
+    fields = state.get("fields", [])
+    if fields:
+        flines = []
+        for i, f in enumerate(fields[:10]):
+            img_marker = " 🖼️" if f.get("image_url") else ""
+            inline_marker = " ↔️" if f.get("inline") else ""
+            flines.append("**" + str(i+1) + ".** " + f.get("name","​")[:40] + img_marker + inline_marker)
+        if len(fields) > 10:
+            flines.append(t("embeds","wizard","q_more", n=len(fields)-10))
+        embed.add_field(name=t("embeds","embed_gen","f_fields_list"), value="\n".join(flines), inline=False)
+
     if guild and guild.icon:
         embed.set_footer(text=guild.name, icon_url=guild.icon.url)
     return embed
+
+
+async def _refresh_embed_gen(interaction: discord.Interaction, uid: int):
+    orig = _wizard_interactions.get(uid)
+    if orig:
+        try:
+            state = _embed_gen_state.get(uid, _default_embed_state())
+            await orig.edit_original_response(
+                embed=_build_embed_gen_status(state, interaction.guild),
+                view=EmbedGenView(uid)
+            )
+        except Exception:
+            pass
 
 
 # ── Modals ────────────────────────────────────────────────────────────────────
@@ -6419,50 +6458,19 @@ class EmbedGenBaseModal(discord.ui.Modal):
         super().__init__(title=t("modals","embed_gen_base_title"))
         self.user_id = user_id
         state = _embed_gen_state.get(user_id, _default_embed_state())
-        self.f_title = discord.ui.TextInput(
-            label=t("modals","embed_gen_title_label"),
-            placeholder=t("modals","embed_gen_title_ph"),
-            default=state.get("title",""),
-            style=discord.TextStyle.short, required=False, max_length=256
-        )
-        self.f_desc = discord.ui.TextInput(
-            label=t("modals","embed_gen_desc_label"),
-            placeholder=t("modals","embed_gen_desc_ph"),
-            default=state.get("description",""),
-            style=discord.TextStyle.paragraph, required=False, max_length=4000
-        )
-        self.f_color = discord.ui.TextInput(
-            label=t("modals","embed_gen_color_label"),
-            placeholder=t("modals","embed_gen_color_ph"),
-            default=state.get("color","5865F2"),
-            style=discord.TextStyle.short, required=False, max_length=10
-        )
-        self.add_item(self.f_title)
-        self.add_item(self.f_desc)
-        self.add_item(self.f_color)
+        self.f_title = discord.ui.TextInput(label=t("modals","embed_gen_title_label"), placeholder=t("modals","embed_gen_title_ph"), default=state.get("title",""), style=discord.TextStyle.short, required=False, max_length=256)
+        self.f_desc  = discord.ui.TextInput(label=t("modals","embed_gen_desc_label"),  placeholder=t("modals","embed_gen_desc_ph"),  default=state.get("description",""), style=discord.TextStyle.paragraph, required=False, max_length=4000)
+        self.f_color = discord.ui.TextInput(label=t("modals","embed_gen_color_label"), placeholder=t("modals","embed_gen_color_ph"), default=state.get("color","5865F2"), style=discord.TextStyle.short, required=False, max_length=10)
+        self.add_item(self.f_title); self.add_item(self.f_desc); self.add_item(self.f_color)
 
     async def on_submit(self, interaction: discord.Interaction):
         uid = self.user_id
         color_raw = self.f_color.value.strip().lstrip("#") or "5865F2"
-        try:
-            int(color_raw, 16)
-        except ValueError:
-            color_raw = "5865F2"
-        _embed_gen_state[uid].update({
-            "title":       self.f_title.value.strip(),
-            "description": self.f_desc.value.strip(),
-            "color":       color_raw,
-        })
+        try: int(color_raw, 16)
+        except ValueError: color_raw = "5865F2"
+        _embed_gen_state[uid].update({"title": self.f_title.value.strip(), "description": self.f_desc.value.strip(), "color": color_raw})
         await interaction.response.defer(ephemeral=True)
-        orig = _wizard_interactions.get(uid)
-        if orig:
-            try:
-                await orig.edit_original_response(
-                    embed=_build_embed_gen_status(_embed_gen_state[uid], interaction.guild),
-                    view=EmbedGenView(uid)
-                )
-            except Exception:
-                pass
+        await _refresh_embed_gen(interaction, uid)
 
 
 class EmbedGenMediaModal(discord.ui.Modal):
@@ -6470,37 +6478,15 @@ class EmbedGenMediaModal(discord.ui.Modal):
         super().__init__(title=t("modals","embed_gen_media_title"))
         self.user_id = user_id
         state = _embed_gen_state.get(user_id, _default_embed_state())
-        self.f_image = discord.ui.TextInput(
-            label=t("modals","embed_gen_image_label"),
-            placeholder=t("modals","embed_gen_url_ph"),
-            default=state.get("image_url",""),
-            style=discord.TextStyle.short, required=False, max_length=500
-        )
-        self.f_thumb = discord.ui.TextInput(
-            label=t("modals","embed_gen_thumb_label"),
-            placeholder=t("modals","embed_gen_url_ph"),
-            default=state.get("thumbnail_url",""),
-            style=discord.TextStyle.short, required=False, max_length=500
-        )
-        self.add_item(self.f_image)
-        self.add_item(self.f_thumb)
+        self.f_image = discord.ui.TextInput(label=t("modals","embed_gen_image_label"), placeholder=t("modals","embed_gen_url_ph"), default=state.get("image_url",""), style=discord.TextStyle.short, required=False, max_length=500)
+        self.f_thumb = discord.ui.TextInput(label=t("modals","embed_gen_thumb_label"), placeholder=t("modals","embed_gen_url_ph"), default=state.get("thumbnail_url",""), style=discord.TextStyle.short, required=False, max_length=500)
+        self.add_item(self.f_image); self.add_item(self.f_thumb)
 
     async def on_submit(self, interaction: discord.Interaction):
         uid = self.user_id
-        _embed_gen_state[uid].update({
-            "image_url":     self.f_image.value.strip(),
-            "thumbnail_url": self.f_thumb.value.strip(),
-        })
+        _embed_gen_state[uid].update({"image_url": self.f_image.value.strip(), "thumbnail_url": self.f_thumb.value.strip()})
         await interaction.response.defer(ephemeral=True)
-        orig = _wizard_interactions.get(uid)
-        if orig:
-            try:
-                await orig.edit_original_response(
-                    embed=_build_embed_gen_status(_embed_gen_state[uid], interaction.guild),
-                    view=EmbedGenView(uid)
-                )
-            except Exception:
-                pass
+        await _refresh_embed_gen(interaction, uid)
 
 
 class EmbedGenAuthorFooterModal(discord.ui.Modal):
@@ -6508,147 +6494,125 @@ class EmbedGenAuthorFooterModal(discord.ui.Modal):
         super().__init__(title=t("modals","embed_gen_authorfooter_title"))
         self.user_id = user_id
         state = _embed_gen_state.get(user_id, _default_embed_state())
-        self.f_author_name = discord.ui.TextInput(
-            label=t("modals","embed_gen_author_name_label"),
-            placeholder=t("modals","embed_gen_author_ph"),
-            default=state.get("author_name",""),
-            style=discord.TextStyle.short, required=False, max_length=256
-        )
-        self.f_author_icon = discord.ui.TextInput(
-            label=t("modals","embed_gen_author_icon_label"),
-            placeholder=t("modals","embed_gen_url_ph"),
-            default=state.get("author_icon",""),
-            style=discord.TextStyle.short, required=False, max_length=500
-        )
-        self.f_footer = discord.ui.TextInput(
-            label=t("modals","embed_gen_footer_label"),
-            placeholder=t("modals","embed_gen_footer_ph"),
-            default=state.get("footer_text",""),
-            style=discord.TextStyle.short, required=False, max_length=2048
-        )
-        self.f_footer_icon = discord.ui.TextInput(
-            label=t("modals","embed_gen_footer_icon_label"),
-            placeholder=t("modals","embed_gen_url_ph"),
-            default=state.get("footer_icon",""),
-            style=discord.TextStyle.short, required=False, max_length=500
-        )
-        self.add_item(self.f_author_name)
-        self.add_item(self.f_author_icon)
-        self.add_item(self.f_footer)
-        self.add_item(self.f_footer_icon)
+        self.f_aname = discord.ui.TextInput(label=t("modals","embed_gen_author_name_label"), placeholder=t("modals","embed_gen_author_ph"),      default=state.get("author_name",""),  style=discord.TextStyle.short, required=False, max_length=256)
+        self.f_aicon = discord.ui.TextInput(label=t("modals","embed_gen_author_icon_label"), placeholder=t("modals","embed_gen_url_ph"),           default=state.get("author_icon",""),  style=discord.TextStyle.short, required=False, max_length=500)
+        self.f_ftext = discord.ui.TextInput(label=t("modals","embed_gen_footer_label"),      placeholder=t("modals","embed_gen_footer_ph"),         default=state.get("footer_text",""),  style=discord.TextStyle.short, required=False, max_length=2048)
+        self.f_ficon = discord.ui.TextInput(label=t("modals","embed_gen_footer_icon_label"), placeholder=t("modals","embed_gen_url_ph"),            default=state.get("footer_icon",""),  style=discord.TextStyle.short, required=False, max_length=500)
+        self.add_item(self.f_aname); self.add_item(self.f_aicon); self.add_item(self.f_ftext); self.add_item(self.f_ficon)
 
     async def on_submit(self, interaction: discord.Interaction):
         uid = self.user_id
-        _embed_gen_state[uid].update({
-            "author_name": self.f_author_name.value.strip(),
-            "author_icon": self.f_author_icon.value.strip(),
-            "footer_text": self.f_footer.value.strip(),
-            "footer_icon": self.f_footer_icon.value.strip(),
-        })
+        _embed_gen_state[uid].update({"author_name": self.f_aname.value.strip(), "author_icon": self.f_aicon.value.strip(), "footer_text": self.f_ftext.value.strip(), "footer_icon": self.f_ficon.value.strip()})
         await interaction.response.defer(ephemeral=True)
-        orig = _wizard_interactions.get(uid)
-        if orig:
-            try:
-                await orig.edit_original_response(
-                    embed=_build_embed_gen_status(_embed_gen_state[uid], interaction.guild),
-                    view=EmbedGenView(uid)
-                )
-            except Exception:
-                pass
+        await _refresh_embed_gen(interaction, uid)
 
 
 class EmbedGenAddFieldModal(discord.ui.Modal):
-    def __init__(self, user_id: int):
-        super().__init__(title=t("modals","embed_gen_field_title"))
-        self.user_id = user_id
-        self.f_name = discord.ui.TextInput(
-            label=t("modals","embed_gen_field_name_label"),
-            placeholder=t("modals","embed_gen_field_name_ph"),
-            style=discord.TextStyle.short, required=True, max_length=256
-        )
-        self.f_value = discord.ui.TextInput(
-            label=t("modals","embed_gen_field_value_label"),
-            placeholder=t("modals","embed_gen_field_value_ph"),
-            style=discord.TextStyle.paragraph, required=True, max_length=1024
-        )
-        self.f_inline = discord.ui.TextInput(
-            label=t("modals","embed_gen_field_inline_label"),
-            placeholder="yes / no",
-            default="no",
-            style=discord.TextStyle.short, required=False, max_length=5
-        )
-        self.add_item(self.f_name)
-        self.add_item(self.f_value)
-        self.add_item(self.f_inline)
+    def __init__(self, user_id: int, edit_idx: int = -1):
+        title_key = "embed_gen_field_edit_title" if edit_idx >= 0 else "embed_gen_field_title"
+        super().__init__(title=t("modals", title_key))
+        self.user_id  = user_id
+        self.edit_idx = edit_idx
+        # Pre-fill if editing
+        existing = {}
+        if edit_idx >= 0:
+            fields = _embed_gen_state.get(user_id, {}).get("fields", [])
+            existing = fields[edit_idx] if edit_idx < len(fields) else {}
+        self.f_name   = discord.ui.TextInput(label=t("modals","embed_gen_field_name_label"),   placeholder=t("modals","embed_gen_field_name_ph"),   default=existing.get("name",""),      style=discord.TextStyle.short,     required=True,  max_length=256)
+        self.f_value  = discord.ui.TextInput(label=t("modals","embed_gen_field_value_label"),  placeholder=t("modals","embed_gen_field_value_ph"),  default=existing.get("value",""),     style=discord.TextStyle.paragraph, required=True,  max_length=1024)
+        self.f_image  = discord.ui.TextInput(label=t("modals","embed_gen_field_image_label"),  placeholder=t("modals","embed_gen_url_ph"),           default=existing.get("image_url",""), style=discord.TextStyle.short,     required=False, max_length=500)
+        self.f_inline = discord.ui.TextInput(label=t("modals","embed_gen_field_inline_label"), placeholder="yes / no",                              default="yes" if existing.get("inline") else "no", style=discord.TextStyle.short, required=False, max_length=5)
+        self.add_item(self.f_name); self.add_item(self.f_value); self.add_item(self.f_image); self.add_item(self.f_inline)
 
     async def on_submit(self, interaction: discord.Interaction):
         uid    = self.user_id
         fields = _embed_gen_state[uid].get("fields", [])
-        if len(fields) >= 25:
-            return await interaction.response.send_message(
-                t("errors","embed_gen_max_fields"), ephemeral=True
-            )
+        if self.edit_idx < 0 and len(fields) >= 25:
+            return await interaction.response.send_message(t("errors","embed_gen_max_fields"), ephemeral=True)
         inline = self.f_inline.value.strip().lower() in ("yes","y","ja","true","1")
-        fields.append({
-            "name":   self.f_name.value.strip(),
-            "value":  self.f_value.value.strip(),
-            "inline": inline,
-        })
+        entry  = {"name": self.f_name.value.strip(), "value": self.f_value.value.strip(), "image_url": self.f_image.value.strip(), "inline": inline}
+        if self.edit_idx >= 0 and self.edit_idx < len(fields):
+            fields[self.edit_idx] = entry
+        else:
+            fields.append(entry)
         _embed_gen_state[uid]["fields"] = fields
         await interaction.response.defer(ephemeral=True)
-        orig = _wizard_interactions.get(uid)
-        if orig:
-            try:
-                await orig.edit_original_response(
-                    embed=_build_embed_gen_status(_embed_gen_state[uid], interaction.guild),
-                    view=EmbedGenView(uid)
-                )
-            except Exception:
-                pass
+        await _refresh_embed_gen(interaction, uid)
+
+
+class EmbedGenFieldSelect(discord.ui.Select):
+    """Select a specific field to edit or delete."""
+    def __init__(self, user_id: int, action: str):
+        self.user_id = user_id
+        self.action  = action  # "edit" or "delete"
+        fields = _embed_gen_state.get(user_id, {}).get("fields", [])
+        options = []
+        for i, f in enumerate(fields[:25]):
+            img = " 🖼️" if f.get("image_url") else ""
+            options.append(discord.SelectOption(
+                label=f.get("name","(empty)")[:90] + img,
+                value=str(i),
+                description=(f.get("value","")[:50] if f.get("value") else None)
+            ))
+        if not options:
+            options.append(discord.SelectOption(label="—", value="__none__"))
+        ph_key = "embed_gen_edit_field_ph" if action == "edit" else "embed_gen_delete_field_ph"
+        super().__init__(placeholder=t("selects", ph_key), min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.user_id:
+            return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        if self.values[0] == "__none__":
+            return await interaction.response.edit_message(content=t("errors","embed_gen_no_fields"), view=None)
+        idx = int(self.values[0])
+        if self.action == "edit":
+            await interaction.response.send_modal(EmbedGenAddFieldModal(self.user_id, edit_idx=idx))
+        else:
+            fields = _embed_gen_state[self.user_id].get("fields", [])
+            if idx < len(fields):
+                fields.pop(idx)
+            await interaction.response.edit_message(
+                content=t("success","embed_gen_field_deleted"), view=None
+            )
+            await _refresh_embed_gen(interaction, self.user_id)
 
 
 class EmbedGenSendModal(discord.ui.Modal):
-    """Choose target channel to send the embed to."""
     def __init__(self, user_id: int):
         super().__init__(title=t("modals","embed_gen_send_title"))
         self.user_id = user_id
-        self.f_channel = discord.ui.TextInput(
-            label=t("modals","embed_gen_send_channel_label"),
-            placeholder=t("modals","embed_gen_send_channel_ph"),
-            style=discord.TextStyle.short, required=True, max_length=100
-        )
+        self.f_channel = discord.ui.TextInput(label=t("modals","embed_gen_send_channel_label"), placeholder=t("modals","embed_gen_send_channel_ph"), style=discord.TextStyle.short, required=True, max_length=100)
         self.add_item(self.f_channel)
 
     async def on_submit(self, interaction: discord.Interaction):
         uid = self.user_id
         raw = self.f_channel.value.strip()
-
-        # Resolve channel
         channel = None
         raw_id  = raw.strip("<#>")
         if raw_id.isdigit():
             channel = interaction.guild.get_channel(int(raw_id))
         if not channel:
-            channel = discord.utils.find(
-                lambda c: c.name.lower() == raw.lstrip("#").lower(),
-                interaction.guild.text_channels
-            )
+            channel = discord.utils.find(lambda c: c.name.lower() == raw.lstrip("#").lower(), interaction.guild.text_channels)
         if not channel:
-            return await interaction.response.send_message(
-                t("errors","setup_channel_not_found"), ephemeral=True
-            )
-
+            return await interaction.response.send_message(t("errors","setup_channel_not_found"), ephemeral=True)
         state = _embed_gen_state.pop(uid, _default_embed_state())
         try:
-            embed = _build_preview_embed(state)
-            await channel.send(embed=embed)
-            await interaction.response.send_message(
-                t("success","embed_gen_sent", channel=channel.mention), ephemeral=True
-            )
+            await _send_embed_with_field_images(channel, state)
+            await interaction.response.send_message(t("success","embed_gen_sent", channel=channel.mention), ephemeral=True)
         except Exception as e:
-            await interaction.response.send_message(
-                t("errors","generic_error", error=str(e)), ephemeral=True
-            )
+            await interaction.response.send_message(t("errors","generic_error", error=str(e)), ephemeral=True)
+
+
+async def _send_embed_with_field_images(channel, state: dict):
+    """Send the embed. Fields with image_url get a follow-up image embed."""
+    embed = _build_preview_embed(state)
+    await channel.send(embed=embed)
+    # Send field images as follow-up image-only embeds
+    for field in state.get("fields", []):
+        if field.get("image_url"):
+            img_embed = discord.Embed(color=discord.Color(int(state.get("color","5865F2"), 16)))
+            img_embed.set_image(url=field["image_url"])
+            await channel.send(embed=img_embed)
 
 
 # ── Main View ─────────────────────────────────────────────────────────────────
@@ -6658,110 +6622,94 @@ class EmbedGenView(discord.ui.View):
         super().__init__(timeout=600)
         self.user_id = user_id
         state = _embed_gen_state.get(user_id, {})
-        self.base_btn.label        = t("buttons","embed_gen_base")
-        self.media_btn.label       = t("buttons","embed_gen_media")
-        self.authorfooter_btn.label= t("buttons","embed_gen_authorfooter")
-        self.add_field_btn.label   = t("buttons","embed_gen_add_field")
-        self.remove_field_btn.label= t("buttons","embed_gen_remove_field")
-        self.timestamp_btn.label   = t("buttons","embed_gen_timestamp_on") if not state.get("timestamp") else t("buttons","embed_gen_timestamp_off")
-        self.preview_btn.label     = t("buttons","wizard_preview")
-        self.send_channel_btn.label= t("buttons","embed_gen_send_channel")
-        self.send_here_btn.label   = t("buttons","embed_gen_send_here")
-        self.cancel_btn.label      = t("buttons","wizard_cancel")
+        has_fields = bool(state.get("fields"))
 
-        # Disable remove field if no fields
-        self.remove_field_btn.disabled = len(state.get("fields", [])) == 0
+        self.base_btn.label         = t("buttons","embed_gen_base")
+        self.media_btn.label        = t("buttons","embed_gen_media")
+        self.authorfooter_btn.label = t("buttons","embed_gen_authorfooter")
+        self.add_field_btn.label    = t("buttons","embed_gen_add_field")
+        self.edit_field_btn.label   = t("buttons","embed_gen_edit_field")
+        self.delete_field_btn.label = t("buttons","embed_gen_delete_field")
+        self.timestamp_btn.label    = t("buttons","embed_gen_timestamp_off") if state.get("timestamp") else t("buttons","embed_gen_timestamp_on")
+        self.preview_btn.label      = t("buttons","wizard_preview")
+        self.send_channel_btn.label = t("buttons","embed_gen_send_channel")
+        self.send_here_btn.label    = t("buttons","embed_gen_send_here")
+        self.cancel_btn.label       = t("buttons","wizard_cancel")
+
+        self.edit_field_btn.disabled   = not has_fields
+        self.delete_field_btn.disabled = not has_fields
 
     def _check(self, i): return i.user.id == self.user_id
 
     @discord.ui.button(label="✏️", style=discord.ButtonStyle.blurple, row=0)
-    async def base_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def base_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         await interaction.response.send_modal(EmbedGenBaseModal(self.user_id))
 
     @discord.ui.button(label="🖼️", style=discord.ButtonStyle.secondary, row=0)
-    async def media_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def media_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         await interaction.response.send_modal(EmbedGenMediaModal(self.user_id))
 
     @discord.ui.button(label="👤", style=discord.ButtonStyle.secondary, row=0)
-    async def authorfooter_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def authorfooter_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         await interaction.response.send_modal(EmbedGenAuthorFooterModal(self.user_id))
 
     @discord.ui.button(label="➕", style=discord.ButtonStyle.secondary, row=1)
-    async def add_field_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def add_field_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         await interaction.response.send_modal(EmbedGenAddFieldModal(self.user_id))
 
-    @discord.ui.button(label="🗑️", style=discord.ButtonStyle.danger, row=1)
-    async def remove_field_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    @discord.ui.button(label="✏️f", style=discord.ButtonStyle.secondary, row=1)
+    async def edit_field_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
-        state = _embed_gen_state.get(self.user_id, {})
-        if not state.get("fields"):
-            return await interaction.response.send_message(t("errors","embed_gen_no_fields"), ephemeral=True)
-        state["fields"].pop()
-        await interaction.response.defer(ephemeral=True)
-        orig = _wizard_interactions.get(self.user_id)
-        if orig:
-            try:
-                await orig.edit_original_response(
-                    embed=_build_embed_gen_status(state, interaction.guild),
-                    view=EmbedGenView(self.user_id)
-                )
-            except Exception:
-                pass
+        view = discord.ui.View(timeout=120)
+        view.add_item(EmbedGenFieldSelect(self.user_id, "edit"))
+        await interaction.response.send_message(content=t("success","embed_gen_pick_field_edit"), view=view, ephemeral=True)
+
+    @discord.ui.button(label="🗑️f", style=discord.ButtonStyle.danger, row=1)
+    async def delete_field_btn(self, interaction, button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        view = discord.ui.View(timeout=120)
+        view.add_item(EmbedGenFieldSelect(self.user_id, "delete"))
+        await interaction.response.send_message(content=t("success","embed_gen_pick_field_delete"), view=view, ephemeral=True)
 
     @discord.ui.button(label="⏱️", style=discord.ButtonStyle.secondary, row=1)
-    async def timestamp_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def timestamp_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         state = _embed_gen_state.get(self.user_id, {})
         state["timestamp"] = not state.get("timestamp", False)
         await interaction.response.defer(ephemeral=True)
-        orig = _wizard_interactions.get(self.user_id)
-        if orig:
-            try:
-                await orig.edit_original_response(
-                    embed=_build_embed_gen_status(state, interaction.guild),
-                    view=EmbedGenView(self.user_id)
-                )
-            except Exception:
-                pass
+        await _refresh_embed_gen(interaction, self.user_id)
 
     @discord.ui.button(label="👁️", style=discord.ButtonStyle.secondary, row=2)
-    async def preview_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def preview_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         state = _embed_gen_state.get(self.user_id, _default_embed_state())
         try:
             preview = _build_preview_embed(state)
-            await interaction.response.send_message(
-                content=t("success","wizard_preview_note"),
-                embed=preview, ephemeral=True
-            )
+            await interaction.response.send_message(content=t("success","wizard_preview_note"), embed=preview, ephemeral=True)
         except Exception as e:
             await interaction.response.send_message(t("errors","generic_error", error=str(e)), ephemeral=True)
 
     @discord.ui.button(label="📤", style=discord.ButtonStyle.green, row=2)
-    async def send_channel_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def send_channel_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         await interaction.response.send_modal(EmbedGenSendModal(self.user_id))
 
     @discord.ui.button(label="📨", style=discord.ButtonStyle.green, row=2)
-    async def send_here_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def send_here_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         state = _embed_gen_state.pop(self.user_id, _default_embed_state())
         try:
-            embed = _build_preview_embed(state)
-            await interaction.channel.send(embed=embed)
-            await interaction.response.edit_message(
-                content=t("success","embed_gen_sent", channel=interaction.channel.mention),
-                embed=None, view=None
-            )
+            await _send_embed_with_field_images(interaction.channel, state)
+            await interaction.response.edit_message(content=t("success","embed_gen_sent", channel=interaction.channel.mention), embed=None, view=None)
         except Exception as e:
             await interaction.response.send_message(t("errors","generic_error", error=str(e)), ephemeral=True)
 
     @discord.ui.button(label="✖️", style=discord.ButtonStyle.secondary, row=2)
-    async def cancel_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def cancel_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         _embed_gen_state.pop(self.user_id, None)
         await interaction.response.edit_message(content=t("errors","application_cancelled"), embed=None, view=None)

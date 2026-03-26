@@ -277,7 +277,10 @@
         "embed_gen_timestamp_off": "⏱️ Timestamp: Aus",
         "embed_gen_send_channel": "📤 In Kanal senden",
         "embed_gen_send_here": "📨 Hier senden",
-        "config_import_apply": "✅ Importieren & Neu erstellen"
+        "config_import_apply": "✅ Importieren & Neu erstellen",
+        "embed_gen_edit_field": "✏️ Feld bearbeiten",
+        "embed_gen_delete_field": "🗑️ Feld löschen",
+        "config_rollback_expired": "⏰ Rollback abgelaufen"
     },
     "modals": {
         "ticket_close_title": "Ticket schließen",
@@ -431,7 +434,9 @@
         "embed_gen_field_inline_label": "Nebeneinander? (yes/no)",
         "embed_gen_send_title": "In Kanal senden",
         "embed_gen_send_channel_label": "Kanal (Name oder #mention)",
-        "embed_gen_send_channel_ph": "z.B. #allgemein oder 123456789"
+        "embed_gen_send_channel_ph": "z.B. #allgemein oder 123456789",
+        "embed_gen_field_edit_title": "Feld bearbeiten",
+        "embed_gen_field_image_label": "Bild-URL für dieses Feld (optional)"
     },
     "selects": {
         "ticket_placeholder": "📂 Wähle dein Anliegen...",
@@ -494,7 +499,9 @@
         "setup_waiting_room_ph": "🎵 Warteraum auswählen...",
         "setup_join_roles": "🚪 Auto-Join Rollen",
         "setup_status": "⚙️ Bot-Status",
-        "setup_language": "🌐 Sprache"
+        "setup_language": "🌐 Sprache",
+        "embed_gen_edit_field_ph": "✏️ Welches Feld bearbeiten?",
+        "embed_gen_delete_field_ph": "🗑️ Welches Feld löschen?"
     },
     "errors": {
         "role_not_found": "❌ Diese Rolle existiert nicht mehr.",
@@ -658,7 +665,10 @@
         "config_preview_title": "**📋 Config-Vorschau:**",
         "config_import_warning": "⚠️ Alle alten Panel-Nachrichten werden **gelöscht** und **neu erstellt**.",
         "config_import_confirm": "Fortfahren?",
-        "config_import_errors": "⚠️ {n} Fehler:"
+        "config_import_errors": "⚠️ {n} Fehler:",
+        "embed_gen_field_deleted": "✅ Feld gelöscht.",
+        "embed_gen_pick_field_edit": "✏️ Welches Feld möchtest du bearbeiten?",
+        "embed_gen_pick_field_delete": "🗑️ Welches Feld möchtest du löschen?"
     },
     "embeds": {
         "shared": {
@@ -1018,7 +1028,9 @@
             "f_image": "**Bild:**",
             "f_thumbnail": "**Thumbnail:**",
             "f_timestamp": "**Timestamp:**",
-            "f_fields": "**Felder:**"
+            "f_fields": "**Felder:**",
+            "f_fields_list": "📋 Felder",
+            "field_image_note": "Bild"
         },
         "config_import": {
             "title": "📤 Config Import"

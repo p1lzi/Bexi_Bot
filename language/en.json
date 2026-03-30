@@ -192,6 +192,26 @@
         "embed_create": {
             "description": "Opens the embed generator",
             "params": {}
+        },
+        "music_upload": {
+            "description": "Uploads a new music file for the waiting room",
+            "params": {
+                "datei": "Audio file (.mp3, .ogg, .wav, .flac, .m4a) — max. 25 MB"
+            }
+        },
+        "music_download": {
+            "description": "Downloads the current waiting room music",
+            "params": {}
+        },
+        "history": {
+            "description": "Shows the server audit log with filter options",
+            "params": {
+                "filter": "Only show actions of this type (e.g. ban, warn)",
+                "limit": "Number of entries (max. 50, default: 25)",
+                "action": "Only show a specific action (e.g. ban, warn, setup_tickets)",
+                "user": "Only show actions by this user (name, mention or ID)",
+                "date": "Filter by date or month (e.g. 2026-03 or 2026-03-15)"
+            }
         }
     },
     "buttons": {
@@ -280,7 +300,11 @@
         "config_import_apply": "✅ Import & Recreate",
         "embed_gen_edit_field": "✏️ Edit Field",
         "embed_gen_delete_field": "🗑️ Delete Field",
-        "config_rollback_expired": "⏰ Rollback Expired"
+        "config_rollback_expired": "⏰ Rollback Expired",
+        "history_prev": "◀ Previous",
+        "history_next": "Next ▶",
+        "history_filter": "🔍 Filter",
+        "history_refresh": "🔄 Refresh"
     },
     "modals": {
         "ticket_close_title": "Close Ticket",
@@ -436,7 +460,14 @@
         "embed_gen_send_channel_label": "Channel (name or #mention)",
         "embed_gen_send_channel_ph": "e.g. #general or 123456789",
         "embed_gen_field_edit_title": "Edit Field",
-        "embed_gen_field_image_label": "Image URL for this field (optional)"
+        "embed_gen_field_image_label": "Image URL for this field (optional)",
+        "history_filter_title": "Filter Audit Log",
+        "history_filter_action_label": "Action (empty = all)",
+        "history_filter_action_ph": "e.g. ban, warn, setup_tickets, config_import",
+        "history_filter_user_label": "User (name, @mention or ID)",
+        "history_filter_user_ph": "e.g. @PilziTheGoat or 123456789",
+        "history_filter_date_label": "Date / Month (empty = all)",
+        "history_filter_date_ph": "e.g. 2026-03 (month) or 2026-03-15 (day)"
     },
     "selects": {
         "ticket_placeholder": "📂 Select your topic...",
@@ -575,7 +606,11 @@
         "config_rollback_errors": "⚠️ {n} error(s) during recreation.",
         "config_rollback_no_perm": "❌ Only administrators can undo the import.",
         "embed_gen_max_fields": "❌ Maximum 25 fields per embed.",
-        "embed_gen_no_fields": "❌ No fields to remove."
+        "embed_gen_no_fields": "❌ No fields to remove.",
+        "music_invalid_format": "❌ Invalid format. Allowed: .mp3, .ogg, .wav, .flac, .m4a",
+        "music_too_large": "❌ File too large. Maximum 25 MB allowed.",
+        "music_not_found": "❌ No music file found. Please upload one first.",
+        "history_empty": "ℹ️ No entries found for this server."
     },
     "success": {
         "log_channel_set": "✅ Log channel set to {channel}.",
@@ -668,7 +703,13 @@
         "config_import_errors": "⚠️ {n} error(s):",
         "embed_gen_field_deleted": "✅ Field deleted.",
         "embed_gen_pick_field_edit": "✏️ Which field do you want to edit?",
-        "embed_gen_pick_field_delete": "🗑️ Which field do you want to delete?"
+        "embed_gen_pick_field_delete": "🗑️ Which field do you want to delete?",
+        "wizard_preview_note_application": "👁️ **Preview** — This is how the application panel will look:",
+        "wizard_preview_note_ticket": "👁️ **Preview** — This is how the ticket panel will look:",
+        "wizard_preview_note_verify": "👁️ **Preview** — This is how the verify panel will look:",
+        "wizard_preview_note_embed": "👁️ **Preview** — This is how the embed will look:",
+        "music_uploaded": "✅ Music file **{filename}** uploaded and applied successfully.",
+        "music_downloaded": "🎵 Current waiting room music ({size} KB):"
     },
     "embeds": {
         "shared": {
@@ -1034,6 +1075,17 @@
         },
         "config_import": {
             "title": "📤 Config Import"
+        },
+        "history": {
+            "title": "📋 Server Audit Log",
+            "f_entries": "📝 Entries",
+            "footer_limit": "{n} entries shown",
+            "footer_page": "Page {page}/{total}",
+            "footer_total": "{n} entries total",
+            "active_filters": "🔍 **Filters:**",
+            "filter_action": "Action:",
+            "filter_user": "User:",
+            "filter_date": "Date:"
         }
     }
 }

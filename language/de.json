@@ -192,6 +192,26 @@
         "embed_create": {
             "description": "Öffnet den Embed-Generator",
             "params": {}
+        },
+        "music_upload": {
+            "description": "Lädt eine neue Musik-Datei für den Warteraum hoch",
+            "params": {
+                "datei": "Audio-Datei (.mp3, .ogg, .wav, .flac, .m4a) — max. 25 MB"
+            }
+        },
+        "music_download": {
+            "description": "Lädt die aktuelle Warteraum-Musik herunter",
+            "params": {}
+        },
+        "history": {
+            "description": "Zeigt das Server-Audit-Log mit Filteroptionen",
+            "params": {
+                "filter": "Nur Aktionen dieses Typs anzeigen (z.B. ban, warn)",
+                "limit": "Anzahl der Einträge (max. 50, Standard: 25)",
+                "action": "Nur bestimmte Aktion anzeigen (z.B. ban, warn, setup_tickets)",
+                "user": "Nur Aktionen dieses Nutzers (Name, Mention oder ID)",
+                "date": "Datum oder Monat filtern (z.B. 2026-03 oder 2026-03-15)"
+            }
         }
     },
     "buttons": {
@@ -280,7 +300,11 @@
         "config_import_apply": "✅ Importieren & Neu erstellen",
         "embed_gen_edit_field": "✏️ Feld bearbeiten",
         "embed_gen_delete_field": "🗑️ Feld löschen",
-        "config_rollback_expired": "⏰ Rollback abgelaufen"
+        "config_rollback_expired": "⏰ Rollback abgelaufen",
+        "history_prev": "◀ Zurück",
+        "history_next": "Weiter ▶",
+        "history_filter": "🔍 Filter",
+        "history_refresh": "🔄 Aktualisieren"
     },
     "modals": {
         "ticket_close_title": "Ticket schließen",
@@ -436,7 +460,14 @@
         "embed_gen_send_channel_label": "Kanal (Name oder #mention)",
         "embed_gen_send_channel_ph": "z.B. #allgemein oder 123456789",
         "embed_gen_field_edit_title": "Feld bearbeiten",
-        "embed_gen_field_image_label": "Bild-URL für dieses Feld (optional)"
+        "embed_gen_field_image_label": "Bild-URL für dieses Feld (optional)",
+        "history_filter_title": "Audit-Log filtern",
+        "history_filter_action_label": "Aktion (leer = alle)",
+        "history_filter_action_ph": "z.B. ban, warn, setup_tickets, config_import",
+        "history_filter_user_label": "Nutzer (Name, @mention oder ID)",
+        "history_filter_user_ph": "z.B. @PilziTheGoat oder 123456789",
+        "history_filter_date_label": "Datum / Monat (leer = alle)",
+        "history_filter_date_ph": "z.B. 2026-03 (Monat) oder 2026-03-15 (Tag)"
     },
     "selects": {
         "ticket_placeholder": "📂 Wähle dein Anliegen...",
@@ -575,7 +606,11 @@
         "config_rollback_errors": "⚠️ {n} Fehler beim Neuerstellen.",
         "config_rollback_no_perm": "❌ Nur Administratoren können den Import rückgängig machen.",
         "embed_gen_max_fields": "❌ Maximal 25 Felder pro Embed erlaubt.",
-        "embed_gen_no_fields": "❌ Keine Felder vorhanden."
+        "embed_gen_no_fields": "❌ Keine Felder vorhanden.",
+        "music_invalid_format": "❌ Ungültiges Format. Erlaubt: .mp3, .ogg, .wav, .flac, .m4a",
+        "music_too_large": "❌ Datei zu groß. Maximal 25 MB erlaubt.",
+        "music_not_found": "❌ Keine Musik-Datei vorhanden. Bitte zuerst eine Datei hochladen.",
+        "history_empty": "ℹ️ Keine Einträge für diesen Server gefunden."
     },
     "success": {
         "log_channel_set": "✅ Log-Kanal wurde auf {channel} gesetzt.",
@@ -668,7 +703,13 @@
         "config_import_errors": "⚠️ {n} Fehler:",
         "embed_gen_field_deleted": "✅ Feld gelöscht.",
         "embed_gen_pick_field_edit": "✏️ Welches Feld möchtest du bearbeiten?",
-        "embed_gen_pick_field_delete": "🗑️ Welches Feld möchtest du löschen?"
+        "embed_gen_pick_field_delete": "🗑️ Welches Feld möchtest du löschen?",
+        "wizard_preview_note_application": "👁️ **Vorschau** — So sieht das Bewerbungs-Panel aus:",
+        "wizard_preview_note_ticket": "👁️ **Vorschau** — So sieht das Ticket-Panel aus:",
+        "wizard_preview_note_verify": "👁️ **Vorschau** — So sieht das Verify-Panel aus:",
+        "wizard_preview_note_embed": "👁️ **Vorschau** — So sieht das Embed aus:",
+        "music_uploaded": "✅ Musik-Datei **{filename}** erfolgreich hochgeladen und übernommen.",
+        "music_downloaded": "🎵 Aktuelle Warteraum-Musik ({size} KB):"
     },
     "embeds": {
         "shared": {
@@ -1034,6 +1075,17 @@
         },
         "config_import": {
             "title": "📤 Config Import"
+        },
+        "history": {
+            "title": "📋 Server Audit-Log",
+            "f_entries": "📝 Einträge",
+            "footer_limit": "{n} Einträge angezeigt",
+            "footer_page": "Seite {page}/{total}",
+            "footer_total": "{n} Einträge gesamt",
+            "active_filters": "🔍 **Filter:**",
+            "filter_action": "Aktion:",
+            "filter_user": "Nutzer:",
+            "filter_date": "Datum:"
         }
     }
 }

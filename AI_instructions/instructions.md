@@ -1,7 +1,6 @@
 # 🤖 AI Development Instructions — Bexi Bot
 
-Diese Datei ist für KI-Assistenten gedacht, die an diesem Projekt weiterarbeiten.
-Sie beschreibt die vollständige Architektur, alle Konventionen, bekannte Fallstricke und den aktuellen Entwicklungsstand.
+Diese Datei ist für KI-Assistenten gedacht, die an diesem Projekt weiterarbeiten. Sie beschreibt die komplette Architektur, alle Konventionen und bekannte Fallstricke.
 
 ---
 
@@ -9,22 +8,23 @@ Sie beschreibt die vollständige Architektur, alle Konventionen, bekannte Fallst
 
 ```
 bexi_bot/
-├── bot.py                          # Einzige Haupt-Datei, ~4900 Zeilen
+├── bot.py                        # Einzige Haupt-Datei, ~8100 Zeilen
+├── support_music.mp3             # Warteraum-Musik (wird per /music_upload ersetzt)
 ├── language/
-│   ├── de.json                     # Deutsche Texte (Primärsprache)
-│   └── en.json                     # Englische Texte
+│   ├── de.json                   # Deutsche Texte (Primärsprache)
+│   └── en.json                   # Englische Texte
 ├── configs/
-│   ├── config.json                 # Laufzeit-Konfiguration (pro Server, auto-generiert)
-│   ├── whitelist.json              # Erlaubte Link-Domains
-│   ├── open_applications.json      # Offene Bewerbungen (für Button-Persistenz nach Neustart)
-│   └── default_application.json   # Standard-Bewerbungsformular (29 Fragen, editierbar)
-├── AI_instructions/
-│   └── instructions.md             # Diese Datei
+│   ├── config.json               # Laufzeit-Konfiguration (pro Server)
+│   ├── whitelist.json            # Erlaubte Link-Domains
+│   ├── open_applications.json    # Offene Bewerbungs-Threads
+│   ├── default_application.json  # Standard-Bewerbungsfragen (29 Stück)
+│   └── audit_log.db              # SQLite-Audit-Log
 ├── requirements.txt
 ├── Docker/
 │   ├── Dockerfile
 │   └── compose.yaml
-└── support_music.mp3               # Optional, für Warteraum-Musik
+└── AI_instructions/
+    └── instructions.md
 ```
 
 ---
@@ -33,62 +33,18 @@ bexi_bot/
 
 Die Datei ist in diese Sektionen gegliedert (in Reihenfolge):
 
-| Sektion | Inhalt |
-|---|---|
-| Imports & Env-Setup | discord.py, dotenv, json, os, re, datetime |
-| Konstanten | TOKEN, CONFIGS_DIR, alle FILE-Pfade, LANG_DIR |
-| `_load_default_application()` | Lädt Fragen aus `default_application.json` |
-| I18N-System | `t()`, `td()`, `tp()`, `tch()`, `init_language()`, `set_language()` |
-| Config-Helpers | `load_config()`, `save_config()`, `load_whitelist()`, `save_whitelist()` |
-| Open-Apps-Helpers | `load_open_apps()`, `save_open_app()`, `delete_open_app()` |
-| Utility-Helpers | `format_discord_text()`, `extract_role_ids()`, `now_timestamp()`, `short_time()` |
-| Embed-Builder | `make_dm_embed()`, `make_log_embed()` |
-| Send-Helpers | `send_log()`, `send_dm()` |
-| Self-Role System | `SelfRoleButton`, `SelfRoleView` |
-| Ticket-System | `TicketCloseModal`, `TicketControlView`, `TicketSelect`, `TicketView` |
-| Verify-System | `VerifyView` |
-| Application-System | `ApplicationModal`, `ApplicationContinueView`, `ApplicationPanelView`, `ApplicationReviewView`, `ApplicationDecisionModal`, `build_review_embeds()` |
-| Shared Wizard Selects | `WizardRoleSelect`, `WizardChannelSelect`, `_make_role_select_view()`, `_make_channel_select_view()` |
-| SelfRole Setup Wizard | `_selfrole_wizard_state`, `SelfRoleSetupInfoModal`, `SelfRoleSetupRoleDetailsModal`, `SelfRoleAddRoleSelect`, `SelfRoleRemoveRoleSelect`, `SelfRoleSetupMainView` |
-| Ticket Setup Wizard | `_ticket_wizard_state`, `TicketSetupEmbedModal`, `TicketSetupInfoModal`, `TicketSetupCategoryModal`, `TicketSetupMainView` |
-| Status Config Wizard | `_status_wizard_state`, `StatusTextModal`, `StatusSelect`, `ActivitySelect`, `StatusWizardView` |
-| Join Roles Wizard | `_joinroles_wizard_state`, `JoinRolesWizardView` |
-| Verify Setup Wizard | `_verify_wizard_state`, `VerifySetupInfoModal`, `VerifySetupEmbedModal`, `VerifyWizardMainView` |
-| Delete Wizard | `DeleteTypeSelect`, `DeletePanelSelect`, `DeletePanelView`, `DeleteBackView`, `DeleteTypeView`, `_delete_panel()` |
-| Ticket Edit Wizard | `_ticket_edit_state`, `TicketEditPanelSelect`, `TicketEditEmbedModal`, `TicketEditCategoryModal`, `TicketEditRemoveCatSelect`, `TicketEditMainView` |
-| Application Setup Wizard | `_setup_wizard_state`, `AppSetupSectionModal`, `AppSetupMainView`, `AppSetupEditInfoModal`, `AppSetupQuestionsModal` |
-| Bot-Klasse | `MyBot` mit `setup_hook`, `on_message`, `on_member_join`, `on_voice_state_update`, `play_looping_music` |
-| Slash-Commands | alle `@bot.tree.command` Definitionen |
-| `on_ready` + `bot.run()` | Startup-Logik |
-
----
-
-## 📋 Alle Slash-Commands (aktuell)
-
-| Command | Beschreibung | Berechtigung |
-|---|---|---|
-| `/setup_application` | Application-Panel Wizard starten | Admin |
-| `/setup_tickets` | Ticket-Panel Wizard starten | Admin |
-| `/setup_verify` | Verify-Panel Wizard starten | Admin |
-| `/selfrole_create` | Self-Role Panel Wizard starten | Admin |
-| `/ticket_edit` | Bestehendes Ticket-Panel bearbeiten | Admin |
-| `/delete` | Delete-Wizard (löscht Panels aller Typen) | Admin |
-| `/set_join_roles` | Auto-Join-Rollen Wizard | Admin |
-| `/set_log_channel` | Log-Kanal festlegen | Admin |
-| `/set_welcome_channel` | Willkommens-Kanal festlegen | Admin |
-| `/set_waiting_room` | Warteraum-Sprachkanal festlegen | Admin |
-| `/status_config` | Bot-Status Wizard (Dropdown-basiert) | Admin |
-| `/set_language` | Sprache umschalten (de/en) | Admin |
-| `/whitelist` | Link-Whitelist verwalten | Admin |
-| `/setup_pioneer_role` | Erste 100 Mitglieder mit Rolle versehen | Admin |
-| `/ban` | Nutzer bannen | Ban Members |
-| `/kick` | Nutzer kicken | Kick Members |
-| `/timeout` | Nutzer timeoutten | Moderate Members |
-| `/warn` | Nutzer verwarnen | Moderate Members |
-| `/warn_edit` | Verwarnungen bearbeiten | Moderate Members |
-| `/userinfo` | Nutzerinfos anzeigen | Jeder / Admin für andere |
-| `/ping` | Bot-Latenz anzeigen | Jeder |
-| `/selfrole_list` | Alle Self-Role Panels anzeigen | Admin |
+1. **Imports & Env-Setup**
+2. **I18N-System** — `t()`, `td()`, `tp()`, `tch()`
+3. **Config-Helpers** — `load_config()`, `save_config()`, `load_whitelist()`, `save_whitelist()`
+4. **Open-Apps-Helpers** — `load_open_apps()`, `save_open_app()`, `delete_open_app()`
+5. **Utility-Helpers** — `format_discord_text()`, `extract_role_ids()`, `now_timestamp()`, `short_time()`
+6. **Embed-Builder** — `make_dm_embed()`, `make_log_embed()`
+7. **Send-Helpers** — `send_log()`, `send_dm()`
+8. **UI-Klassen** — Self-Roles, Tickets, Applications, Admin-Panel, Embed-Generator, alle Wizards
+9. **Audit Log (SQLite)** — `_init_db()`, `log_action()`, `query_log()`
+10. **Bot-Klasse** — `MyBot` mit `setup_hook`, `on_message`, `on_member_join`, `on_voice_state_update`
+11. **Slash-Commands** — alle `@bot.tree.command` Definitionen
+12. **on_ready** + `bot.run()`
 
 ---
 
@@ -97,22 +53,15 @@ Die Datei ist in diese Sektionen gegliedert (in Reihenfolge):
 ### Hilfsfunktionen
 
 ```python
-t("section", "key1", "key2", ..., param=value)   # beliebig tief verschachtelt
-td("command_name")                                 # Command-Beschreibung
-tp("command_name", "param_name")                   # Parameter-Beschreibung
-tch("command_name", "choices_group", "value")      # Choice-Label
+t("section", "key1", "key2", ..., param=value)  # beliebig tief verschachtelt
+td("command_name")                               # Command-Beschreibung
+tp("command_name", "param_name")                 # Parameter-Beschreibung
+tch("command_name", "choices_group", "value")    # Choice-Label
 ```
 
-### Beispiele
+### Wichtige Konvention
 
-```python
-t("errors", "ban_error")
-t("embeds", "dm_ban", "title")
-t("embeds", "shared", "f_server")
-t("success", "warn_success", mention=nutzer.mention, count=5)
-td("ban")
-tp("ban", "grund")
-```
+**Kein einziger hardcodierter String** darf in irgendeiner Sprache direkt im Code stehen. Alle user-facing Texte gehören in `language/de.json` UND `language/en.json`.
 
 ### JSON-Struktur (beide Dateien identisch aufgebaut)
 
@@ -122,18 +71,19 @@ tp("ban", "grund")
     "commands": {
         "command_name": {
             "description": "...",
-            "params": { "param": "..." }
+            "params": { "param": "..." },
+            "choices": { "group": { "value": "label" } }
         }
     },
-    "buttons": { "key": "Label" },
-    "modals":  { "key": "..." },
-    "selects": { "key": "..." },
-    "errors":  { "key": "Fehlermeldung mit {platzhalter}" },
-    "success": { "key": "Erfolgsmeldung mit {platzhalter}" },
+    "buttons":  { "key": "Label" },
+    "modals":   { "key": "..." },
+    "selects":  { "key": "..." },
+    "errors":   { "key": "Fehlermeldung mit {platzhalter}" },
+    "success":  { "key": "Erfolgsmeldung mit {platzhalter}" },
     "embeds": {
         "section_name": {
             "title": "...",
-            "desc": "...",
+            "desc":  "...",
             "f_field_name": "Feldname"
         }
     }
@@ -143,599 +93,381 @@ tp("ban", "grund")
 ### Sprache pro Server
 
 ```python
-init_language(guild_id=str(interaction.guild_id))
-set_language("de", guild_id=str(interaction.guild_id))
+init_language(guild_id=str(interaction.guild_id))   # laden
+set_language("de", guild_id=str(interaction.guild_id))  # setzen
 ```
 
 Gespeichert unter: `config[guild_id]["language"]`
-
-### ⚠️ Wichtige Regel bei neuen Texten
-
-Jeden neuen Text **in beide JSON-Dateien** (`de.json` UND `en.json`) eintragen. Sonst erscheint `[missing: ...]` in der anderen Sprache.
 
 ---
 
 ## 💾 Config-System
 
-### Struktur von `configs/config.json`
+### Dateipfade
+
+```python
+CONFIGS_DIR      = 'configs'
+CONFIG_FILE      = os.path.join(CONFIGS_DIR, 'config.json')
+WHITELIST_FILE   = os.path.join(CONFIGS_DIR, 'whitelist.json')
+OPEN_APPS_FILE   = os.path.join(CONFIGS_DIR, 'open_applications.json')
+DEFAULT_APP_FILE = os.path.join(CONFIGS_DIR, 'default_application.json')
+AUDIT_DB         = os.path.join(CONFIGS_DIR, 'audit_log.db')
+```
+
+### Config-Struktur
 
 ```json
 {
     "GUILD_ID": {
-        "language": "de",
-        "log_channel_id": 123456,
+        "language":           "de",
+        "log_channel_id":     123456,
         "welcome_channel_id": 123456,
-        "waiting_room_id": 123456,
-        "join_roles": [123456, 789012],
-        "warns": { "USER_ID": 3 },
-        "ticket_counter": 42,
-        "category_counters": { "Support": 12 },
-        "category_channels": { "Support": 123456 },
+        "waiting_room_id":    123456,
+        "join_roles":         [123456],
+        "warns":              { "USER_ID": 3 },
+        "ticket_counter":     42,
+        "category_counters":  { "Support": 12 },
+        "category_channels":  { "Support_abc123": 123456 },
         "ticket_panels": [
             {
-                "message_id": 123456,
-                "channel_id": 123456,
-                "supporter_role_ids": [123456],
-                "categories": [
-                    {
-                        "label": "Support",
-                        "value": "Support_0",
-                        "emoji": "🛠️",
-                        "description": "Allgemeine Hilfe",
-                        "supporter_role_ids": null
-                    }
-                ],
-                "title": "Support Tickets",
-                "embed_desc": "Brauchst du Hilfe?",
-                "embed_color": "FFD700",
-                "embed_thumbnail": true,
-                "created_at": "01.01.2026 12:00"
+                "categories":         [{"label":"X","value":"X_abc123","emoji":"🛠️","description":"...","supporter_role_ids":null}],
+                "supporter_role_ids": [],
+                "message_id":         0,
+                "channel_id":         0,
+                "title":              "...",
+                "created_at":         "01.01.2026 12:00"
             }
         ],
-        "verify_panels": [
-            {
-                "role_id": 123456,
-                "message_id": 123456,
-                "channel_id": 123456,
-                "title": "✅ Verifizierung"
-            }
-        ],
-        "selfrole_panels": [
-            {
-                "message_id": 123456,
-                "channel_id": 123456,
-                "panel_id": "12345",
-                "title": "Wähle deine Rollen",
-                "roles": [
-                    {
-                        "label": "Gamer",
-                        "role_id": 123456,
-                        "emoji": "🎮",
-                        "description": "Für alle Gamer"
-                    }
-                ]
-            }
-        ],
-        "application_panels": [
-            {
-                "message_id": 123456,
-                "channel_id": 123456,
-                "review_channel_id": 123456,
-                "reviewer_role_ids": [123456],
-                "title": "Staff Bewerbung",
-                "questions": null
-            }
-        ]
+        "verify_panels":      [{"role_id":123, "message_id":456, "channel_id":789, "title":"..."}],
+        "selfrole_panels":    [{"roles":[{"label":"X","role_id":0,"emoji":null}], "message_id":0, "channel_id":0, "title":"..."}],
+        "application_panels": [{"questions":null, "review_channel_id":0, "reviewer_role_ids":[], "message_id":0, "channel_id":0, "title":"..."}]
     },
-    "bot_presence": {
-        "status": "online",
-        "type": "playing",
-        "text": "Bexi RP",
-        "url": "https://twitch.tv/..."
-    }
+    "bot_presence": {"status":"online","type":"playing","text":"...","url":"..."}
 }
 ```
 
-### ⚠️ Kritisch beim Iterieren über config
+### Wichtig beim Iterieren
 
 ```python
-# IMMER isinstance-Check, da config auch "bot_presence" als Top-Level-Key hat
+# config.json hat auch "bot_presence" als Top-Level-Key (kein Guild-Dict)
 for guild_id_str, data in config.items():
     if not isinstance(data, dict):
         continue
-    # ...
-```
-
-### Ticket-Kategorien: `value` muss eindeutig sein
-
-Discord verlangt eindeutige `value`-Felder in Select-Dropdowns. Beim Erstellen neuer Kategorien immer `label_INDEX` als Value verwenden:
-
-```python
-cat_count = len(panel.get("categories", []))
-unique_val = (label[:90] + "_" + str(cat_count))[:100]
 ```
 
 ---
 
-## 🎨 Embed-Builder
+## 🗄️ Audit-Log (SQLite)
 
-### `make_dm_embed()`
+### Tabelle `audit_log`
 
-```python
-embed = make_dm_embed(
-    title=t("embeds","dm_ban","title"),
-    description=t("embeds","dm_ban","desc"),
-    color=discord.Color.red(),
-    guild=interaction.guild,
-    fields=[
-        (t("embeds","dm_ban","f_server"), guild.name, True),
-        (t("embeds","dm_ban","f_reason"), grund, False),
-    ],
-    jump_url=thread.jump_url,          # optional — fügt 🔗 Link-Feld hinzu
-    footer_system=t("embeds","shared","footer_mod")
-)
+```sql
+CREATE TABLE IF NOT EXISTS audit_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id    TEXT    NOT NULL,
+    timestamp   TEXT    NOT NULL,   -- "2026-01-15 14:32:00 UTC"
+    actor_id    TEXT    NOT NULL,
+    actor_name  TEXT    NOT NULL,
+    action      TEXT    NOT NULL,   -- "ban", "kick", "warn", "timeout", ...
+    target      TEXT,               -- z.B. "Username#0000" oder Dateiname
+    detail      TEXT                -- Freitext (Grund, Größe, etc.)
+);
 ```
 
-### `make_log_embed()`
+### Verwendung
 
 ```python
-embed = make_log_embed(
-    title=t("embeds","log_ban","title"),
-    description=t("embeds","log_ban","desc"),
-    color=discord.Color.red(),
-    target_user=nutzer,
-    moderator=interaction.user,
-    reason=grund,
-    guild=interaction.guild,
-    extra_fields=[(t("embeds","log_timeout","f_dur"), f"`{minuten}`", True)]
-)
+# Schreiben (thread-safe via _db_lock)
+log_action(str(interaction.guild_id), interaction.user, "ban",    str(nutzer), grund)
+log_action(str(interaction.guild_id), interaction.user, "kick",   str(nutzer), grund)
+log_action(str(interaction.guild_id), interaction.user, "timeout",str(nutzer), str(min)+"min | "+grund)
+log_action(gid,                       interaction.user, "warn",   str(nutzer), "#3: "+grund)
+log_action(str(interaction.guild_id), interaction.user, "music_upload", datei.filename, "42 KB")
+log_action(str(interaction.guild_id), interaction.user, "config_export", None, "3 apps, 5 tickets")
+
+# Lesen
+rows = query_log(guild_id, limit=25, action_filter="ban")
+# rows = [{"id":1,"guild_id":"...","timestamp":"...","actor_id":"...","action":"ban",...}]
 ```
+
+### Geloggte Aktionen
+
+| Action | Trigger |
+|---|---|
+| `ban` | `/ban` Command |
+| `kick` | `/kick` Command |
+| `timeout` | `/timeout` Command und AdminPanel |
+| `warn` | `/warn` Command |
+| `config_export` | `/config_export` Command |
+| `config_import` | `ConfigUploadView.confirm_btn` |
+| `config_rollback` | `ConfigRollbackView.rollback_btn` |
+| `music_upload` | `/music_upload` Command |
 
 ---
 
-## 🖱️ Wizard-System — Überblick
+## 📋 Slash-Commands (vollständige Liste)
 
-Alle Setup-Wizards folgen demselben Pattern:
+| Command | Beschreibung | Berechtigung |
+|---|---|---|
+| `/setup` | **Universeller Setup-Wizard** (Tickets, Verify, Self-Roles, Bewerbungen, Log-Kanal, Willkommen, Warteraum, Auto-Join, Status, Sprache) | Admin |
+| `/edit` | Unified Edit-Wizard für alle Panel-Typen | Admin |
+| `/delete` | Interaktiver Lösch-Assistent | Admin |
+| `/adminpanel` | Admin-Panel (User: Timeout/Warn/Kick/Ban via UserSelect, Chat: Lock/Slowmode/Purge) | Admin |
+| `/embed_create` | Embed-Generator mit Vorschau, Feld-Editierung, Bild-Support | Admin |
+| `/whitelist` | Link-Whitelist verwalten (add/remove/list) | Admin |
+| `/ban` | Mitglied permanent bannen (DM + Log) | Ban Members |
+| `/kick` | Mitglied kicken (DM + Log) | Kick Members |
+| `/timeout` | Mitglied timeoutten (DM + Log) | Moderate Members |
+| `/warn` | Mitglied verwarnen (DM + Log) | Moderate Members |
+| `/warn_edit` | Verwarnungen eines Nutzers bearbeiten | Moderate Members |
+| `/userinfo` | Nutzer-Informationen anzeigen | Jeder / Admin für andere |
+| `/set_language` | Bot-Sprache ändern (de/en) | Admin |
+| `/config_export` | Config + offene Tickets/Bewerbungen als JSON exportieren | Admin |
+| `/config_import` | Config importieren, Panels neu erstellen, 24h-Rollback | Admin |
+| `/history` | SQLite Audit-Log anzeigen (filter + limit Parameter) | Admin |
+| `/music_upload` | Neue Warteraum-Musik hochladen (.mp3/.ogg/.wav/.flac/.m4a, max 25 MB) | Admin |
+| `/music_download` | Aktuelle Warteraum-Musik herunterladen | Admin |
+| `/ticket_edit` | Ticket-Panel bearbeiten (Titel/Beschreibung/Farbe) | Admin |
+| `/setup_pioneer_role` | Pionier-Rolle an erste 100 Mitglieder vergeben | Admin |
+| `/ping` | Bot-Latenz anzeigen | Jeder |
 
-### Pattern: Wizard starten
-
-```python
-@bot.tree.command(name="...", ...)
-async def my_wizard_cmd(interaction: discord.Interaction):
-    uid = interaction.user.id
-    _my_wizard_state[uid] = { ... }          # State initialisieren
-    embed = _build_my_embed(state, guild)    # Wizard-Embed bauen
-    view  = MyWizardView(uid)                # View mit Buttons
-    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-    _wizard_interactions[uid] = interaction  # Interaction speichern für spätere Edits
-```
-
-### Pattern: Modal-Submit → Embed aktualisieren
-
-```python
-async def on_submit(self, interaction: discord.Interaction):
-    # ... State updaten ...
-    await interaction.response.defer(ephemeral=True)
-    _orig = _wizard_interactions.get(self.user_id)
-    if _orig:
-        try:
-            await _orig.edit_original_response(embed=embed, view=view)
-        except Exception:
-            pass  # Interaction abgelaufen (>15min)
-```
-
-### Pattern: Select-Dropdown → Embed aktualisieren
-
-```python
-# Generische Helper mit refresh_fn
-view = _make_role_select_view(
-    user_id, "state_key", state_dict,
-    placeholder_text, multi=True,
-    refresh_fn=lambda uid, guild: (build_embed(state[uid], guild), MyView(uid))
-)
-```
-
-Nach Auswahl ruft `WizardRoleSelect.callback` automatisch `refresh_fn` auf und aktualisiert das Wizard-Embed.
-
-### Globale Wizard-Dicts
-
-```python
-_setup_wizard_state:      dict = {}  # Application setup
-_selfrole_wizard_state:   dict = {}  # Self-role setup
-_ticket_wizard_state:     dict = {}  # Ticket setup
-_ticket_edit_state:       dict = {}  # Ticket edit
-_status_wizard_state:     dict = {}  # Status config
-_joinroles_wizard_state:  dict = {}  # Join roles
-_verify_wizard_state:     dict = {}  # Verify setup
-_wizard_messages:         dict = {}  # user_id -> wizard message id (veraltet, nicht mehr primär genutzt)
-_wizard_interactions:     dict = {}  # user_id -> original interaction (für edit_original_response)
-```
+> **Kein separater `/setup_tickets`, `/setup_verify`, `/status_config` etc. mehr** — alles läuft über `/setup`.
 
 ---
 
-## 🔧 Shared Select-Helpers
+## 🖱️ UI-Klassen — Wizard-Pattern
 
-### `WizardRoleSelect` — generischer Rollen-Dropdown
+### Wizard-Interaktions-Referenz
+
+Alle Wizards nutzen `_wizard_interactions[uid] = interaction` für die ursprüngliche Interaktion, damit Modals die Wizard-Nachricht per `edit_original_response()` aktualisieren können:
 
 ```python
-view = _make_role_select_view(
-    user_id      = uid,
-    state_key    = "supporter_role_ids",   # Key im State-Dict
-    state_dict   = _ticket_wizard_state,   # Das State-Dict
-    placeholder  = t("selects", "wizard_pick_roles"),
-    multi        = True,                   # Multi-Select
-    refresh_fn   = lambda uid, guild: (embed, view)  # Wird nach Auswahl aufgerufen
-)
+# Beim Command-Start:
+await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+_wizard_interactions[uid] = interaction
+
+# In Modal.on_submit():
+await interaction.response.defer(ephemeral=True)
+orig = _wizard_interactions.get(uid)
+if orig:
+    try:
+        await orig.edit_original_response(embed=new_embed, view=new_view)
+    except Exception:
+        pass
 ```
 
-### `WizardChannelSelect` — generischer Kanal-Dropdown
+### Setup-Wizard (`/setup`)
+
+`SetupMenuView` → `SetupMenuSelect` (10 Optionen) → öffnet direkt den passenden Wizard-View:
+
+| Option | Öffnet |
+|---|---|
+| 🎫 Ticket-System | `TicketSetupMainView` |
+| ✅ Verifizierung | `VerifyWizardMainView` |
+| 🎭 Self-Roles | `SelfRoleSetupMainView` |
+| 📋 Bewerbungssystem | `AppSetupMainView` |
+| 📋 Log-Kanal | `SetupChannelSelect` (Text-Channel-Dropdown) |
+| 👋 Willkommens-Kanal | `SetupChannelSelect` (Text-Channel-Dropdown) |
+| 🎵 Warteraum | `SetupVoiceChannelSelect` (Voice-Channel-Dropdown) |
+| 🚪 Auto-Join Rollen | `JoinRolesWizardView` |
+| ⚙️ Bot-Status | `StatusWizardView` |
+| 🌐 Sprache | `SetupLanguageView` (DE/EN Buttons) |
+
+Nach Abschluss einfacher Schritte: `SetupBackView` mit "← Zurück zum Menü".
+
+### Persistent Views — Registrierung in setup_hook
 
 ```python
-view = _make_channel_select_view(
-    user_id     = uid,
-    state_key   = "review_channel_id",
-    state_dict  = _setup_wizard_state,
-    placeholder = t("selects", "wizard_pick_channel"),
-    refresh_fn  = lambda uid, guild: (embed, view)
-)
+async def setup_hook(self):
+    config = load_config()
+    for guild_id_str, data in config.items():
+        if not isinstance(data, dict): continue
+        for panel in data.get("verify_panels", []):
+            self.add_view(VerifyView(panel["role_id"]))
+        for t_panel in data.get("ticket_panels", []):
+            supp_ids = t_panel.get("supporter_role_ids") or []
+            self.add_view(TicketView(t_panel["categories"], supp_ids))
+        for s_panel in data.get("selfrole_panels", []):
+            self.add_view(SelfRoleView(s_panel["roles"], str(s_panel.get("message_id","default"))))
+        for idx, _ap in enumerate(data.get("application_panels", [])):
+            self.add_view(ApplicationPanelView(panel_index=idx))
+    self.add_view(TicketControlView())
+    for entry in load_open_apps().values():
+        self.add_view(ApplicationReviewView(
+            applicant_id=entry["applicant_id"],
+            thread_id=entry["thread_id"],
+            review_channel_id=entry["review_channel_id"]
+        ))
+```
+
+### Button-Labels in `__init__` setzen
+
+Discord-Decorator-Labels werden zur Importzeit ausgewertet — `t()` funktioniert dort nicht:
+
+```python
+class TicketControlView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.claim.label = t("buttons", "claim_ticket")   # Methodenname
+        self.close.label = t("buttons", "close_ticket")
 ```
 
 ---
 
 ## 🎫 Ticket-System
 
-### Ticket-Erstellungs-Flow
+### Thread-Name-Format
+`{kategorie[:5]}-{id:04d}-{username}`
 
-```
-User wählt Kategorie im Dropdown
-    → TicketSelect.callback()
-        → Zähler erhöhen (category_counters)
-        → TICKETS Kategorie erstellen falls nötig
-        → Kanal für Kategorie erstellen falls nötig (category_channels gecacht)
-        → Privaten Thread erstellen
-        → Supporter-Rollen dem Thread hinzufügen
-        → Ticket-Embed + TicketControlView senden
-        → DM an Nutzer
-        → Select zurücksetzen (fresh_view)
-```
+### Kategorie-Wert
+Jede Kategorie hat ein eindeutiges `value` = `label_<uuid6hex>` — verhindert Kollisionen bei gleichnamigen Kategorien.
 
-**Thread-Name-Format:** `{kategorie[:5]}-{id:04d}-{username}`
-
-**Kategorie-Kanal-Name-Format:** `{kategorie-lower-kebab}-tickets`
-
-**Kategorie `value` muss eindeutig sein** — immer `label_INDEX` als Value verwenden (Discord-Anforderung).
-
-### Ticket-Edit-Flow
-
-```
-/ticket_edit
-    → Wenn 1 Panel: direkt zum Edit-Wizard
-    → Wenn mehrere Panels: TicketEditPanelSelect Dropdown
-        → Panel auswählen
-        → Embed-Werte aus Discord-Message laden
-        → TicketEditMainView anzeigen
-            → 🎨 Edit Embed Modal (Titel, Beschreibung, Farbe, Thumbnail)
-            → 👥 Supporter Roles Dropdown
-            → ➕ Add Category Modal
-            → 🗑️ Remove Category Dropdown
-            → ✅ Save → config speichern + Discord-Message editieren
-```
+### Supporter-Berechtigung
+Rollen-Position-Vergleich (`r.position >= base_role.position`) — höhere Rollen gelten automatisch als Supporter.
 
 ---
 
-## 📋 Application-System
+## 📦 Config Export/Import
 
-### Bewerbungs-Flow
-
-```
-User klickt "Jetzt bewerben"
-    → ApplicationModal (Step 1/N, max 4 Fragen pro Schritt)
-        → ApplicationContinueView (Weiter/Abbrechen)
-            → Nächster Schritt...
-                → _submit_application()
-                    → sofort interaction.response.send_message() (10062-Fix!)
-                    → Privaten Thread im Review-Channel erstellen
-                    → Reviewer-Rollen-Mitglieder zum Thread hinzufügen
-                    → Review-Embeds senden + ApplicationReviewView
-                    → save_open_app() → open_applications.json
-                    → DM an Bewerber
-```
-
-**Wichtig:** Bewerber wird NICHT beim Einreichen zum Thread hinzugefügt — erst wenn ein Teammitglied ❓ klickt.
-
-### Review-View Buttons
-
-- ✅ Accept → DM an Bewerber, Thread locked+archived, delete_open_app()
-- ❌ Decline → DM an Bewerber, Thread locked+archived, delete_open_app()
-- ❓ Question → Reviewer + Bewerber zum Thread hinzufügen, DM mit Thread-Link an Bewerber
-
-### Application-Setup-Wizard
-
-```
-/setup_application
-    → _setup_wizard_state[uid] initialisieren (questions=None = Default)
-    → AppSetupMainView anzeigen
-        → ✏️ Edit Info Modal (Titel, Beschreibung)
-        → 📢 Review Channel Dropdown
-        → 👥 Reviewer Role Dropdown (Multi)
-        → ➕ Add Questions Modal (Label, Placeholder, Min-Length, Style)
-        → 📂 Add Section Modal (Name, Beschreibung)
-        → ✅ Default Questions (29 Fragen aus default_application.json)
-        → 🗑️ Clear Questions
-        → ↩️ Remove Last
-        → 👁️ Preview
-        → 🚀 Finish & Create
-```
-
-**Fragen-Struktur:**
-
-```python
-{
-    "label":       str,          # max 45 Zeichen
-    "placeholder": str,          # max 100 Zeichen
-    "style":       "paragraph" | "short",
-    "required":    True,
-    "min_length":  int,          # 0 = kein Limit — wird als TextInput.min_length gesetzt!
-    "section":     {"name": str, "desc": str} | None
-}
-```
-
-**`min_length` wird direkt als `TextInput.min_length` übergeben** — Discord blockt das Absenden nativ, kein Code-seitiges Validieren nötig.
-
-**`QUESTIONS_PER_STEP = 4`** — Fragen werden in 4er-Gruppen aufgeteilt.
-
-### `default_application.json`
-
-Editierbar ohne Code-Änderung. Struktur:
+### Export-Format
 
 ```json
 {
-    "_info": { "description": "...", "version": "1.0" },
-    "panel": { "title": "...", "description": "..." },
-    "questions": [
-        {
-            "label": "Roblox Username",
-            "placeholder": "...",
-            "style": "short",
-            "required": true,
-            "min_length": 0,
-            "section": { "name": "👤 Personal Info", "desc": "..." }
-        }
-    ]
+    "GUILD_ID": { ...guild_data... },
+    "open_applications": {
+        "thread_id": {"applicant_id": 0, "thread_id": 0, "review_channel_id": 0}
+    },
+    "open_tickets": {
+        "thread_id": {"thread_id": 0, "thread_name": "...", "channel_id": 0, "member_ids": []}
+    }
 }
+```
+
+### Import-Flow
+
+1. Datei hochladen → `ConfigUploadView` zeigt Vorschau (Panel-Zählungen inkl. Tickets/Bewerbungen)
+2. Confirm: `deepcopy(load_config())` als unveränderlicher Snapshot
+3. Merge neuer Config (überspringt `bot_presence`, `open_applications`, `open_tickets`)
+4. `_recreate_panels()` löscht alte Panel-Nachrichten und erstellt neue
+5. Offene Bewerbungen + Tickets werden wiederhergestellt (Thread-Mitglieder re-added)
+6. Neue Panel-IDs werden als `imported_msg_ids` gespeichert und an `ConfigRollbackView` übergeben
+7. **Rollback-Button** im Log-Kanal — 24h Timeout (`timeout=86400`), nur Admins
+8. Beim Rollback: `imported_msg_ids` werden gelöscht → Snapshot wird neu erstellt
+
+### Deep Copy ist absolut kritisch
+
+```python
+# ❌ FALSCH — _recreate_panels mutiert panel["message_id"] in-place!
+snapshot_config = load_config()
+
+# ✅ RICHTIG
+import copy as _copy
+snapshot_config = _copy.deepcopy(load_config())
 ```
 
 ---
 
-## 🎭 Self-Role-System
+## 🎨 Embed-Generator (`/embed_create`)
 
-### Self-Role-Setup-Wizard
-
-```
-/selfrole_create
-    → SelfRoleSetupMainView
-        → ✏️ Edit Info Modal (Titel, Beschreibung, Farbe)
-        → ➕ Add Role → SelfRoleAddRoleSelect (Discord RoleSelect Dropdown)
-            → SelfRoleSetupRoleDetailsModal (Label, Emoji, Beschreibung)
-        → 🗑️ Remove Role → SelfRoleRemoveRoleSelect Dropdown
-        → 🚀 Finish → SelfRoleView erstellen + in config speichern
-```
-
-**Rollen-Struktur:**
+### State-Struktur
 
 ```python
 {
-    "label":       str,   # Button-Text
-    "role_id":     int,
-    "emoji":       str | None,
-    "description": str | None
+    "title": "", "description": "", "color": "5865F2",
+    "author_name": "", "author_icon": "",
+    "footer_text": "", "footer_icon": "",
+    "image_url": "",    # Großes Bild unten
+    "thumbnail_url": "", # Kleines Bild rechts
+    "fields": [{"name": str, "value": str, "inline": bool}],
+    "timestamp": False,
 }
 ```
 
----
+### Feld-Editierung
 
-## ✅ Verify-System
+- `EmbedGenFieldSelect(user_id, action="edit"|"delete")` — Discord StringSelect mit allen Feldern
+- Auswahl öffnet `EmbedGenAddFieldModal(user_id, edit_idx=N)` mit vorausgefüllten Werten
+- Kein Feld-Bild — wurde bewusst entfernt
 
-### Verify-Setup-Wizard
+### Vorschau-Texte (kontextspezifisch)
 
-```
-/setup_verify
-    → _verify_wizard_state[uid] initialisieren
-    → VerifyWizardMainView
-        → ✏️ Edit Info Modal (Titel, Beschreibung)
-        → 🎭 Verify Role Dropdown (RoleSelect)
-        → 🎨 Edit Embed Modal (Farbe Hex, Thumbnail yes/no)
-        → 👁️ Preview
-        → 🚀 Finish → VerifyView erstellen + in config speichern
-```
-
-**Config-Struktur Verify-Panel:**
-
-```json
-{
-    "role_id": 123456,
-    "message_id": 123456,
-    "channel_id": 123456,
-    "title": "✅ Verifizierung"
-}
+```python
+t("success", "wizard_preview_note_application")  # Bewerbungs-Panel
+t("success", "wizard_preview_note_ticket")        # Ticket-Panel
+t("success", "wizard_preview_note_verify")        # Verify-Panel
+t("success", "wizard_preview_note_embed")         # Embed-Generator
 ```
 
 ---
 
-## 🤖 Status-Wizard
+## 🎵 Musik-System
 
-```
-/status_config
-    → StatusWizardView
-        → 🟢 Status Button → StatusSelect Dropdown (online/idle/dnd/invisible)
-        → 🎮 Activity Button → ActivitySelect Dropdown (playing/streaming/listening/watching)
-        → ✏️ Text/URL Button → StatusTextModal (Text + Stream-URL)
-        → ✅ Apply → bot.change_presence() + config["bot_presence"] speichern
+```python
+music_path = os.path.join(os.getcwd(), "support_music.mp3")
+# Erlaubte Formate: .mp3 .ogg .wav .flac .m4a — max 25 MB
+# FFmpeg spielt die Datei im Warteraum-Voice-Channel in Endlosschleife
 ```
 
 ---
 
-## 🗑️ Delete-Wizard
+## ⚠️ Bekannte Fallstricke
 
-```
-/delete
-    → DeleteTypeView (Dropdown: welchen Typ löschen?)
-        → Ticket Panels / Self-Role Panels / Application Panels / Verify Panels / Join Roles
-        → DeletePanelView (Dropdown: welches Panel?)
-            → _delete_panel() → config entfernen + Discord-Message löschen
-            → DeleteBackView (Weiteres löschen? / Fertig)
-```
-
-### `_delete_panel()` Logic
-
-```python
-async def _delete_panel(guild, config, guild_id, panel_type, panel) -> bool:
-    # 1. Aus config entfernen + speichern
-    # 2. Discord-Message löschen:
-    #    - Mit channel_id: direkt fetchen
-    #    - Ohne channel_id (alte Panels): alle Text-Channels durchsuchen
-    # Returns True bei Erfolg, False wenn Message nicht gelöscht werden konnte
-```
-
----
-
-## 🔄 Persistent Views (nach Bot-Neustart)
-
-Alle persistent Views werden in `setup_hook` registriert:
-
-```python
-async def setup_hook(self):
-    # Verify Panels
-    self.add_view(VerifyView(panel["role_id"]))
-
-    # Ticket Panels
-    self.add_view(TicketView(t_panel["categories"], supp_ids))
-
-    # Self-Role Panels
-    self.add_view(SelfRoleView(s_panel["roles"], str(s_panel["message_id"])))
-
-    # Ticket Control (global, einmalig)
-    self.add_view(TicketControlView())
-
-    # Application Panels
-    self.add_view(ApplicationPanelView(panel_index=idx))
-
-    # Offene Bewerbungen (aus open_applications.json)
-    self.add_view(ApplicationReviewView(
-        applicant_id=entry["applicant_id"],
-        thread_id=entry["thread_id"],
-        review_channel_id=entry["review_channel_id"]
-    ))
-```
-
-**`open_applications.json`** speichert offene Bewerbungs-Threads damit Accept/Decline/Question Buttons nach einem Neustart weiter funktionieren. Wird beim Abschließen einer Bewerbung gelöscht.
-
----
-
-## ⚠️ Bekannte Fallstricke & Wichtige Regeln
-
-### 1. Discord Interaction-Regeln
-
-| Situation | Richtige Methode |
-|---|---|
-| Button-Callback | `interaction.response.edit_message()` |
-| Modal-Submit → Wizard-Embed aktualisieren | `interaction.response.defer()` + `_wizard_interactions[uid].edit_original_response()` |
-| Select-Callback → Wizard-Embed aktualisieren | `interaction.response.edit_message()` (schließt Select-Msg) + `_orig.edit_original_response()` via `refresh_fn` |
-| Nach `send_modal()` | Modal-`on_submit` kann `edit_message` NICHT auf die ursprüngliche Nachricht aufrufen |
-| Ephemere Nachrichten editieren | Nur über die **originale Command-Interaction** via `edit_original_response()` — 15min TTL |
-
-### 2. `_wizard_interactions` — das zentrale Pattern
-
-```python
-# Beim Wizard-Start:
-await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-_wizard_interactions[uid] = interaction   # MUSS gesetzt werden!
-
-# In Modal on_submit:
-_orig = _wizard_interactions.get(self.user_id)
-if _orig:
-    try:
-        await _orig.edit_original_response(embed=embed, view=view)
-    except Exception:
-        pass  # Interaction >15min alt
-```
-
-### 3. Ticket-Kategorie `value` muss eindeutig sein
-
-```python
-# RICHTIG:
-cat_count = len(panel.get("categories", []))
-unique_val = (label[:90] + "_" + str(cat_count))[:100]
-panel["categories"].append({"label": label, "value": unique_val, ...})
-
-# FALSCH:
-panel["categories"].append({"label": label, "value": label, ...})  # Kollision möglich!
-```
-
-### 4. `isinstance`-Check beim Config-Iterieren
-
-```python
-for guild_id_str, data in config.items():
-    if not isinstance(data, dict):  # "bot_presence" ist auch ein Top-Level-Key!
-        continue
-```
-
-### 5. `t()` bei Command-Dekoratoren
+### 1. `t()` bei Command-Dekoratoren
 
 ```python
 # ❌ GEHT NICHT — wird zur Importzeit ausgewertet
 @app_commands.describe(grund=t("commands","ban","params","grund"))
 
-# ✅ RICHTIG — tp() liest direkt aus _lang_cache
+# ✅ RICHTIG — tp() liest aus _lang_cache
 @app_commands.describe(grund=tp("ban","grund"))
 ```
 
-### 6. Button-Labels in `__init__` setzen
-
-Discord-Decorator-Labels werden zur **Importzeit** ausgewertet — `t()` funktioniert dort nicht:
+### 2. Modal → Wizard-Update Pattern
 
 ```python
-class MyView(discord.ui.View):
-    def __init__(self, user_id: int):
-        super().__init__(timeout=None)
-        self.my_button.label = t("buttons", "my_button")  # Methodenname!
+# ❌ FALSCH aus einem Modal
+await interaction.response.edit_message(...)
 
-    @discord.ui.button(label="Placeholder", ...)
-    async def my_button(self, interaction, button):
-        ...
+# ✅ RICHTIG
+await interaction.response.defer(ephemeral=True)
+orig = _wizard_interactions.get(uid)
+if orig:
+    await orig.edit_original_response(embed=embed, view=view)
 ```
 
-### 7. `min_length` direkt in TextInput setzen
-
-```python
-# RICHTIG — Discord blockt Absenden nativ
-ti = discord.ui.TextInput(
-    label="...",
-    min_length=min_len if min_len > 0 else None,
-    max_length=1024
-)
-
-# FALSCH — führt zu Bugs bei geschlossenen Modals
-# Manuelle Validierung in on_submit mit response.send_message()
-```
-
-### 8. Supporter-Rolle und `supporter_role_ids` vs `supporter_role_id`
-
-Ältere Panel-Einträge können `supporter_role_id` (singular) haben. Kompatibilitäts-Fallback in `setup_hook`:
+### 3. Supporter-Rollen Rückwärtskompatibilität
 
 ```python
 supp_ids = t_panel.get("supporter_role_ids")
 if not supp_ids:
-    old_id = t_panel.get("supporter_role_id")
+    old_id = t_panel.get("supporter_role_id")   # ältere Panel-Einträge
     supp_ids = [old_id] if old_id else []
 ```
 
-### 9. Bewerbungen: sofort antworten bevor async-Operationen
+### 4. Ticket category value Eindeutigkeit
 
 ```python
-# RICHTIG — vermeidet Discord 10062 "Unknown Interaction" Error
-await interaction.response.send_message(t("success", "application_submitted"), ephemeral=True)
-# DANN erst: Thread erstellen, Embeds senden, etc.
+import uuid
+value = label + "_" + uuid.uuid4().hex[:6]
+```
+
+### 5. SQLite Thread-Safety
+
+```python
+_db_lock = threading.Lock()   # globaler Lock
+with _db_lock:
+    conn = _db_conn()
+    conn.execute(...)
+    conn.commit()
+    conn.close()
+```
+
+### 6. Config-Import Keys überspringen
+
+```python
+for key, val in self.new_config.items():
+    if key not in ("bot_presence", "open_applications", "open_tickets"):
+        config[key] = val
 ```
 
 ---
@@ -744,47 +476,39 @@ await interaction.response.send_message(t("success", "application_submitted"), e
 
 ```
 [ ] Slash-Command mit @bot.tree.command definieren
-[ ] Beschreibung in language/de.json und language/en.json unter "commands" eintragen
-[ ] Parameter unter "commands.command_name.params" eintragen
-[ ] Alle neuen Texte in "embeds", "errors", "success", "buttons", "modals", "selects" eintragen
-[ ] In BEIDE JSON-Dateien eintragen (de + en)!
-[ ] Falls Wizard: _wizard_interactions[uid] = interaction beim Start setzen
-[ ] Falls Wizard: edit_original_response Pattern verwenden (nicht followup.edit_message)
+[ ] Beschreibung in language/de.json UND language/en.json unter "commands" eintragen
+[ ] Parameter/Choices in beide JSONs eintragen
+[ ] Embed-Texte unter "embeds.neue_sektion" in beide JSONs
+[ ] Fehlermeldungen unter "errors" in beide JSONs
+[ ] Erfolgsmeldungen unter "success" in beide JSONs
+[ ] Falls Audit relevant: log_action() aufrufen
 [ ] Falls persistent: View in setup_hook registrieren
-[ ] Falls Button-Labels dynamisch: in __init__ via self.methode.label = t(...) setzen
-[ ] Falls Ticket-Kategorien: unique value verwenden (label_INDEX)
-[ ] Syntax-Check: python3 -c "import ast; ast.parse(open('bot.py').read()); print('OK')"
-[ ] JSON-Check: python3 -c "import json; [json.load(open(f'language/{l}.json')) for l in ['de','en']]; print('OK')"
+[ ] Falls Wizard: _wizard_interactions[uid] = interaction beim Start
+[ ] Falls Button-Labels dynamisch: self.methode.label = t(...) in __init__
+[ ] Syntax-Check: python3 -c "import ast; ast.parse(open('bot.py').read())"
+[ ] JSON-Check: python3 -c "import json; [json.load(open(f'language/{l}.json')) for l in ['de','en']]"
 ```
 
 ---
 
 ## 🔍 Debugging
 
-### Häufige Fehler
-
 | Fehler | Ursache | Lösung |
 |---|---|---|
-| `[missing: embeds.x.y]` | Key fehlt in JSON | Key in beide JSON-Dateien eintragen |
 | `[not-str: embeds.x.y]` | Key ist kein String (z.B. dict) | Tiefe im `t()`-Aufruf prüfen |
+| `[missing: embeds.x.y]` | Key fehlt in JSON | In beide JSONs eintragen |
 | `AttributeError: has no attribute 'xyz'` | Button-Attributname falsch | Muss der **Methoden**name sein |
-| `404 Unknown Webhook` | `edit_original_response` nach >15min | Interaction TTL abgelaufen — nichts tun |
-| `400 option value already used` | Duplicate `value` in Select-Options | unique_val mit Index verwenden |
-| `Unknown Interaction (10062)` | Zu spät geantwortet | Sofort `send_message` oder `defer` aufrufen |
-| Persistent View lädt nicht | Nicht in setup_hook registriert | `add_view()` in setup_hook |
-| Wizard-Embed aktualisiert sich nicht | `_wizard_interactions[uid]` nicht gesetzt | Interaction beim Command-Start speichern |
+| `KeyError` in setup_hook | Alte config.json Struktur | isinstance-Check + `.get()` |
+| Persistent View lädt nicht | Nicht in setup_hook | `add_view()` hinzufügen |
+| Rollback stellt falsche IDs her | Shallow copy von config | `deepcopy(load_config())` |
+| Modal aktualisiert Wizard nicht | Falsches response-Pattern | `defer()` + `edit_original_response()` |
 
 ### Schnell-Tests
 
 ```bash
-# Syntax-Check
-python3 -c "import ast; ast.parse(open('bot.py').read()); print('OK')"
-
-# JSON-Validierung
-python3 -c "import json; [json.load(open(f'language/{l}.json')) for l in ['de','en']]; print('OK')"
-
-# Alle fehlenden Keys prüfen (sucht nach [missing: ...] Pattern)
-grep "\[missing:" logs/
+python3 -c "import ast; ast.parse(open('bot.py').read()); print('Syntax OK')"
+python3 -c "import json; [json.load(open(f'language/{l}.json')) for l in ['de','en']]; print('JSON OK')"
+python3 -c "import sqlite3; c=sqlite3.connect('configs/audit_log.db'); print('DB rows:', c.execute('SELECT COUNT(*) FROM audit_log').fetchone()[0])"
 ```
 
 ---
@@ -792,51 +516,36 @@ grep "\[missing:" logs/
 ## 🐳 Docker-Deployment
 
 ```yaml
-# Docker/compose.yaml
 services:
   discord-bot:
     image: pilzithegoat/bexi_bot:VERSION
-    container_name: bexi-bot
-    restart: unless-stopped
     environment:
       - DISCORD_TOKEN=${Bot_Token}
       - DISCORD_GUILD_ID=${Guild_ID}
       - TZ=Europe/Berlin
-    platform: linux/arm64   # Raspberry Pi — für x86 entfernen
     volumes:
-      - ./configs:/app/configs        # Configs persistent mounten!
-      - ./language:/app/language
+      - ./configs:/app/configs         # Config + SQLite-DB persistieren
+      - ./support_music.mp3:/app/support_music.mp3
+    platform: linux/arm64
 ```
-
-**Neue Version deployen:**
 
 ```bash
+# Neue Version deployen
 docker pull pilzithegoat/bexi_bot:NEU
-docker compose up -d
+docker-compose up -d
 ```
-
-**Wichtig:** `configs/` als Volume mounten, sonst gehen alle Panel-Daten beim Update verloren.
 
 ---
 
-## 📦 Dependencies (`requirements.txt`)
+## 📦 Abhängigkeiten (requirements.txt)
 
 ```
 discord.py          # Discord API
-discord.py[voice]   # Voice-Support
 PyNaCl              # Voice-Verschlüsselung
-ffmpeg              # Audio (Support-Musik)
-static-ffmpeg       # Portables FFmpeg (kein System-Install nötig)
-python-dotenv       # .env Datei laden
+ffmpeg              # Audio
+discord.py[voice]   # Voice-Support
+static-ffmpeg       # Portables FFmpeg
+python-dotenv       # .env laden
 ```
 
----
-
-## 📝 Entwicklungskonventionen
-
-- **Sprache:** Alle Kommentare und Variablennamen auf Englisch oder Deutsch — gemischt ist ok
-- **Embed-Farben:** Konsistent: Grün = Erfolg, Rot = Fehler/Ban, Orange = Warnung, Blurple = Info, Gold = Tickets
-- **Ephemeral:** Wizard-Nachrichten immer `ephemeral=True`
-- **Error-Handling:** Niemals `except Exception: pass` ohne Kommentar — zumindest `print()` für Debugging
-- **Config speichern:** Immer `save_config(config)` nach Änderungen aufrufen
-- **IDs:** Immer als `int` in Discord-Calls, als `str` in config-Keys und JSON
+SQLite ist in Python's Standardbibliothek enthalten — kein extra Paket nötig.

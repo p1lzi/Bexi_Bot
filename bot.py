@@ -5905,6 +5905,8 @@ class AdminUserView(discord.ui.View):
             await interaction.response.edit_message(
                 embed=updated_embed, view=AdminUserView(self.user_id, updated)
             )
+            log_action(str(interaction.guild_id), interaction.user,
+                        "admin_timeout_remove", str(self.target), "removed")
             await interaction.followup.send(
                 t("success","admin_timeout_removed", user=self.target.display_name), ephemeral=True
             )
@@ -6031,6 +6033,9 @@ class AdminTimeoutModal(discord.ui.Modal):
                 t("success","admin_timeout_set",
                   user=self.target.display_name, minutes=minutes), ephemeral=True
             )
+            log_action(str(interaction.guild_id), interaction.user,
+                        "admin_timeout", str(self.target),
+                        str(minutes) + "min | " + reason)
             await send_log(
                 interaction.guild,
                 t("embeds","log_timeout","title"),
@@ -6083,6 +6088,9 @@ class AdminWarnModal(discord.ui.Modal):
         await interaction.response.send_message(
             t("success","warn_success", mention=self.target.mention, count=new_count), ephemeral=True
         )
+        log_action(str(interaction.guild_id), interaction.user,
+                   "admin_warn", str(self.target),
+                   "#" + str(new_count) + ": " + grund)
         await send_log(
             interaction.guild,
             t("embeds","log_warn","title", count=new_count),
@@ -6123,6 +6131,8 @@ class AdminKickModal(discord.ui.Modal):
             await interaction.response.send_message(
                 t("success","kick_success", user=str(self.target)), ephemeral=True
             )
+            log_action(str(interaction.guild_id), interaction.user,
+                        "admin_kick", str(self.target), grund)
             await send_log(interaction.guild, t("embeds","log_kick","title"),
                 t("embeds","log_kick","desc"), discord.Color.orange(),
                 self.target, interaction.user, grund)
@@ -6161,6 +6171,8 @@ class AdminBanModal(discord.ui.Modal):
             await interaction.response.send_message(
                 t("success","ban_success", user=str(self.target)), ephemeral=True
             )
+            log_action(str(interaction.guild_id), interaction.user,
+                        "admin_ban", str(self.target), grund)
             await send_log(interaction.guild, t("embeds","log_ban","title"),
                 t("embeds","log_ban","desc"), discord.Color.red(),
                 self.target, interaction.user, grund)
@@ -6195,6 +6207,8 @@ class AdminChatView(discord.ui.View):
             await interaction.response.send_message(
                 t("success","admin_chat_locked", channel=channel.mention), ephemeral=True
             )
+            log_action(str(interaction.guild_id), interaction.user,
+                        "admin_lock", str(channel))
             await send_log(
                 interaction.guild,
                 t("embeds","log_chat_lock","title"),
@@ -6216,6 +6230,8 @@ class AdminChatView(discord.ui.View):
             await interaction.response.send_message(
                 t("success","admin_chat_unlocked", channel=channel.mention), ephemeral=True
             )
+            log_action(str(interaction.guild_id), interaction.user,
+                        "admin_unlock", str(channel))
             await send_log(
                 interaction.guild,
                 t("embeds","log_chat_unlock","title"),
@@ -6277,6 +6293,8 @@ class AdminSlowmodeModal(discord.ui.Modal):
             await channel.edit(slowmode_delay=seconds)
             msg = t("success","admin_slowmode_off", channel=channel.mention) if seconds == 0                   else t("success","admin_slowmode_set", channel=channel.mention, seconds=seconds)
             await interaction.response.send_message(msg, ephemeral=True)
+            log_action(str(interaction.guild_id), interaction.user,
+                        "admin_slowmode", str(channel), str(seconds) + "s")
             await send_log(
                 interaction.guild,
                 t("embeds","log_slowmode","title"),
@@ -6316,6 +6334,8 @@ class AdminPurgeModal(discord.ui.Modal):
                 t("success","admin_purge_done", channel=channel.mention, count=len(deleted)),
                 ephemeral=True
             )
+            log_action(str(interaction.guild_id), interaction.user,
+                        "admin_purge", str(channel), str(len(deleted)) + " msgs")
             await send_log(
                 interaction.guild,
                 t("embeds","log_purge","title"),
@@ -6837,71 +6857,268 @@ ACTION_EMOJIS = {
     "pioneer":         "🏆", "admin_timeout":    "⏳",
     "admin_warn":      "⚠️", "admin_kick":       "👢",
     "admin_ban":       "🔨", "selfrole_list":    "🎭",
+    "history":         "📋",
+    "admin_timeout":       "⏳", "admin_timeout_remove": "✅",
+    "admin_warn":          "⚠️", "admin_kick":           "👢",
+    "admin_ban":           "🔨", "admin_lock":           "🔒",
+    "admin_unlock":        "🔓", "admin_slowmode":       "🐌",
+    "admin_purge":         "🗑️",
 }
 
-PAGE_SIZE = 10
+# Grouped for the category dropdown
+ACTION_CATEGORIES = [
+    ("⚔️", "moderation",  ["ban","kick","timeout","warn","warn_edit",
+                            "admin_ban","admin_kick","admin_warn","admin_timeout",
+                            "admin_timeout_remove","admin_lock","admin_unlock",
+                            "admin_slowmode","admin_purge"]),
+    ("⚙️", "setup",       ["setup","setup_tickets","setup_verify","setup_selfroles","setup_application",
+                            "setup_log","setup_welcome","setup_waiting","setup_join","setup_status","setup_language"]),
+    ("📦", "config",      ["config_export","config_import","config_rollback"]),
+    ("🔧", "tools",       ["whitelist","embed_create","ticket_edit","edit","delete","pioneer","userinfo","language"]),
+    ("🎵", "music",       ["music_upload","music_download"]),
+]
 
-
-def _build_history_lines(rows: list) -> list:
-    lines = []
-    for row in rows:
-        emoji  = ACTION_EMOJIS.get(row["action"], "📋")
-        actor  = "<@" + row["actor_id"] + ">"
-        target = (" \u2192 `" + str(row["target"])[:28] + "`") if row["target"] else ""
-        detail = (" \u2014 " + str(row["detail"])[:30]) if row["detail"] else ""
-        ts     = "`" + row["timestamp"][5:16] + "`"
-        lines.append(ts + " " + emoji + " **" + row["action"] + "** " + actor + target + detail)
-    return lines
+PAGE_SIZE = 8   # slightly fewer so lines fit better in one embed field
 
 
 def _build_history_embed(guild, rows: list, page: int, total: int,
                           filters: dict) -> discord.Embed:
     total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
-    embed = discord.Embed(
-        title=t("embeds", "history", "title"),
-        color=discord.Color.blurple(),
-        timestamp=now_timestamp()
-    )
-    filter_parts = []
-    if filters.get("action"):
-        filter_parts.append(t("embeds","history","filter_action") + " `" + filters["action"] + "`")
-    if filters.get("user_id"):
-        filter_parts.append(t("embeds","history","filter_user") + " <@" + filters["user_id"] + ">")
-    if filters.get("date"):
-        filter_parts.append(t("embeds","history","filter_date") + " `" + filters["date"] + "`")
-    if filter_parts:
-        embed.description = t("embeds","history","active_filters") + " " + " | ".join(filter_parts)
 
-    lines = _build_history_lines(rows)
-    embed.add_field(
-        name=t("embeds","history","f_entries"),
-        value="\n".join(lines) if lines else t("errors","history_empty"),
-        inline=False
-    )
-    footer = (t("embeds","history","footer_page", page=page+1, total=total_pages)
-              + "  |  " + t("embeds","history","footer_total", n=total))
-    if guild and guild.icon:
-        embed.set_footer(text=footer, icon_url=guild.icon.url)
+    # ── Color by active filter state ──────────────────────────────────────────
+    has_filter = any(filters.get(k) for k in ("action", "user_id", "date", "category"))
+    color = discord.Color.gold() if has_filter else discord.Color.blurple()
+
+    embed = discord.Embed(color=color, timestamp=now_timestamp())
+    embed.title = t("embeds", "history", "title")
+
+    # ── Active filters pill bar in description ────────────────────────────────
+    pills = []
+    if filters.get("category"):
+        emoji = next((e for e,k,_ in ACTION_CATEGORIES if k == filters["category"]), "📂")
+        pills.append(emoji + " `" + filters["category"] + "`")
+    if filters.get("action"):
+        em = ACTION_EMOJIS.get(filters["action"], "📋")
+        pills.append(em + " `" + filters["action"] + "`")
+    if filters.get("user_id"):
+        pills.append("👤 <@" + filters["user_id"] + ">")
+    if filters.get("date"):
+        pills.append("📅 `" + filters["date"] + "`")
+
+    if pills:
+        embed.description = (
+            t("embeds","history","active_filters") + "  " + "  ·  ".join(pills) + "\n"
+            + t("embeds","history","filter_hint")
+        )
+
+    # ── Entries ───────────────────────────────────────────────────────────────
+    if rows:
+        field_lines = []
+        for row in rows:
+            emoji  = ACTION_EMOJIS.get(row["action"], "📋")
+            actor  = "<@" + row["actor_id"] + ">"
+            target = (" \u2192 `" + str(row["target"])[:25] + "`") if row["target"] else ""
+            detail = (" \u2014 *" + str(row["detail"])[:28] + "*") if row["detail"] else ""
+            ts     = discord.utils.format_dt(
+                __import__("datetime").datetime.strptime(
+                    row["timestamp"], "%Y-%m-%d %H:%M:%S UTC"
+                ).replace(tzinfo=__import__("datetime").timezone.utc),
+                style="t"
+            ) if False else ("`" + row["timestamp"][5:16] + "`")
+            field_lines.append(
+                ts + "  " + emoji + " **" + row["action"] + "**"
+                + "  " + actor + target + detail
+            )
+        embed.add_field(
+            name=t("embeds","history","f_entries")
+                 + " (" + str(page * PAGE_SIZE + 1) + "\u2013"
+                 + str(page * PAGE_SIZE + len(rows)) + ")",
+            value="\n".join(field_lines),
+            inline=False
+        )
     else:
-        embed.set_footer(text=footer)
+        embed.add_field(
+            name=t("embeds","history","f_entries"),
+            value="> " + t("errors","history_empty"),
+            inline=False
+        )
+
+    # ── Stats bar ─────────────────────────────────────────────────────────────
+    embed.add_field(
+        name=t("embeds","history","f_stats"),
+        value=(
+            t("embeds","history","stat_total",   n=total)     + "\n"
+            + t("embeds","history","stat_page",  page=page+1, total=total_pages) + "\n"
+            + t("embeds","history","stat_filter",
+               status=t("embeds","history","filter_active") if has_filter
+                      else t("embeds","history","filter_none"))
+        ),
+        inline=True
+    )
+
+    if guild and guild.icon:
+        embed.set_footer(
+            text=t("embeds","history","footer", guild=guild.name),
+            icon_url=guild.icon.url
+        )
+    else:
+        embed.set_footer(text=t("embeds","history","footer", guild=guild.name if guild else "Bot"))
     return embed
 
 
+class HistoryActionSelect(discord.ui.Select):
+    """Category → then specific actions dropdown."""
+    def __init__(self, parent_view: "HistoryView", mode: str = "category"):
+        self.parent_view = parent_view
+        self.mode        = mode  # "category" or action group key
+
+        if mode == "category":
+            options = [
+                discord.SelectOption(
+                    label=t("selects","history_cat_" + key),
+                    value=key, emoji=emoji,
+                    description=t("selects","history_cat_" + key + "_desc")
+                )
+                for emoji, key, _ in ACTION_CATEGORIES
+            ]
+            options.insert(0, discord.SelectOption(
+                label=t("selects","history_cat_all"),
+                value="__all__", emoji="📋"
+            ))
+            ph = t("selects","history_category_ph")
+        else:
+            # Specific actions for a given category
+            actions = next(
+                (acts for _, key, acts in ACTION_CATEGORIES if key == mode),
+                list(ACTION_EMOJIS.keys())
+            )
+            options = [
+                discord.SelectOption(
+                    label=act, value=act,
+                    emoji=ACTION_EMOJIS.get(act, "📋"),
+                    default=(parent_view.filters.get("action") == act)
+                )
+                for act in actions[:25]
+            ]
+            options.insert(0, discord.SelectOption(
+                label=t("selects","history_action_all"),
+                value="__all__", emoji="📋"
+            ))
+            ph = t("selects","history_action_ph")
+
+        super().__init__(placeholder=ph, min_values=1, max_values=1, options=options, row=1)
+
+    async def callback(self, interaction: discord.Interaction):
+        val = self.values[0]
+        if self.mode == "category":
+            if val == "__all__":
+                # Clear category and action filters
+                self.parent_view.filters["category"] = None
+                self.parent_view.filters["action"]   = None
+                # Remove the action select if present, rebuild with category select
+                self.parent_view.clear_items()
+                self.parent_view._rebuild_components()
+            else:
+                # Show action select for this category
+                self.parent_view.filters["category"] = val
+                self.parent_view.filters["action"]   = None
+                self.parent_view.clear_items()
+                self.parent_view._rebuild_components(action_group=val)
+        else:
+            # Specific action selected
+            if val == "__all__":
+                self.parent_view.filters["action"] = None
+            else:
+                self.parent_view.filters["action"] = val
+            self.parent_view.clear_items()
+            self.parent_view._rebuild_components(action_group=self.mode)
+
+        self.parent_view.page  = 0
+        self.parent_view.total = count_log(
+            self.parent_view.guild_id,
+            self.parent_view.filters.get("action"),
+            self.parent_view.filters.get("user_id"),
+            self.parent_view.filters.get("date"),
+        )
+        rows  = self.parent_view._load_page()
+        total_pages = max(1, (self.parent_view.total + PAGE_SIZE - 1) // PAGE_SIZE)
+        self.parent_view.prev_btn.disabled = True
+        self.parent_view.next_btn.disabled = self.parent_view.page >= total_pages - 1
+        embed = _build_history_embed(
+            interaction.guild, rows, self.parent_view.page,
+            self.parent_view.total, self.parent_view.filters
+        )
+        await interaction.response.edit_message(embed=embed, view=self.parent_view)
+
+
 class HistoryView(discord.ui.View):
-    def __init__(self, guild, guild_id: str, page: int, total: int, filters: dict):
+    def __init__(self, guild, guild_id: str, page: int, total: int,
+                 filters: dict, action_group: str = None):
         super().__init__(timeout=300)
-        self.guild    = guild
-        self.guild_id = guild_id
-        self.page     = page
-        self.total    = total
-        self.filters  = filters
-        self.prev_btn.label    = t("buttons","history_prev")
-        self.next_btn.label    = t("buttons","history_next")
-        self.filter_btn.label  = t("buttons","history_filter")
-        self.refresh_btn.label = t("buttons","history_refresh")
-        total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
-        self.prev_btn.disabled = page == 0
-        self.next_btn.disabled = page >= total_pages - 1
+        self.guild        = guild
+        self.guild_id     = guild_id
+        self.page         = page
+        self.total        = total
+        self.filters      = filters
+        self.action_group = action_group
+        self._rebuild_components(action_group=action_group)
+
+    def _rebuild_components(self, action_group: str = None):
+        """Re-add all buttons and selects. Call after clear_items()."""
+        self.action_group = action_group
+        total_pages = max(1, (self.total + PAGE_SIZE - 1) // PAGE_SIZE)
+
+        # Row 0 — navigation buttons
+        self.prev_btn = discord.ui.Button(
+            label=t("buttons","history_prev"), style=discord.ButtonStyle.secondary,
+            disabled=(self.page == 0), row=0
+        )
+        self.next_btn = discord.ui.Button(
+            label=t("buttons","history_next"), style=discord.ButtonStyle.secondary,
+            disabled=(self.page >= total_pages - 1), row=0
+        )
+        self.filter_btn = discord.ui.Button(
+            label=t("buttons","history_filter"), style=discord.ButtonStyle.blurple, row=0
+        )
+        self.reset_btn = discord.ui.Button(
+            label=t("buttons","history_reset"),
+            style=discord.ButtonStyle.danger,
+            disabled=not any(self.filters.get(k) for k in ("action","user_id","date","category")),
+            row=0
+        )
+
+        async def _prev(interaction: discord.Interaction):
+            self.page = max(0, self.page - 1)
+            await self._update(interaction)
+        async def _next(interaction: discord.Interaction):
+            tp = max(1, (self.total + PAGE_SIZE - 1) // PAGE_SIZE)
+            self.page = min(tp - 1, self.page + 1)
+            await self._update(interaction)
+        async def _filter(interaction: discord.Interaction):
+            await interaction.response.send_modal(HistoryFilterModal(self))
+        async def _reset(interaction: discord.Interaction):
+            self.filters   = {}
+            self.action_group = None
+            self.page      = 0
+            self.total     = count_log(self.guild_id)
+            self.clear_items()
+            self._rebuild_components()
+            rows  = self._load_page()
+            embed = _build_history_embed(self.guild, rows, self.page, self.total, self.filters)
+            await interaction.response.edit_message(embed=embed, view=self)
+
+        self.prev_btn.callback   = _prev
+        self.next_btn.callback   = _next
+        self.filter_btn.callback = _filter
+        self.reset_btn.callback  = _reset
+
+        self.add_item(self.prev_btn)
+        self.add_item(self.next_btn)
+        self.add_item(self.filter_btn)
+        self.add_item(self.reset_btn)
+
+        # Row 1 — category/action dropdown
+        self.add_item(HistoryActionSelect(self, mode=action_group or "category"))
 
     def _load_page(self) -> list:
         return _query_log_page(
@@ -6910,30 +7127,6 @@ class HistoryView(discord.ui.View):
             self.filters.get("user_id"),
             self.filters.get("date"),
         )
-
-    @discord.ui.button(label="\u25c0", style=discord.ButtonStyle.secondary, row=0)
-    async def prev_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.page = max(0, self.page - 1)
-        await self._update(interaction)
-
-    @discord.ui.button(label="\u25b6", style=discord.ButtonStyle.secondary, row=0)
-    async def next_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        total_pages = max(1, (self.total + PAGE_SIZE - 1) // PAGE_SIZE)
-        self.page = min(total_pages - 1, self.page + 1)
-        await self._update(interaction)
-
-    @discord.ui.button(label="\U0001f50d", style=discord.ButtonStyle.blurple, row=0)
-    async def filter_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(HistoryFilterModal(self))
-
-    @discord.ui.button(label="\U0001f504", style=discord.ButtonStyle.secondary, row=0)
-    async def refresh_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.page  = 0
-        self.total = count_log(self.guild_id,
-                                self.filters.get("action"),
-                                self.filters.get("user_id"),
-                                self.filters.get("date"))
-        await self._update(interaction)
 
     async def _update(self, interaction: discord.Interaction):
         rows = self._load_page()
@@ -6949,12 +7142,6 @@ class HistoryFilterModal(discord.ui.Modal):
         super().__init__(title=t("modals","history_filter_title"))
         self.parent = parent_view
         cur = parent_view.filters
-        self.f_action = discord.ui.TextInput(
-            label=t("modals","history_filter_action_label"),
-            placeholder=t("modals","history_filter_action_ph"),
-            default=cur.get("action","") or "",
-            style=discord.TextStyle.short, required=False, max_length=30
-        )
         self.f_user = discord.ui.TextInput(
             label=t("modals","history_filter_user_label"),
             placeholder=t("modals","history_filter_user_ph"),
@@ -6967,7 +7154,6 @@ class HistoryFilterModal(discord.ui.Modal):
             default=cur.get("date","") or "",
             style=discord.TextStyle.short, required=False, max_length=10
         )
-        self.add_item(self.f_action)
         self.add_item(self.f_user)
         self.add_item(self.f_date)
 
@@ -6986,12 +7172,11 @@ class HistoryFilterModal(discord.ui.Modal):
                 )
                 if member:
                     user_id = str(member.id)
-        self.parent.filters = {
-            "action":   self.f_action.value.strip() or None,
+        self.parent.filters.update({
             "user_id":  user_id,
             "user_raw": raw_user,
             "date":     self.f_date.value.strip() or None,
-        }
+        })
         self.parent.page  = 0
         self.parent.total = count_log(
             self.parent.guild_id,
@@ -7001,8 +7186,9 @@ class HistoryFilterModal(discord.ui.Modal):
         )
         rows = self.parent._load_page()
         total_pages = max(1, (self.parent.total + PAGE_SIZE - 1) // PAGE_SIZE)
-        self.parent.prev_btn.disabled = True
-        self.parent.next_btn.disabled = self.parent.page >= total_pages - 1
+        # Rebuild buttons to reflect new reset-disabled state
+        self.parent.clear_items()
+        self.parent._rebuild_components(action_group=self.parent.action_group)
         embed = _build_history_embed(
             interaction.guild, rows, self.parent.page,
             self.parent.total, self.parent.filters
@@ -8344,8 +8530,6 @@ async def history_cmd(interaction: discord.Interaction,
                              filters.get("action"), filters.get("user_id"), filters.get("date"))
     embed = _build_history_embed(interaction.guild, rows, 0, total, filters)
     view  = HistoryView(interaction.guild, guild_id, 0, total, filters)
-    log_action(guild_id, interaction.user, "history", None,
-               "action=" + str(action) + " user=" + str(user) + " date=" + str(date))
     await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
 

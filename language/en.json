@@ -304,7 +304,8 @@
         "history_prev": "◀ Previous",
         "history_next": "Next ▶",
         "history_filter": "🔍 Filter",
-        "history_refresh": "🔄 Refresh"
+        "history_refresh": "🔄 Refresh",
+        "history_reset": "✖️ Clear Filters"
     },
     "modals": {
         "ticket_close_title": "Close Ticket",
@@ -461,7 +462,7 @@
         "embed_gen_send_channel_ph": "e.g. #general or 123456789",
         "embed_gen_field_edit_title": "Edit Field",
         "embed_gen_field_image_label": "Image URL for this field (optional)",
-        "history_filter_title": "Filter Audit Log",
+        "history_filter_title": "Filter Log",
         "history_filter_action_label": "Action (empty = all)",
         "history_filter_action_ph": "e.g. ban, warn, setup_tickets, config_import",
         "history_filter_user_label": "User (name, @mention or ID)",
@@ -532,7 +533,21 @@
         "setup_status": "⚙️ Bot Status",
         "setup_language": "🌐 Language",
         "embed_gen_edit_field_ph": "✏️ Which field to edit?",
-        "embed_gen_delete_field_ph": "🗑️ Which field to delete?"
+        "embed_gen_delete_field_ph": "🗑️ Which field to delete?",
+        "history_category_ph": "📂 Select category...",
+        "history_action_ph": "📋 Select action...",
+        "history_cat_all": "All Categories",
+        "history_action_all": "All Actions",
+        "history_cat_moderation": "Moderation",
+        "history_cat_moderation_desc": "Ban, Kick, Timeout, Warn",
+        "history_cat_setup": "Setup",
+        "history_cat_setup_desc": "Panel setup & configuration",
+        "history_cat_config": "Config",
+        "history_cat_config_desc": "Export, Import, Rollback",
+        "history_cat_tools": "Tools",
+        "history_cat_tools_desc": "Whitelist, Embeds, Language, Info",
+        "history_cat_music": "Music",
+        "history_cat_music_desc": "Upload & download waiting room music"
     },
     "errors": {
         "role_not_found": "❌ This role no longer exists.",
@@ -1082,10 +1097,18 @@
             "footer_limit": "{n} entries shown",
             "footer_page": "Page {page}/{total}",
             "footer_total": "{n} entries total",
-            "active_filters": "🔍 **Filters:**",
+            "active_filters": "🔍 Active Filters:",
             "filter_action": "Action:",
             "filter_user": "User:",
-            "filter_date": "Date:"
+            "filter_date": "Date:",
+            "f_stats": "📊 Statistics",
+            "filter_hint": "*Use the category dropdown to filter*",
+            "filter_active": "✅ Active",
+            "filter_none": "—",
+            "stat_total": "**Total:** {n}",
+            "stat_page": "**Page:** {page}/{total}",
+            "stat_filter": "**Filter:** {status}",
+            "footer": "{guild} • Audit Log"
         }
     }
 }

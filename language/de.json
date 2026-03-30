@@ -304,7 +304,8 @@
         "history_prev": "◀ Zurück",
         "history_next": "Weiter ▶",
         "history_filter": "🔍 Filter",
-        "history_refresh": "🔄 Aktualisieren"
+        "history_refresh": "🔄 Aktualisieren",
+        "history_reset": "✖️ Filter zurücksetzen"
     },
     "modals": {
         "ticket_close_title": "Ticket schließen",
@@ -461,7 +462,7 @@
         "embed_gen_send_channel_ph": "z.B. #allgemein oder 123456789",
         "embed_gen_field_edit_title": "Feld bearbeiten",
         "embed_gen_field_image_label": "Bild-URL für dieses Feld (optional)",
-        "history_filter_title": "Audit-Log filtern",
+        "history_filter_title": "Log filtern",
         "history_filter_action_label": "Aktion (leer = alle)",
         "history_filter_action_ph": "z.B. ban, warn, setup_tickets, config_import",
         "history_filter_user_label": "Nutzer (Name, @mention oder ID)",
@@ -532,7 +533,21 @@
         "setup_status": "⚙️ Bot-Status",
         "setup_language": "🌐 Sprache",
         "embed_gen_edit_field_ph": "✏️ Welches Feld bearbeiten?",
-        "embed_gen_delete_field_ph": "🗑️ Welches Feld löschen?"
+        "embed_gen_delete_field_ph": "🗑️ Welches Feld löschen?",
+        "history_category_ph": "📂 Kategorie auswählen...",
+        "history_action_ph": "📋 Aktion auswählen...",
+        "history_cat_all": "Alle Kategorien",
+        "history_action_all": "Alle Aktionen",
+        "history_cat_moderation": "Moderation",
+        "history_cat_moderation_desc": "Ban, Kick, Timeout, Warn",
+        "history_cat_setup": "Setup",
+        "history_cat_setup_desc": "Panel-Einrichtung & Konfiguration",
+        "history_cat_config": "Config",
+        "history_cat_config_desc": "Export, Import, Rollback",
+        "history_cat_tools": "Werkzeuge",
+        "history_cat_tools_desc": "Whitelist, Embeds, Sprache, Info",
+        "history_cat_music": "Musik",
+        "history_cat_music_desc": "Warteraum-Musik hochladen & herunterladen"
     },
     "errors": {
         "role_not_found": "❌ Diese Rolle existiert nicht mehr.",
@@ -1082,10 +1097,18 @@
             "footer_limit": "{n} Einträge angezeigt",
             "footer_page": "Seite {page}/{total}",
             "footer_total": "{n} Einträge gesamt",
-            "active_filters": "🔍 **Filter:**",
+            "active_filters": "🔍 Aktive Filter:",
             "filter_action": "Aktion:",
             "filter_user": "Nutzer:",
-            "filter_date": "Datum:"
+            "filter_date": "Datum:",
+            "f_stats": "📊 Statistik",
+            "filter_hint": "*Kategorie-Dropdown zum Filtern nutzen*",
+            "filter_active": "✅ Aktiv",
+            "filter_none": "—",
+            "stat_total": "**Gesamt:** {n}",
+            "stat_page": "**Seite:** {page}/{total}",
+            "stat_filter": "**Filter:** {status}",
+            "footer": "{guild} • Audit-Log"
         }
     }
 }

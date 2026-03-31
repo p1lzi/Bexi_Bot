@@ -1,123 +1,197 @@
 {
     "1317429074058154084": {
-        "ticket_panels": [
-            {
-                "categories": [
-                    {
-                        "label": "sd",
-                        "value": "sd_0",
-                        "emoji": null,
-                        "description": null,
-                        "supporter_role_ids": null
-                    }
-                ],
-                "channel_id": 1317429074544562208,
-                "message_id": 1485555121302667266,
-                "supporter_role_ids": [
-                    1480965772603031848
-                ],
-                "created_at": "01.03.2050 10:45",
-                "title": "Test 122323"
-            }
-        ],
-        "category_counters": {
-            "sd_0": 1
-        },
-        "category_channels": {
-            "sd_0": 1484488354589446321
-        },
-        "log_channel_id": 1480966878091542570,
+        "waiting_room_id": 1481369875640483923,
+        "welcome_channel_id": 1481369874075750458,
         "verify_panels": [
             {
-                "role_id": 1480965772603031848,
-                "message_id": 1485555124343406732,
-                "channel_id": 1317429074544562208,
-                "title": "\u2705 Verifizierung"
-            }
-        ],
-        "language": "en",
-        "application_panels": [
-            {
-                "message_id": 1485555127237480499,
-                "channel_id": 1317429074544562208,
-                "review_channel_id": 1317429074544562208,
-                "reviewer_role_ids": [],
-                "title": "Test",
-                "questions": null
-            },
-            {
-                "message_id": 1485555129343148096,
-                "channel_id": 1317429074544562208,
-                "review_channel_id": 1480966878091542570,
-                "reviewer_role_ids": [],
-                "title": "sd",
-                "questions": null
-            },
-            {
-                "message_id": 1485555132325298206,
-                "channel_id": 1317429074544562208,
-                "review_channel_id": 1480966878091542570,
-                "reviewer_role_ids": [
-                    1480965772603031848
-                ],
-                "title": "Tsd",
-                "questions": [
-                    {
-                        "label": "sd",
-                        "placeholder": "",
-                        "style": "paragraph",
-                        "required": true,
-                        "min_length": 0,
-                        "section": null
-                    }
-                ]
-            }
-        ]
-    },
-    "1317429037802721280": {
-        "verify_panels": [
-            {
-                "role_id": 1480517570988609638,
-                "message_id": 1484488151929192520,
-                "channel_id": 1317429038318485506,
+                "role_id": 1481369873207656506,
+                "message_id": 1485379753035698438,
+                "channel_id": 1482040289970360470,
                 "title": "\u2705 Verification"
             }
         ],
+        "selfrole_panels": [
+            {
+                "message_id": 1485380955026882560,
+                "channel_id": 1481369874398707912,
+                "panel_id": "1485380954041225317",
+                "title": "Pick your Roles",
+                "roles": [
+                    {
+                        "label": "Announcements",
+                        "role_id": 1481369873207656505,
+                        "emoji": "\ud83d\udce2",
+                        "description": "Get the Announcement role"
+                    },
+                    {
+                        "label": "Giveaways",
+                        "role_id": 1481369873207656504,
+                        "emoji": "\ud83c\udf89",
+                        "description": "Recive the role to get Giveaway pings"
+                    },
+                    {
+                        "label": "Changelog",
+                        "role_id": 1482097771153592502,
+                        "emoji": "\ud83d\udd27",
+                        "description": "Get informations about new changelogs"
+                    },
+                    {
+                        "label": "Server Status",
+                        "role_id": 1482098026167144680,
+                        "emoji": "\ud83d\udce1",
+                        "description": "Recive new infos about the server"
+                    }
+                ]
+            }
+        ],
         "ticket_panels": [
             {
                 "categories": [
                     {
-                        "label": "sd",
-                        "value": "sd_0",
-                        "emoji": null,
-                        "description": null,
+                        "label": "General Support",
+                        "value": "General Support_0",
+                        "emoji": "\ud83d\udee0",
+                        "description": "Questions about the server rules roles, commands orientation for new players",
+                        "supporter_role_ids": null
+                    },
+                    {
+                        "label": "Unban request",
+                        "value": "Unban request_1",
+                        "emoji": "\ud83d\udeab",
+                        "description": "Bans, kicks, warnings, mutes everything about penalties and appeals",
+                        "supporter_role_ids": null
+                    },
+                    {
+                        "label": "Department Ticket",
+                        "value": "Department Ticket_2",
+                        "emoji": "\ud83c\udfdb",
+                        "description": "Inquiries regarding police, sheriff, fire department, EMS, DOT dispatch applications or problems",
+                        "supporter_role_ids": null
+                    },
+                    {
+                        "label": "Partnerships / Cooperations",
+                        "value": "Partnerships / Cooperations_3",
+                        "emoji": "\ud83e\udd1d",
+                        "description": "Inquiries regarding partner servers advertising collaborations or joint events.",
                         "supporter_role_ids": null
                     }
                 ],
-                "channel_id": 1317429038318485506,
-                "message_id": 1484488270640582706,
+                "channel_id": 1481369875640483922,
+                "message_id": 1485382130555949086,
                 "supporter_role_ids": [
-                    1479430671083634749
+                    1481369873249730662
                 ],
-                "created_at": "20.03.2026 10:46",
-                "title": "sd"
+                "created_at": "22.03.2026 21:58",
+                "title": "\ud83d\udccbTicket categories",
+                "embed_desc": "**\u2022 General Support**\n\u27a1\ufe0fFor questions about the server, general concerns, or in-game support.\n\n**\u2022 Unban request**\n\u27a1\ufe0fSubmit a request for unbanning\n\n**\u2022 Department Ticket**\n\u27a1\ufe0fFor questions about parliamentary groups, parliamentary group reports or parliamentary group applications.\n\n**Partnerships**\n\u27a1\ufe0fFor inquiries regarding a partnership with our server.",
+                "embed_color": "f1c40f",
+                "embed_thumbnail": true
+            },
+            {
+                "categories": [
+                    {
+                        "label": "Leadership Ticket",
+                        "value": "Leadership Ticket_0",
+                        "emoji": "\ud83c\udfe0",
+                        "description": "tickets which can only be seen from the leaderships",
+                        "supporter_role_ids": null
+                    },
+                    {
+                        "label": "Staff Complaint",
+                        "value": "Staff Complaint_1",
+                        "emoji": "\ud83d\udce2",
+                        "description": "Create a ticket to complain about a staff member.",
+                        "supporter_role_ids": null
+                    }
+                ],
+                "channel_id": 1481369875640483922,
+                "message_id": 1485389178639224883,
+                "supporter_role_ids": [
+                    1481369873249730666
+                ],
+                "created_at": "22.03.2026 22:26",
+                "title": "\u2b06\ufe0fHigh Team",
+                "embed_desc": "**\u2022 Leadership Ticket**\n\u27a1\ufe0fFor important matters to the leaderships. Unnecessary inquiries will be closed immediately.\n\n**\u2022 Staff Complaint**\n\u27a1\ufe0fFor complaints about staff members. Inappropriate tickets will be closed immediately.",
+                "embed_color": "ff0000",
+                "embed_thumbnail": true
+            },
+            {
+                "categories": [
+                    {
+                        "label": "Management",
+                        "value": "Management_0",
+                        "emoji": "\ud83d\udc51",
+                        "description": "For issues that require the attention of the Server Management.",
+                        "supporter_role_ids": null
+                    }
+                ],
+                "channel_id": 1481369875640483922,
+                "message_id": 1485389964861509753,
+                "supporter_role_ids": [
+                    1481369873249730668
+                ],
+                "created_at": "22.03.2026 22:29",
+                "title": "\ud83d\udc51 Management"
+            }
+        ],
+        "category_counters": {
+            "General Support_0": 3,
+            "Unban request_1": 1,
+            "Department Ticket_2": 1,
+            "Leadership Ticket_0": 1,
+            "Management_0": 4
+        },
+        "category_channels": {
+            "General Support_0": 1485392474108198974,
+            "Unban request_1": 1485390311608811660,
+            "Department Ticket_2": 1485390350683082782,
+            "Leadership Ticket_0": 1485390391242133614,
+            "Management_0": 1485605237539602544
+        },
+        "application_panels": [
+            {
+                "message_id": 1485391045540843640,
+                "channel_id": 1481369876126896180,
+                "review_channel_id": 1485390881258471564,
+                "reviewer_role_ids": [
+                    1481369873249730668
+                ],
+                "title": "Staff Application",
+                "questions": null
+            }
+        ],
+        "join_roles": [
+            1482099135233658880,
+            1482099012193489070
+        ],
+        "log_channel_id": 1481369876781334691
+    },
+    "1317429037802721280": {
+        "selfrole_panels": [
+            {
+                "message_id": 1488249409534951476,
+                "channel_id": 1480516801610776677,
+                "panel_id": "1488249408578519100",
+                "title": "sd",
+                "roles": [
+                    {
+                        "label": "dashboard bot",
+                        "role_id": 1353791745510604926,
+                        "emoji": null,
+                        "description": null
+                    }
+                ]
             }
         ],
         "language": "de",
-        "category_counters": {
-            "sd_0": 1
-        },
-        "category_channels": {
-            "sd_0": 1484488312868831264
+        "warns": {
+            "761329534716215296": 1
         }
     },
-    "None": {
-        "language": "en"
-    },
     "bot_presence": {
-        "status": "online",
-        "type": "listening",
-        "text": "Oleck",
+        "status": "idle",
+        "type": "playing",
+        "text": "",
         "url": "https://twitch.tv/discord"
     }
 }

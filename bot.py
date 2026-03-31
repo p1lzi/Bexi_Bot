@@ -8845,7 +8845,7 @@ async def on_ready():
     if DEBUG:
         print('🐛 DEBUG-Modus aktiv')
     if not os.path.exists(WHITELIST_FILE):
-        save_whitelist(["tenor.com", "giphy.com"])
+        save_whitelist(["tenor.com", "giphy.com", "cdn.discordapp.com"])
     config = load_config()
     pres = config.get("bot_presence")
     if pres:

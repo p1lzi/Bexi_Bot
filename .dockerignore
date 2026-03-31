@@ -2,4 +2,6 @@
 .env
 .gitignore
 .gitattributes
-/configs
+config.json
+open_applications.json
+whitelist.json

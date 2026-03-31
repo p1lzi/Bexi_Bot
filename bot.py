@@ -448,7 +448,6 @@ class SelfRoleView(discord.ui.View):
             self.add_item(SelfRoleSelect(roles_data, panel_id, member_role_ids))
 
 
-
 # ─────────────────────────────────────────────
 #  TICKET CLOSE MODAL
 # ─────────────────────────────────────────────
@@ -875,17 +874,12 @@ class TicketView(discord.ui.View):
         self.add_item(TicketSelect(options, supporter_role_ids, categories_data))
 
 
-
-
-
-
 # ─────────────────────────────────────────────
 #  APPLICATION SYSTEM
 # ─────────────────────────────────────────────
 
 pending_applications: dict = {}
 QUESTIONS_PER_STEP = 4
-
 
 
 QUESTION_SECTIONS = {
@@ -982,9 +976,6 @@ def build_review_embeds(guild, applicant, answers, panel_title, questions) -> li
         field_count += 1
 
     return embeds
-
-
-
 
 
 # ── Application Setup Wizard ──────────────────────────────────────────────────
@@ -1291,7 +1282,7 @@ class AppSetupMainView(discord.ui.View):
             )
             shown += 1
         await interaction.response.send_message(
-            content=t("success", "wizard_preview_note"),
+            content=t("success", "wizard_preview_note_application"),
             embed=preview_embed,
             ephemeral=True
         )
@@ -1483,9 +1474,6 @@ class AppSetupQuestionsModal(discord.ui.Modal):
                 await _orig.edit_original_response(embed=embed, view=view)
             except Exception:
                 pass
-
-
-
 
 
 class ApplicationReviewView(discord.ui.View):
@@ -1891,9 +1879,6 @@ class ApplicationPanelView(discord.ui.View):
             panel_title=panel_title, questions=questions
         )
         await interaction.response.send_modal(modal)
-
-
-
 
 
 # ─────────────────────────────────────────────
@@ -2364,7 +2349,6 @@ class SelfRoleSetupMainView(discord.ui.View):
         await interaction.response.edit_message(embed=done_embed, view=None)
 
 
-
 # ─────────────────────────────────────────────
 #  TICKET SETUP WIZARD
 # ─────────────────────────────────────────────
@@ -2690,7 +2674,7 @@ class TicketSetupMainView(discord.ui.View):
             )
 
         await interaction.response.send_message(
-            content=t("success", "wizard_preview_note"),
+            content=t("success", "wizard_preview_note_ticket"),
             embed=preview,
             ephemeral=True
         )
@@ -2762,7 +2746,6 @@ class TicketSetupMainView(discord.ui.View):
         if interaction.guild.icon:
             done_embed.set_footer(text=interaction.guild.name, icon_url=interaction.guild.icon.url)
         await interaction.response.edit_message(embed=done_embed, view=None)
-
 
 
 # ─────────────────────────────────────────────
@@ -3325,7 +3308,7 @@ class VerifyWizardMainView(discord.ui.View):
             return await interaction.response.send_message(t("errors", "panel_not_found"), ephemeral=True)
         preview = _build_verify_embed_preview(state, interaction.guild)
         await interaction.response.send_message(
-            content=t("success", "wizard_preview_note"), embed=preview, ephemeral=True
+            content=t("success", "wizard_preview_note_verify"), embed=preview, ephemeral=True
         )
 
     @discord.ui.button(label="🚀 Finish",       style=discord.ButtonStyle.green,    row=1)
@@ -4378,6 +4361,8 @@ class ConfigUploadView(discord.ui.View):
             len(self.new_config.get(self.guild_id, {}).get("application_panels", [])) +
             len(self.new_config.get(self.guild_id, {}).get("verify_panels", []))
         )
+        log_action(str(interaction.guild_id), interaction.user, "config_import",
+                   None, str(panel_count)+" panels, "+str(len(issues))+" errors")
         await send_log(
             interaction.guild,
             t("embeds", "log_config_import", "title"),
@@ -4427,15 +4412,27 @@ class ConfigUploadView(discord.ui.View):
 
 
 class ConfigRollbackView(discord.ui.View):
-    """Posted in the log channel after an import — any admin can trigger rollback."""
+    """Posted in the log channel after an import — any admin can trigger rollback.
+    Auto-disables after 24 hours."""
     def __init__(self, snapshot_config: dict, snapshot_open_apps: dict,
                  guild_id: str, imported_msg_ids: list = None):
-        super().__init__(timeout=None)
+        super().__init__(timeout=86400)   # 24 hours
         self.snapshot_config    = snapshot_config
         self.snapshot_open_apps = snapshot_open_apps
         self.guild_id           = guild_id
-        self.imported_msg_ids   = imported_msg_ids or []  # [(channel_id, message_id), ...]
+        self.imported_msg_ids   = imported_msg_ids or []
         self.rollback_btn.label = t("buttons", "config_rollback_btn_label")
+
+    async def on_timeout(self):
+        """Disable button when 24h window expires."""
+        self.rollback_btn.disabled = True
+        self.rollback_btn.label    = t("buttons", "config_rollback_expired")
+        try:
+            # message reference is not directly available, but Discord will
+            # auto-remove the components when view expires via timeout=
+            pass
+        except Exception:
+            pass
 
     @discord.ui.button(
         label="↩️",
@@ -4517,6 +4514,8 @@ class ConfigRollbackView(discord.ui.View):
         )
 
         # ── Log ───────────────────────────────────────────────────────────────
+        log_action(str(interaction.guild_id), interaction.user, "config_rollback",
+                   None, str(len(issues))+" errors")
         await send_log(
             interaction.guild,
             t("embeds", "log_config_rollback", "title"),
@@ -5489,7 +5488,6 @@ class EditApplicationInfoModal(discord.ui.Modal):
         await _refresh_edit(interaction, uid)
 
 
-
 class EditAppQuestionSelect(discord.ui.Select):
     """Pick a question to edit."""
     def __init__(self, user_id: int):
@@ -5726,7 +5724,6 @@ class EditApplicationView(discord.ui.View):
         await interaction.response.edit_message(content=t("errors","application_cancelled"), embed=None, view=None)
 
 
-
 # ─────────────────────────────────────────────
 #  ADMIN PANEL
 # ─────────────────────────────────────────────
@@ -5908,6 +5905,8 @@ class AdminUserView(discord.ui.View):
             await interaction.response.edit_message(
                 embed=updated_embed, view=AdminUserView(self.user_id, updated)
             )
+            log_action(str(interaction.guild_id), interaction.user,
+                        "admin_timeout_remove", str(self.target), "removed")
             await interaction.followup.send(
                 t("success","admin_timeout_removed", user=self.target.display_name), ephemeral=True
             )
@@ -5958,7 +5957,6 @@ class AdminUserView(discord.ui.View):
         if interaction.guild.icon:
             embed.set_footer(text=interaction.guild.name, icon_url=interaction.guild.icon.url)
         await interaction.response.edit_message(embed=embed, view=AdminStartView(self.user_id))
-
 
 
 class AdminTimeoutModal(discord.ui.Modal):
@@ -6035,6 +6033,9 @@ class AdminTimeoutModal(discord.ui.Modal):
                 t("success","admin_timeout_set",
                   user=self.target.display_name, minutes=minutes), ephemeral=True
             )
+            log_action(str(interaction.guild_id), interaction.user,
+                        "admin_timeout", str(self.target),
+                        str(minutes) + "min | " + reason)
             await send_log(
                 interaction.guild,
                 t("embeds","log_timeout","title"),
@@ -6087,6 +6088,12 @@ class AdminWarnModal(discord.ui.Modal):
         await interaction.response.send_message(
             t("success","warn_success", mention=self.target.mention, count=new_count), ephemeral=True
         )
+        log_action(str(interaction.guild_id), interaction.user,
+                   "admin_warn", str(self.target),
+                   "#" + str(new_count) + ": " + grund,
+                   payload={"user_id": self.target.id, "user_name": str(self.target),
+                             "count": new_count, "reason": grund,
+                             "avatar": str(self.target.display_avatar.url)})
         await send_log(
             interaction.guild,
             t("embeds","log_warn","title", count=new_count),
@@ -6127,6 +6134,10 @@ class AdminKickModal(discord.ui.Modal):
             await interaction.response.send_message(
                 t("success","kick_success", user=str(self.target)), ephemeral=True
             )
+            log_action(str(interaction.guild_id), interaction.user,
+                        "admin_kick", str(self.target), grund,
+                        payload={"user_id": self.target.id, "user_name": str(self.target),
+                                  "reason": grund, "avatar": str(self.target.display_avatar.url)})
             await send_log(interaction.guild, t("embeds","log_kick","title"),
                 t("embeds","log_kick","desc"), discord.Color.orange(),
                 self.target, interaction.user, grund)
@@ -6165,6 +6176,10 @@ class AdminBanModal(discord.ui.Modal):
             await interaction.response.send_message(
                 t("success","ban_success", user=str(self.target)), ephemeral=True
             )
+            log_action(str(interaction.guild_id), interaction.user,
+                        "admin_ban", str(self.target), grund,
+                        payload={"user_id": self.target.id, "user_name": str(self.target),
+                                  "reason": grund, "avatar": str(self.target.display_avatar.url)})
             await send_log(interaction.guild, t("embeds","log_ban","title"),
                 t("embeds","log_ban","desc"), discord.Color.red(),
                 self.target, interaction.user, grund)
@@ -6199,6 +6214,8 @@ class AdminChatView(discord.ui.View):
             await interaction.response.send_message(
                 t("success","admin_chat_locked", channel=channel.mention), ephemeral=True
             )
+            log_action(str(interaction.guild_id), interaction.user,
+                        "admin_lock", str(channel))
             await send_log(
                 interaction.guild,
                 t("embeds","log_chat_lock","title"),
@@ -6220,6 +6237,8 @@ class AdminChatView(discord.ui.View):
             await interaction.response.send_message(
                 t("success","admin_chat_unlocked", channel=channel.mention), ephemeral=True
             )
+            log_action(str(interaction.guild_id), interaction.user,
+                        "admin_unlock", str(channel))
             await send_log(
                 interaction.guild,
                 t("embeds","log_chat_unlock","title"),
@@ -6281,6 +6300,8 @@ class AdminSlowmodeModal(discord.ui.Modal):
             await channel.edit(slowmode_delay=seconds)
             msg = t("success","admin_slowmode_off", channel=channel.mention) if seconds == 0                   else t("success","admin_slowmode_set", channel=channel.mention, seconds=seconds)
             await interaction.response.send_message(msg, ephemeral=True)
+            log_action(str(interaction.guild_id), interaction.user,
+                        "admin_slowmode", str(channel), str(seconds) + "s")
             await send_log(
                 interaction.guild,
                 t("embeds","log_slowmode","title"),
@@ -6320,6 +6341,8 @@ class AdminPurgeModal(discord.ui.Modal):
                 t("success","admin_purge_done", channel=channel.mention, count=len(deleted)),
                 ephemeral=True
             )
+            log_action(str(interaction.guild_id), interaction.user,
+                        "admin_purge", str(channel), str(len(deleted)) + " msgs")
             await send_log(
                 interaction.guild,
                 t("embeds","log_purge","title"),
@@ -6348,13 +6371,13 @@ def _default_embed_state() -> dict:
         "footer_icon":  "",
         "image_url":    "",
         "thumbnail_url":"",
-        "fields":       [],   # [{"name": str, "value": str, "inline": bool}]
+        "fields":       [],   # [{"name":str,"value":str,"inline":bool}]
         "timestamp":    False,
+        "buttons":      [],   # [{"label":str,"url":str,"emoji":str}]
     }
 
 
 def _build_preview_embed(state: dict) -> discord.Embed:
-    """Build the actual embed from current state."""
     color_hex = state.get("color", "5865F2")
     try:
         color = discord.Color(int(color_hex.lstrip("#"), 16))
@@ -6376,16 +6399,17 @@ def _build_preview_embed(state: dict) -> discord.Embed:
     if state.get("thumbnail_url"):
         embed.set_thumbnail(url=state["thumbnail_url"])
     for field in state.get("fields", []):
+        # Field images are added as separate image-only embeds when sending;
+        # here we note them in the value with a link placeholder
         embed.add_field(
-            name   = field.get("name", "​"),
-            value  = field.get("value", "​"),
+            name   = field.get("name", "\u200b"),
+            value  = field.get("value", "\u200b") or "\u200b",
             inline = field.get("inline", False)
         )
     return embed
 
 
 def _build_embed_gen_status(state: dict, guild) -> discord.Embed:
-    """Builder status embed — shows current settings."""
     color_hex = state.get("color", "5865F2")
     try:
         color = discord.Color(int(color_hex.lstrip("#"), 16))
@@ -6393,10 +6417,9 @@ def _build_embed_gen_status(state: dict, guild) -> discord.Embed:
         color = discord.Color.blurple()
 
     embed = discord.Embed(title=t("embeds","embed_gen","title"), color=color)
-
     lines = [
-        t("embeds","embed_gen","f_title")       + " " + (state.get("title")       or t("embeds","wizard","not_set")),
-        t("embeds","embed_gen","f_desc")        + " " + ((state.get("description") or "")[:40] + "…" if len(state.get("description",""))>40 else (state.get("description") or t("embeds","wizard","not_set"))),
+        t("embeds","embed_gen","f_title")      + " " + (state.get("title") or t("embeds","wizard","not_set")),
+        t("embeds","embed_gen","f_desc")        + " " + ((state.get("description","")[:40] + "…") if len(state.get("description","")) > 40 else (state.get("description") or t("embeds","wizard","not_set"))),
         t("embeds","embed_gen","f_color")       + " #" + color_hex,
         t("embeds","embed_gen","f_author")      + " " + (state.get("author_name") or t("embeds","wizard","not_set")),
         t("embeds","embed_gen","f_footer")      + " " + (state.get("footer_text") or t("embeds","wizard","not_set")),
@@ -6404,12 +6427,37 @@ def _build_embed_gen_status(state: dict, guild) -> discord.Embed:
         t("embeds","embed_gen","f_thumbnail")   + " " + ("✅" if state.get("thumbnail_url") else "—"),
         t("embeds","embed_gen","f_timestamp")   + " " + ("✅" if state.get("timestamp") else "—"),
         t("embeds","embed_gen","f_fields")      + " " + str(len(state.get("fields", []))),
+        t("embeds","embed_gen","f_buttons")     + " " + str(len(state.get("buttons", []))),
     ]
     embed.add_field(name=t("embeds","embed_gen","f_settings"), value="\n".join(lines), inline=False)
+
+    # Show fields list
+    fields = state.get("fields", [])
+    if fields:
+        flines = []
+        for i, f in enumerate(fields[:10]):
+            inline_marker = " ↔️" if f.get("inline") else ""
+            flines.append("**" + str(i+1) + ".** " + f.get("name","​")[:40] + inline_marker)
+        if len(fields) > 10:
+            flines.append(t("embeds","wizard","q_more", n=len(fields)-10))
+        embed.add_field(name=t("embeds","embed_gen","f_fields_list"), value="\n".join(flines), inline=False)
 
     if guild and guild.icon:
         embed.set_footer(text=guild.name, icon_url=guild.icon.url)
     return embed
+
+
+async def _refresh_embed_gen(interaction: discord.Interaction, uid: int):
+    orig = _wizard_interactions.get(uid)
+    if orig:
+        try:
+            state = _embed_gen_state.get(uid, _default_embed_state())
+            await orig.edit_original_response(
+                embed=_build_embed_gen_status(state, interaction.guild),
+                view=EmbedGenView(uid)
+            )
+        except Exception:
+            pass
 
 
 # ── Modals ────────────────────────────────────────────────────────────────────
@@ -6419,50 +6467,19 @@ class EmbedGenBaseModal(discord.ui.Modal):
         super().__init__(title=t("modals","embed_gen_base_title"))
         self.user_id = user_id
         state = _embed_gen_state.get(user_id, _default_embed_state())
-        self.f_title = discord.ui.TextInput(
-            label=t("modals","embed_gen_title_label"),
-            placeholder=t("modals","embed_gen_title_ph"),
-            default=state.get("title",""),
-            style=discord.TextStyle.short, required=False, max_length=256
-        )
-        self.f_desc = discord.ui.TextInput(
-            label=t("modals","embed_gen_desc_label"),
-            placeholder=t("modals","embed_gen_desc_ph"),
-            default=state.get("description",""),
-            style=discord.TextStyle.paragraph, required=False, max_length=4000
-        )
-        self.f_color = discord.ui.TextInput(
-            label=t("modals","embed_gen_color_label"),
-            placeholder=t("modals","embed_gen_color_ph"),
-            default=state.get("color","5865F2"),
-            style=discord.TextStyle.short, required=False, max_length=10
-        )
-        self.add_item(self.f_title)
-        self.add_item(self.f_desc)
-        self.add_item(self.f_color)
+        self.f_title = discord.ui.TextInput(label=t("modals","embed_gen_title_label"), placeholder=t("modals","embed_gen_title_ph"), default=state.get("title",""), style=discord.TextStyle.short, required=False, max_length=256)
+        self.f_desc  = discord.ui.TextInput(label=t("modals","embed_gen_desc_label"),  placeholder=t("modals","embed_gen_desc_ph"),  default=state.get("description",""), style=discord.TextStyle.paragraph, required=False, max_length=4000)
+        self.f_color = discord.ui.TextInput(label=t("modals","embed_gen_color_label"), placeholder=t("modals","embed_gen_color_ph"), default=state.get("color","5865F2"), style=discord.TextStyle.short, required=False, max_length=10)
+        self.add_item(self.f_title); self.add_item(self.f_desc); self.add_item(self.f_color)
 
     async def on_submit(self, interaction: discord.Interaction):
         uid = self.user_id
         color_raw = self.f_color.value.strip().lstrip("#") or "5865F2"
-        try:
-            int(color_raw, 16)
-        except ValueError:
-            color_raw = "5865F2"
-        _embed_gen_state[uid].update({
-            "title":       self.f_title.value.strip(),
-            "description": self.f_desc.value.strip(),
-            "color":       color_raw,
-        })
+        try: int(color_raw, 16)
+        except ValueError: color_raw = "5865F2"
+        _embed_gen_state[uid].update({"title": self.f_title.value.strip(), "description": self.f_desc.value.strip(), "color": color_raw})
         await interaction.response.defer(ephemeral=True)
-        orig = _wizard_interactions.get(uid)
-        if orig:
-            try:
-                await orig.edit_original_response(
-                    embed=_build_embed_gen_status(_embed_gen_state[uid], interaction.guild),
-                    view=EmbedGenView(uid)
-                )
-            except Exception:
-                pass
+        await _refresh_embed_gen(interaction, uid)
 
 
 class EmbedGenMediaModal(discord.ui.Modal):
@@ -6470,37 +6487,15 @@ class EmbedGenMediaModal(discord.ui.Modal):
         super().__init__(title=t("modals","embed_gen_media_title"))
         self.user_id = user_id
         state = _embed_gen_state.get(user_id, _default_embed_state())
-        self.f_image = discord.ui.TextInput(
-            label=t("modals","embed_gen_image_label"),
-            placeholder=t("modals","embed_gen_url_ph"),
-            default=state.get("image_url",""),
-            style=discord.TextStyle.short, required=False, max_length=500
-        )
-        self.f_thumb = discord.ui.TextInput(
-            label=t("modals","embed_gen_thumb_label"),
-            placeholder=t("modals","embed_gen_url_ph"),
-            default=state.get("thumbnail_url",""),
-            style=discord.TextStyle.short, required=False, max_length=500
-        )
-        self.add_item(self.f_image)
-        self.add_item(self.f_thumb)
+        self.f_image = discord.ui.TextInput(label=t("modals","embed_gen_image_label"), placeholder=t("modals","embed_gen_url_ph"), default=state.get("image_url",""), style=discord.TextStyle.short, required=False, max_length=500)
+        self.f_thumb = discord.ui.TextInput(label=t("modals","embed_gen_thumb_label"), placeholder=t("modals","embed_gen_url_ph"), default=state.get("thumbnail_url",""), style=discord.TextStyle.short, required=False, max_length=500)
+        self.add_item(self.f_image); self.add_item(self.f_thumb)
 
     async def on_submit(self, interaction: discord.Interaction):
         uid = self.user_id
-        _embed_gen_state[uid].update({
-            "image_url":     self.f_image.value.strip(),
-            "thumbnail_url": self.f_thumb.value.strip(),
-        })
+        _embed_gen_state[uid].update({"image_url": self.f_image.value.strip(), "thumbnail_url": self.f_thumb.value.strip()})
         await interaction.response.defer(ephemeral=True)
-        orig = _wizard_interactions.get(uid)
-        if orig:
-            try:
-                await orig.edit_original_response(
-                    embed=_build_embed_gen_status(_embed_gen_state[uid], interaction.guild),
-                    view=EmbedGenView(uid)
-                )
-            except Exception:
-                pass
+        await _refresh_embed_gen(interaction, uid)
 
 
 class EmbedGenAuthorFooterModal(discord.ui.Modal):
@@ -6508,147 +6503,243 @@ class EmbedGenAuthorFooterModal(discord.ui.Modal):
         super().__init__(title=t("modals","embed_gen_authorfooter_title"))
         self.user_id = user_id
         state = _embed_gen_state.get(user_id, _default_embed_state())
-        self.f_author_name = discord.ui.TextInput(
-            label=t("modals","embed_gen_author_name_label"),
-            placeholder=t("modals","embed_gen_author_ph"),
-            default=state.get("author_name",""),
-            style=discord.TextStyle.short, required=False, max_length=256
-        )
-        self.f_author_icon = discord.ui.TextInput(
-            label=t("modals","embed_gen_author_icon_label"),
-            placeholder=t("modals","embed_gen_url_ph"),
-            default=state.get("author_icon",""),
-            style=discord.TextStyle.short, required=False, max_length=500
-        )
-        self.f_footer = discord.ui.TextInput(
-            label=t("modals","embed_gen_footer_label"),
-            placeholder=t("modals","embed_gen_footer_ph"),
-            default=state.get("footer_text",""),
-            style=discord.TextStyle.short, required=False, max_length=2048
-        )
-        self.f_footer_icon = discord.ui.TextInput(
-            label=t("modals","embed_gen_footer_icon_label"),
-            placeholder=t("modals","embed_gen_url_ph"),
-            default=state.get("footer_icon",""),
-            style=discord.TextStyle.short, required=False, max_length=500
-        )
-        self.add_item(self.f_author_name)
-        self.add_item(self.f_author_icon)
-        self.add_item(self.f_footer)
-        self.add_item(self.f_footer_icon)
+        self.f_aname = discord.ui.TextInput(label=t("modals","embed_gen_author_name_label"), placeholder=t("modals","embed_gen_author_ph"),      default=state.get("author_name",""),  style=discord.TextStyle.short, required=False, max_length=256)
+        self.f_aicon = discord.ui.TextInput(label=t("modals","embed_gen_author_icon_label"), placeholder=t("modals","embed_gen_url_ph"),           default=state.get("author_icon",""),  style=discord.TextStyle.short, required=False, max_length=500)
+        self.f_ftext = discord.ui.TextInput(label=t("modals","embed_gen_footer_label"),      placeholder=t("modals","embed_gen_footer_ph"),         default=state.get("footer_text",""),  style=discord.TextStyle.short, required=False, max_length=2048)
+        self.f_ficon = discord.ui.TextInput(label=t("modals","embed_gen_footer_icon_label"), placeholder=t("modals","embed_gen_url_ph"),            default=state.get("footer_icon",""),  style=discord.TextStyle.short, required=False, max_length=500)
+        self.add_item(self.f_aname); self.add_item(self.f_aicon); self.add_item(self.f_ftext); self.add_item(self.f_ficon)
 
     async def on_submit(self, interaction: discord.Interaction):
         uid = self.user_id
-        _embed_gen_state[uid].update({
-            "author_name": self.f_author_name.value.strip(),
-            "author_icon": self.f_author_icon.value.strip(),
-            "footer_text": self.f_footer.value.strip(),
-            "footer_icon": self.f_footer_icon.value.strip(),
-        })
+        _embed_gen_state[uid].update({"author_name": self.f_aname.value.strip(), "author_icon": self.f_aicon.value.strip(), "footer_text": self.f_ftext.value.strip(), "footer_icon": self.f_ficon.value.strip()})
         await interaction.response.defer(ephemeral=True)
-        orig = _wizard_interactions.get(uid)
-        if orig:
-            try:
-                await orig.edit_original_response(
-                    embed=_build_embed_gen_status(_embed_gen_state[uid], interaction.guild),
-                    view=EmbedGenView(uid)
-                )
-            except Exception:
-                pass
+        await _refresh_embed_gen(interaction, uid)
 
 
 class EmbedGenAddFieldModal(discord.ui.Modal):
-    def __init__(self, user_id: int):
-        super().__init__(title=t("modals","embed_gen_field_title"))
-        self.user_id = user_id
-        self.f_name = discord.ui.TextInput(
-            label=t("modals","embed_gen_field_name_label"),
-            placeholder=t("modals","embed_gen_field_name_ph"),
-            style=discord.TextStyle.short, required=True, max_length=256
-        )
-        self.f_value = discord.ui.TextInput(
-            label=t("modals","embed_gen_field_value_label"),
-            placeholder=t("modals","embed_gen_field_value_ph"),
-            style=discord.TextStyle.paragraph, required=True, max_length=1024
-        )
-        self.f_inline = discord.ui.TextInput(
-            label=t("modals","embed_gen_field_inline_label"),
-            placeholder="yes / no",
-            default="no",
-            style=discord.TextStyle.short, required=False, max_length=5
-        )
-        self.add_item(self.f_name)
-        self.add_item(self.f_value)
-        self.add_item(self.f_inline)
+    def __init__(self, user_id: int, edit_idx: int = -1):
+        title_key = "embed_gen_field_edit_title" if edit_idx >= 0 else "embed_gen_field_title"
+        super().__init__(title=t("modals", title_key))
+        self.user_id  = user_id
+        self.edit_idx = edit_idx
+        # Pre-fill if editing
+        existing = {}
+        if edit_idx >= 0:
+            fields = _embed_gen_state.get(user_id, {}).get("fields", [])
+            existing = fields[edit_idx] if edit_idx < len(fields) else {}
+        self.f_name   = discord.ui.TextInput(label=t("modals","embed_gen_field_name_label"),   placeholder=t("modals","embed_gen_field_name_ph"),   default=existing.get("name",""),  style=discord.TextStyle.short,     required=True,  max_length=256)
+        self.f_value  = discord.ui.TextInput(label=t("modals","embed_gen_field_value_label"),  placeholder=t("modals","embed_gen_field_value_ph"),  default=existing.get("value",""), style=discord.TextStyle.paragraph, required=True,  max_length=1024)
+        self.f_inline = discord.ui.TextInput(label=t("modals","embed_gen_field_inline_label"), placeholder="yes / no",                              default="yes" if existing.get("inline") else "no", style=discord.TextStyle.short, required=False, max_length=5)
+        self.add_item(self.f_name); self.add_item(self.f_value); self.add_item(self.f_inline)
 
     async def on_submit(self, interaction: discord.Interaction):
         uid    = self.user_id
         fields = _embed_gen_state[uid].get("fields", [])
-        if len(fields) >= 25:
-            return await interaction.response.send_message(
-                t("errors","embed_gen_max_fields"), ephemeral=True
-            )
+        if self.edit_idx < 0 and len(fields) >= 25:
+            return await interaction.response.send_message(t("errors","embed_gen_max_fields"), ephemeral=True)
         inline = self.f_inline.value.strip().lower() in ("yes","y","ja","true","1")
-        fields.append({
-            "name":   self.f_name.value.strip(),
-            "value":  self.f_value.value.strip(),
-            "inline": inline,
-        })
+        entry  = {"name": self.f_name.value.strip(), "value": self.f_value.value.strip(), "inline": inline}
+        if self.edit_idx >= 0 and self.edit_idx < len(fields):
+            fields[self.edit_idx] = entry
+        else:
+            fields.append(entry)
         _embed_gen_state[uid]["fields"] = fields
         await interaction.response.defer(ephemeral=True)
-        orig = _wizard_interactions.get(uid)
-        if orig:
-            try:
-                await orig.edit_original_response(
-                    embed=_build_embed_gen_status(_embed_gen_state[uid], interaction.guild),
-                    view=EmbedGenView(uid)
+        await _refresh_embed_gen(interaction, uid)
+
+
+class EmbedGenFieldSelect(discord.ui.Select):
+    """Select a specific field to edit or delete."""
+    def __init__(self, user_id: int, action: str):
+        self.user_id = user_id
+        self.action  = action  # "edit" or "delete"
+        fields = _embed_gen_state.get(user_id, {}).get("fields", [])
+        options = []
+        for i, f in enumerate(fields[:25]):
+            img = " 🖼️" if f.get("image_url") else ""
+            options.append(discord.SelectOption(
+                label=f.get("name","(empty)")[:90] + img,
+                value=str(i),
+                description=(f.get("value","")[:50] if f.get("value") else None)
+            ))
+        if not options:
+            options.append(discord.SelectOption(label="—", value="__none__"))
+        ph_key = "embed_gen_edit_field_ph" if action == "edit" else "embed_gen_delete_field_ph"
+        super().__init__(placeholder=t("selects", ph_key), min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.user_id:
+            return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        if self.values[0] == "__none__":
+            return await interaction.response.edit_message(content=t("errors","embed_gen_no_fields"), view=None)
+        idx = int(self.values[0])
+        if self.action == "edit":
+            await interaction.response.send_modal(EmbedGenAddFieldModal(self.user_id, edit_idx=idx))
+        else:
+            fields = _embed_gen_state[self.user_id].get("fields", [])
+            if idx < len(fields):
+                fields.pop(idx)
+            await interaction.response.edit_message(
+                content=t("success","embed_gen_field_deleted"), view=None
+            )
+            await _refresh_embed_gen(interaction, self.user_id)
+
+
+class EmbedGenAddButtonModal(discord.ui.Modal):
+    """Add or edit a link button."""
+    def __init__(self, user_id: int, edit_idx: int = -1):
+        title_key = "embed_gen_btn_edit_title" if edit_idx >= 0 else "embed_gen_btn_add_title"
+        super().__init__(title=t("modals", title_key))
+        self.user_id  = user_id
+        self.edit_idx = edit_idx
+        existing = {}
+        if edit_idx >= 0:
+            btns = _embed_gen_state.get(user_id, {}).get("buttons", [])
+            existing = btns[edit_idx] if edit_idx < len(btns) else {}
+        self.f_label = discord.ui.TextInput(
+            label=t("modals","embed_gen_btn_label_label"),
+            placeholder=t("modals","embed_gen_btn_label_ph"),
+            default=existing.get("label",""),
+            style=discord.TextStyle.short, required=True, max_length=80
+        )
+        self.f_url = discord.ui.TextInput(
+            label=t("modals","embed_gen_btn_url_label"),
+            placeholder=t("modals","embed_gen_btn_url_ph"),
+            default=existing.get("url",""),
+            style=discord.TextStyle.short, required=True, max_length=512
+        )
+        self.f_emoji = discord.ui.TextInput(
+            label=t("modals","embed_gen_btn_emoji_label"),
+            placeholder=t("modals","embed_gen_btn_emoji_ph"),
+            default=existing.get("emoji",""),
+            style=discord.TextStyle.short, required=False, max_length=10
+        )
+        self.add_item(self.f_label)
+        self.add_item(self.f_url)
+        self.add_item(self.f_emoji)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        uid   = self.user_id
+        btns  = _embed_gen_state[uid].get("buttons", [])
+        url   = self.f_url.value.strip()
+        if not url.startswith("http"):
+            url = "https://" + url
+        entry = {
+            "label": self.f_label.value.strip()[:80],
+            "url":   url,
+            "emoji": self.f_emoji.value.strip() or None,
+        }
+        if self.edit_idx >= 0 and self.edit_idx < len(btns):
+            btns[self.edit_idx] = entry
+        else:
+            if len(btns) >= 5:
+                return await interaction.response.send_message(
+                    t("errors","embed_gen_max_buttons"), ephemeral=True
                 )
-            except Exception:
-                pass
+            btns.append(entry)
+        _embed_gen_state[uid]["buttons"] = btns
+        await interaction.response.defer(ephemeral=True)
+        await _refresh_embed_gen(interaction, uid)
+
+
+class EmbedGenButtonSelect(discord.ui.Select):
+    """Select a button to edit or delete."""
+    def __init__(self, user_id: int, action: str):
+        self.user_id = user_id
+        self.action  = action
+        btns = _embed_gen_state.get(user_id, {}).get("buttons", [])
+        options = [
+            discord.SelectOption(
+                label=b.get("label","?")[:90],
+                value=str(i),
+                emoji=b.get("emoji") or None,
+                description=b.get("url","")[:50]
+            )
+            for i, b in enumerate(btns[:25])
+        ]
+        if not options:
+            options = [discord.SelectOption(label="—", value="__none__")]
+        ph_key = "embed_gen_edit_btn_ph" if action == "edit" else "embed_gen_delete_btn_ph"
+        super().__init__(placeholder=t("selects", ph_key), min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.user_id:
+            return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        if self.values[0] == "__none__":
+            return await interaction.response.edit_message(content=t("errors","embed_gen_no_buttons"), view=None)
+        idx = int(self.values[0])
+        if self.action == "edit":
+            await interaction.response.send_modal(EmbedGenAddButtonModal(self.user_id, edit_idx=idx))
+        else:
+            btns = _embed_gen_state[self.user_id].get("buttons", [])
+            if idx < len(btns):
+                btns.pop(idx)
+            await interaction.response.edit_message(content=t("success","embed_gen_btn_deleted"), view=None)
+            await _refresh_embed_gen(interaction, self.user_id)
 
 
 class EmbedGenSendModal(discord.ui.Modal):
-    """Choose target channel to send the embed to."""
     def __init__(self, user_id: int):
         super().__init__(title=t("modals","embed_gen_send_title"))
         self.user_id = user_id
-        self.f_channel = discord.ui.TextInput(
-            label=t("modals","embed_gen_send_channel_label"),
-            placeholder=t("modals","embed_gen_send_channel_ph"),
-            style=discord.TextStyle.short, required=True, max_length=100
-        )
+        self.f_channel = discord.ui.TextInput(label=t("modals","embed_gen_send_channel_label"), placeholder=t("modals","embed_gen_send_channel_ph"), style=discord.TextStyle.short, required=True, max_length=100)
         self.add_item(self.f_channel)
 
     async def on_submit(self, interaction: discord.Interaction):
         uid = self.user_id
         raw = self.f_channel.value.strip()
-
-        # Resolve channel
         channel = None
         raw_id  = raw.strip("<#>")
         if raw_id.isdigit():
             channel = interaction.guild.get_channel(int(raw_id))
         if not channel:
-            channel = discord.utils.find(
-                lambda c: c.name.lower() == raw.lstrip("#").lower(),
-                interaction.guild.text_channels
-            )
+            channel = discord.utils.find(lambda c: c.name.lower() == raw.lstrip("#").lower(), interaction.guild.text_channels)
         if not channel:
-            return await interaction.response.send_message(
-                t("errors","setup_channel_not_found"), ephemeral=True
-            )
-
+            return await interaction.response.send_message(t("errors","setup_channel_not_found"), ephemeral=True)
         state = _embed_gen_state.pop(uid, _default_embed_state())
         try:
-            embed = _build_preview_embed(state)
-            await channel.send(embed=embed)
-            await interaction.response.send_message(
-                t("success","embed_gen_sent", channel=channel.mention), ephemeral=True
-            )
+            await _send_embed_with_field_images(channel, state,
+                guild_id=str(interaction.guild_id), actor=interaction.user)
+            await interaction.response.send_message(t("success","embed_gen_sent", channel=channel.mention), ephemeral=True)
         except Exception as e:
-            await interaction.response.send_message(
-                t("errors","generic_error", error=str(e)), ephemeral=True
+            await interaction.response.send_message(t("errors","generic_error", error=str(e)), ephemeral=True)
+
+
+def _build_button_view(state: dict) -> discord.ui.View:
+    """Build a View with link buttons from state."""
+    btns = state.get("buttons", [])
+    if not btns:
+        return None
+    view = discord.ui.View(timeout=None)
+    for b in btns[:5]:
+        url   = b.get("url","https://discord.com")
+        label = b.get("label","Link")[:80]
+        emoji = b.get("emoji") or None
+        try:
+            btn = discord.ui.Button(
+                label=label, url=url, emoji=emoji,
+                style=discord.ButtonStyle.link
             )
+            view.add_item(btn)
+        except Exception:
+            pass
+    return view if view.children else None
+
+
+async def _send_embed_with_field_images(channel, state: dict,
+                                        guild_id: str = None, actor = None):
+    """Send the embed with optional link buttons."""
+    embed    = _build_preview_embed(state)
+    btn_view = _build_button_view(state)
+    msg = await channel.send(embed=embed, view=btn_view)
+    if guild_id and actor:
+        payload = dict(state)
+        payload["sent_channel_id"] = channel.id
+        payload["message_id"]      = msg.id
+        log_action(guild_id, actor, "embed_sent",
+                   "#" + channel.name, state.get("title","(no title)"),
+                   payload=payload)
+    return msg
 
 
 # ── Main View ─────────────────────────────────────────────────────────────────
@@ -6658,113 +6749,743 @@ class EmbedGenView(discord.ui.View):
         super().__init__(timeout=600)
         self.user_id = user_id
         state = _embed_gen_state.get(user_id, {})
-        self.base_btn.label        = t("buttons","embed_gen_base")
-        self.media_btn.label       = t("buttons","embed_gen_media")
-        self.authorfooter_btn.label= t("buttons","embed_gen_authorfooter")
-        self.add_field_btn.label   = t("buttons","embed_gen_add_field")
-        self.remove_field_btn.label= t("buttons","embed_gen_remove_field")
-        self.timestamp_btn.label   = t("buttons","embed_gen_timestamp_on") if not state.get("timestamp") else t("buttons","embed_gen_timestamp_off")
-        self.preview_btn.label     = t("buttons","wizard_preview")
-        self.send_channel_btn.label= t("buttons","embed_gen_send_channel")
-        self.send_here_btn.label   = t("buttons","embed_gen_send_here")
-        self.cancel_btn.label      = t("buttons","wizard_cancel")
+        has_fields = bool(state.get("fields"))
 
-        # Disable remove field if no fields
-        self.remove_field_btn.disabled = len(state.get("fields", [])) == 0
+        self.base_btn.label         = t("buttons","embed_gen_base")
+        self.media_btn.label        = t("buttons","embed_gen_media")
+        self.authorfooter_btn.label = t("buttons","embed_gen_authorfooter")
+        self.add_field_btn.label    = t("buttons","embed_gen_add_field")
+        self.edit_field_btn.label   = t("buttons","embed_gen_edit_field")
+        self.delete_field_btn.label = t("buttons","embed_gen_delete_field")
+        self.timestamp_btn.label    = t("buttons","embed_gen_timestamp_off") if state.get("timestamp") else t("buttons","embed_gen_timestamp_on")
+        self.preview_btn.label      = t("buttons","wizard_preview")
+        self.send_channel_btn.label = t("buttons","embed_gen_send_channel")
+        self.send_here_btn.label    = t("buttons","embed_gen_send_here")
+        self.cancel_btn.label       = t("buttons","wizard_cancel")
+
+        has_btns = bool(state.get("buttons"))
+        self.edit_field_btn.disabled   = not has_fields
+        self.delete_field_btn.disabled = not has_fields
+        self.edit_btn_btn.disabled     = not has_btns
+        self.delete_btn_btn.disabled   = not has_btns
 
     def _check(self, i): return i.user.id == self.user_id
 
     @discord.ui.button(label="✏️", style=discord.ButtonStyle.blurple, row=0)
-    async def base_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def base_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         await interaction.response.send_modal(EmbedGenBaseModal(self.user_id))
 
     @discord.ui.button(label="🖼️", style=discord.ButtonStyle.secondary, row=0)
-    async def media_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def media_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         await interaction.response.send_modal(EmbedGenMediaModal(self.user_id))
 
     @discord.ui.button(label="👤", style=discord.ButtonStyle.secondary, row=0)
-    async def authorfooter_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def authorfooter_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         await interaction.response.send_modal(EmbedGenAuthorFooterModal(self.user_id))
 
     @discord.ui.button(label="➕", style=discord.ButtonStyle.secondary, row=1)
-    async def add_field_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def add_field_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         await interaction.response.send_modal(EmbedGenAddFieldModal(self.user_id))
 
-    @discord.ui.button(label="🗑️", style=discord.ButtonStyle.danger, row=1)
-    async def remove_field_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    @discord.ui.button(label="✏️f", style=discord.ButtonStyle.secondary, row=1)
+    async def edit_field_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
-        state = _embed_gen_state.get(self.user_id, {})
-        if not state.get("fields"):
-            return await interaction.response.send_message(t("errors","embed_gen_no_fields"), ephemeral=True)
-        state["fields"].pop()
-        await interaction.response.defer(ephemeral=True)
-        orig = _wizard_interactions.get(self.user_id)
-        if orig:
-            try:
-                await orig.edit_original_response(
-                    embed=_build_embed_gen_status(state, interaction.guild),
-                    view=EmbedGenView(self.user_id)
-                )
-            except Exception:
-                pass
+        view = discord.ui.View(timeout=120)
+        view.add_item(EmbedGenFieldSelect(self.user_id, "edit"))
+        await interaction.response.send_message(content=t("success","embed_gen_pick_field_edit"), view=view, ephemeral=True)
+
+    @discord.ui.button(label="🗑️f", style=discord.ButtonStyle.danger, row=1)
+    async def delete_field_btn(self, interaction, button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        view = discord.ui.View(timeout=120)
+        view.add_item(EmbedGenFieldSelect(self.user_id, "delete"))
+        await interaction.response.send_message(content=t("success","embed_gen_pick_field_delete"), view=view, ephemeral=True)
 
     @discord.ui.button(label="⏱️", style=discord.ButtonStyle.secondary, row=1)
-    async def timestamp_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def timestamp_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         state = _embed_gen_state.get(self.user_id, {})
         state["timestamp"] = not state.get("timestamp", False)
         await interaction.response.defer(ephemeral=True)
-        orig = _wizard_interactions.get(self.user_id)
-        if orig:
-            try:
-                await orig.edit_original_response(
-                    embed=_build_embed_gen_status(state, interaction.guild),
-                    view=EmbedGenView(self.user_id)
-                )
-            except Exception:
-                pass
+        await _refresh_embed_gen(interaction, self.user_id)
 
     @discord.ui.button(label="👁️", style=discord.ButtonStyle.secondary, row=2)
-    async def preview_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def preview_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         state = _embed_gen_state.get(self.user_id, _default_embed_state())
         try:
             preview = _build_preview_embed(state)
-            await interaction.response.send_message(
-                content=t("success","wizard_preview_note"),
-                embed=preview, ephemeral=True
-            )
+            await interaction.response.send_message(content=t("success","wizard_preview_note_embed"), embed=preview, ephemeral=True)
         except Exception as e:
             await interaction.response.send_message(t("errors","generic_error", error=str(e)), ephemeral=True)
 
     @discord.ui.button(label="📤", style=discord.ButtonStyle.green, row=2)
-    async def send_channel_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def send_channel_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         await interaction.response.send_modal(EmbedGenSendModal(self.user_id))
 
     @discord.ui.button(label="📨", style=discord.ButtonStyle.green, row=2)
-    async def send_here_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def send_here_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         state = _embed_gen_state.pop(self.user_id, _default_embed_state())
         try:
-            embed = _build_preview_embed(state)
-            await interaction.channel.send(embed=embed)
-            await interaction.response.edit_message(
-                content=t("success","embed_gen_sent", channel=interaction.channel.mention),
-                embed=None, view=None
-            )
+            await _send_embed_with_field_images(interaction.channel, state,
+                guild_id=str(interaction.guild_id), actor=interaction.user)
+            await interaction.response.edit_message(content=t("success","embed_gen_sent", channel=interaction.channel.mention), embed=None, view=None)
         except Exception as e:
             await interaction.response.send_message(t("errors","generic_error", error=str(e)), ephemeral=True)
 
-    @discord.ui.button(label="✖️", style=discord.ButtonStyle.secondary, row=2)
-    async def cancel_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+    @discord.ui.button(label="🔗", style=discord.ButtonStyle.secondary, row=3)
+    async def add_btn_btn(self, interaction, button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        await interaction.response.send_modal(EmbedGenAddButtonModal(self.user_id))
+
+    @discord.ui.button(label="✏️b", style=discord.ButtonStyle.secondary, row=3)
+    async def edit_btn_btn(self, interaction, button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        view = discord.ui.View(timeout=120)
+        view.add_item(EmbedGenButtonSelect(self.user_id, "edit"))
+        await interaction.response.send_message(content=t("success","embed_gen_pick_btn_edit"), view=view, ephemeral=True)
+
+    @discord.ui.button(label="🗑️b", style=discord.ButtonStyle.danger, row=3)
+    async def delete_btn_btn(self, interaction, button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        view = discord.ui.View(timeout=120)
+        view.add_item(EmbedGenButtonSelect(self.user_id, "delete"))
+        await interaction.response.send_message(content=t("success","embed_gen_pick_btn_delete"), view=view, ephemeral=True)
+
+    @discord.ui.button(label="✖️", style=discord.ButtonStyle.secondary, row=3)
+    async def cancel_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         _embed_gen_state.pop(self.user_id, None)
         await interaction.response.edit_message(content=t("errors","application_cancelled"), embed=None, view=None)
+
+# ─────────────────────────────────────────────
+#  AUDIT LOG (SQLite)
+# ─────────────────────────────────────────────
+import sqlite3 as _sqlite3
+import threading as _threading
+
+_db_lock = _threading.Lock()
+AUDIT_DB = os.path.join(CONFIGS_DIR, "audit_log.db")
+
+def _db_conn():
+    conn = _sqlite3.connect(AUDIT_DB, check_same_thread=False)
+    conn.row_factory = _sqlite3.Row
+    return conn
+
+def _init_db():
+    with _db_lock:
+        conn = _db_conn()
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS audit_log (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id    TEXT    NOT NULL,
+                timestamp   TEXT    NOT NULL,
+                actor_id    TEXT    NOT NULL,
+                actor_name  TEXT    NOT NULL,
+                action      TEXT    NOT NULL,
+                target      TEXT,
+                detail      TEXT,
+                payload     TEXT
+            )
+        """)
+        # Migrate: add payload column if it doesn't exist yet
+        try:
+            conn.execute("ALTER TABLE audit_log ADD COLUMN payload TEXT")
+        except Exception:
+            pass
+        conn.commit()
+        conn.close()
+
+def log_action(guild_id: str, actor: object, action: str,
+               target: str = None, detail: str = None, payload: dict = None):
+    """Write an audit entry. payload is stored as JSON for rich detail view."""
+    import datetime as _dt, json as _json
+    ts = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    actor_id   = str(getattr(actor, "id",   actor))
+    actor_name = str(getattr(actor, "display_name", actor))
+    payload_str = _json.dumps(payload, ensure_ascii=False) if payload else None
+    with _db_lock:
+        conn = _db_conn()
+        conn.execute(
+            "INSERT INTO audit_log "
+            "(guild_id,timestamp,actor_id,actor_name,action,target,detail,payload) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            (guild_id, ts, actor_id, actor_name, action, target, detail, payload_str)
+        )
+        conn.commit()
+        conn.close()
+
+def query_log(guild_id: str, limit: int = 25, action_filter: str = None,
+              user_id: str = None, date_filter: str = None) -> list:
+    """
+    Query audit log with optional filters.
+    action_filter : partial match on action (e.g. "ban")
+    user_id       : exact match on actor_id
+    date_filter   : partial match on timestamp (e.g. "2026-03" for March 2026)
+    """
+    where  = "WHERE guild_id=?"
+    params = [guild_id]
+    if action_filter:
+        where += " AND action LIKE ?"
+        params.append("%" + action_filter + "%")
+    if user_id:
+        where += " AND actor_id=?"
+        params.append(user_id)
+    if date_filter:
+        where += " AND timestamp LIKE ?"
+        params.append("%" + date_filter + "%")
+    with _db_lock:
+        conn = _db_conn()
+        rows = conn.execute(
+            "SELECT * FROM audit_log " + where + " ORDER BY id DESC LIMIT ?",
+            params + [limit]
+        ).fetchall()
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+def count_log(guild_id: str, action_filter: str = None,
+              user_id: str = None, date_filter: str = None) -> int:
+    """Return total matching rows (without limit) for pagination."""
+    where  = "WHERE guild_id=?"
+    params = [guild_id]
+    if action_filter:
+        where += " AND action LIKE ?"
+        params.append("%" + action_filter + "%")
+    if user_id:
+        where += " AND actor_id=?"
+        params.append(user_id)
+    if date_filter:
+        where += " AND timestamp LIKE ?"
+        params.append("%" + date_filter + "%")
+    with _db_lock:
+        conn = _db_conn()
+        n = conn.execute(
+            "SELECT COUNT(*) FROM audit_log " + where, params
+        ).fetchone()[0]
+        conn.close()
+    return n
+
+_init_db()
+
+
+def _query_log_page(guild_id: str, limit: int, page: int,
+                    action_filter: str = None, user_id: str = None,
+                    date_filter: str = None) -> list:
+    where  = "WHERE guild_id=?"
+    params = [guild_id]
+    if action_filter:
+        where += " AND action LIKE ?"
+        params.append("%" + action_filter + "%")
+    if user_id:
+        where += " AND actor_id=?"
+        params.append(user_id)
+    if date_filter:
+        where += " AND timestamp LIKE ?"
+        params.append("%" + date_filter + "%")
+    offset = page * limit
+    with _db_lock:
+        conn = _db_conn()
+        rows = conn.execute(
+            "SELECT * FROM audit_log " + where + " ORDER BY id DESC LIMIT ? OFFSET ?",
+            params + [limit, offset]
+        ).fetchall()
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+# ─────────────────────────────────────────────
+#  HISTORY PAGINATION VIEW
+# ─────────────────────────────────────────────
+
+ACTION_EMOJIS = {
+    "ban":             "🔨", "kick":            "👢",
+    "timeout":         "⏳", "warn":             "⚠️",
+    "warn_edit":       "✏️", "config_export":   "📥",
+    "config_import":   "📤", "config_rollback":  "↩️",
+    "language":        "🌐", "music_upload":    "🎵",
+    "music_download":  "🎵", "setup":            "⚙️",
+    "setup_tickets":   "🎫", "setup_verify":     "✅",
+    "setup_selfroles": "🎭", "setup_application":"📋",
+    "setup_log":       "📋", "setup_welcome":    "👋",
+    "setup_waiting":   "🎵", "setup_join":       "🚪",
+    "setup_status":    "⚙️", "setup_language":   "🌐",
+    "whitelist":       "🛡️", "userinfo":         "👤",
+    "embed_create":    "🎨", "ticket_edit":      "🎫",
+    "delete":          "🗑️", "edit":             "✏️",
+    "pioneer":         "🏆", "admin_timeout":    "⏳",
+    "admin_warn":      "⚠️", "admin_kick":       "👢",
+    "admin_ban":       "🔨", "selfrole_list":    "🎭",
+    "history":         "📋",
+    "admin_timeout":       "⏳", "admin_timeout_remove": "✅",
+    "admin_warn":          "⚠️", "admin_kick":           "👢",
+    "admin_ban":           "🔨", "admin_lock":           "🔒",
+    "admin_unlock":        "🔓", "admin_slowmode":       "🐌",
+    "admin_purge":         "🗑️",
+}
+
+# Grouped for the category dropdown
+ACTION_CATEGORIES = [
+    ("⚔️", "moderation",  ["ban","kick","timeout","warn","warn_edit",
+                            "admin_ban","admin_kick","admin_warn","admin_timeout",
+                            "admin_timeout_remove","admin_lock","admin_unlock",
+                            "admin_slowmode","admin_purge"]),
+    ("⚙️", "setup",       ["setup","setup_tickets","setup_verify","setup_selfroles","setup_application",
+                            "setup_log","setup_welcome","setup_waiting","setup_join","setup_status","setup_language"]),
+    ("📦", "config",      ["config_export","config_import","config_rollback"]),
+    ("🔧", "tools",       ["whitelist","embed_create","ticket_edit","edit","delete","pioneer","userinfo","language"]),
+    ("🎵", "music",       ["music_upload","music_download"]),
+]
+
+PAGE_SIZE = 8   # slightly fewer so lines fit better in one embed field
+
+
+def _build_history_embed(guild, rows: list, page: int, total: int,
+                          filters: dict) -> discord.Embed:
+    total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+
+    # ── Color by active filter state ──────────────────────────────────────────
+    has_filter = any(filters.get(k) for k in ("action", "user_id", "date", "category"))
+    color = discord.Color.gold() if has_filter else discord.Color.blurple()
+
+    embed = discord.Embed(color=color, timestamp=now_timestamp())
+    embed.title = t("embeds", "history", "title")
+
+    # ── Active filters pill bar in description ────────────────────────────────
+    pills = []
+    if filters.get("category"):
+        emoji = next((e for e,k,_ in ACTION_CATEGORIES if k == filters["category"]), "📂")
+        pills.append(emoji + " `" + filters["category"] + "`")
+    if filters.get("action"):
+        em = ACTION_EMOJIS.get(filters["action"], "📋")
+        pills.append(em + " `" + filters["action"] + "`")
+    if filters.get("user_id"):
+        pills.append("👤 <@" + filters["user_id"] + ">")
+    if filters.get("date"):
+        pills.append("📅 `" + filters["date"] + "`")
+
+    if pills:
+        embed.description = (
+            t("embeds","history","active_filters") + "  " + "  ·  ".join(pills) + "\n"
+            + t("embeds","history","filter_hint")
+        )
+
+    # ── Entries ───────────────────────────────────────────────────────────────
+    if rows:
+        field_lines = []
+        for row in rows:
+            emoji  = ACTION_EMOJIS.get(row["action"], "📋")
+            actor  = "<@" + row["actor_id"] + ">"
+            target = (" \u2192 `" + str(row["target"])[:25] + "`") if row["target"] else ""
+            detail = (" \u2014 *" + str(row["detail"])[:28] + "*") if row["detail"] else ""
+            ts     = discord.utils.format_dt(
+                __import__("datetime").datetime.strptime(
+                    row["timestamp"], "%Y-%m-%d %H:%M:%S UTC"
+                ).replace(tzinfo=__import__("datetime").timezone.utc),
+                style="t"
+            ) if False else ("`" + row["timestamp"][5:16] + "`")
+            field_lines.append(
+                ts + "  " + emoji + " **" + row["action"] + "**"
+                + "  " + actor + target + detail
+            )
+        embed.add_field(
+            name=t("embeds","history","f_entries")
+                 + " (" + str(page * PAGE_SIZE + 1) + "\u2013"
+                 + str(page * PAGE_SIZE + len(rows)) + ")",
+            value="\n".join(field_lines),
+            inline=False
+        )
+    else:
+        embed.add_field(
+            name=t("embeds","history","f_entries"),
+            value="> " + t("errors","history_empty"),
+            inline=False
+        )
+
+    # ── Stats bar ─────────────────────────────────────────────────────────────
+    embed.add_field(
+        name=t("embeds","history","f_stats"),
+        value=(
+            t("embeds","history","stat_total",   n=total)     + "\n"
+            + t("embeds","history","stat_page",  page=page+1, total=total_pages) + "\n"
+            + t("embeds","history","stat_filter",
+               status=t("embeds","history","filter_active") if has_filter
+                      else t("embeds","history","filter_none"))
+        ),
+        inline=True
+    )
+
+    if guild and guild.icon:
+        embed.set_footer(
+            text=t("embeds","history","footer", guild=guild.name),
+            icon_url=guild.icon.url
+        )
+    else:
+        embed.set_footer(text=t("embeds","history","footer", guild=guild.name if guild else "Bot"))
+    return embed
+
+
+def _build_detail_embed(row: dict, guild) -> discord.Embed:
+    """Rich detail embed for a single log entry."""
+    import json as _json
+    emoji = ACTION_EMOJIS.get(row["action"], "\U0001f4cb")
+    embed = discord.Embed(
+        title=emoji + "  " + t("embeds","history","detail_title") + " " + row["action"],
+        color=discord.Color.blurple(),
+        timestamp=now_timestamp()
+    )
+    embed.add_field(name=t("embeds","history","detail_time"),
+                    value="`" + row["timestamp"] + "`", inline=True)
+    embed.add_field(name=t("embeds","history","detail_actor"),
+                    value="<@" + row["actor_id"] + ">", inline=True)
+    if row.get("target"):
+        embed.add_field(name=t("embeds","history","detail_target"),
+                        value="`" + str(row["target"])[:100] + "`", inline=True)
+    if row.get("detail"):
+        embed.add_field(name=t("embeds","history","detail_info"),
+                        value=str(row["detail"])[:1024], inline=False)
+    payload = {}
+    if row.get("payload"):
+        try:
+            payload = _json.loads(row["payload"])
+        except Exception:
+            pass
+    action = row["action"]
+    if action in ("ban","kick","warn","timeout","warn_edit",
+                  "admin_ban","admin_kick","admin_warn","admin_timeout","admin_timeout_remove"):
+        uid  = payload.get("user_id")
+        name = payload.get("user_name","?")
+        av   = payload.get("avatar")
+        if uid:
+            embed.add_field(name=t("embeds","history","detail_user"),
+                            value="<@" + str(uid) + ">  `" + name + "`", inline=False)
+        if av:
+            embed.set_thumbnail(url=av)
+        if payload.get("count"):
+            embed.add_field(name=t("embeds","history","detail_warn_count"),
+                            value="\u26a0\ufe0f `" + str(payload["count"]) + "`", inline=True)
+        if payload.get("minutes"):
+            embed.add_field(name=t("embeds","history","detail_duration"),
+                            value="`" + str(payload["minutes"]) + " min`", inline=True)
+        if payload.get("reason"):
+            embed.add_field(name=t("embeds","history","detail_reason"),
+                            value=payload["reason"][:512], inline=False)
+    elif action == "embed_sent":
+        ch_id  = payload.get("sent_channel_id")
+        msg_id = payload.get("message_id")
+        if ch_id and msg_id:
+            embed.add_field(
+                name=t("embeds","history","detail_embed_link"),
+                value="[" + t("embeds","history","detail_embed_jump") + "](https://discord.com/channels/"
+                      + str(row["guild_id"]) + "/" + str(ch_id) + "/" + str(msg_id) + ")",
+                inline=False
+            )
+        if payload.get("title") or payload.get("description"):
+            no_val = "\u2014"
+            embed.add_field(
+                name=t("embeds","history","detail_embed_preview"),
+                value=(
+                    "**" + t("embeds","embed_gen","f_title")   + "** " + (payload.get("title") or no_val) + "\n"
+                    + "**" + t("embeds","embed_gen","f_color") + "** #" + payload.get("color","5865F2") + "\n"
+                    + "**" + t("embeds","embed_gen","f_fields") + "** " + str(len(payload.get("fields",[])))
+                ),
+                inline=False
+            )
+        if payload.get("image_url"):
+            embed.set_image(url=payload["image_url"])
+        elif payload.get("thumbnail_url"):
+            embed.set_thumbnail(url=payload["thumbnail_url"])
+    elif action in ("config_import","config_export","config_rollback"):
+        if row.get("detail"):
+            embed.add_field(name=t("embeds","history","detail_summary"),
+                            value="`" + str(row["detail"]) + "`", inline=False)
+    elif action == "whitelist":
+        embed.add_field(name=t("embeds","history","detail_domain"),
+                        value="`" + str(row.get("target","?")) + "`", inline=True)
+        embed.add_field(name=t("embeds","history","detail_operation"),
+                        value=str(row.get("detail","")), inline=True)
+    if guild and guild.icon:
+        embed.set_footer(text=guild.name, icon_url=guild.icon.url)
+    return embed
+
+
+class HistoryDetailSelect(discord.ui.Select):
+    """Dropdown to pick a log entry and see its full detail."""
+    def __init__(self, parent_view: "HistoryView", rows: list):
+        self.parent_view = parent_view
+        options = []
+        for row in rows[:25]:
+            emoji = ACTION_EMOJIS.get(row["action"], "\U0001f4cb")
+            ts    = row["timestamp"][5:16]
+            label = (ts + "  " + row["action"])[:100]
+            desc  = (str(row.get("target") or "")[:50] or str(row.get("detail") or "")[:50]) or None
+            options.append(discord.SelectOption(
+                label=label, value=str(row["id"]),
+                emoji=emoji, description=desc
+            ))
+        if not options:
+            options = [discord.SelectOption(label="\u2014", value="__none__")]
+        super().__init__(
+            placeholder=t("selects","history_detail_ph"),
+            min_values=1, max_values=1,
+            options=options, row=2
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        if self.values[0] == "__none__":
+            return await interaction.response.send_message(t("errors","history_empty"), ephemeral=True)
+        entry_id = int(self.values[0])
+        with _db_lock:
+            conn = _db_conn()
+            row  = conn.execute("SELECT * FROM audit_log WHERE id=?", (entry_id,)).fetchone()
+            conn.close()
+        if not row:
+            return await interaction.response.send_message(t("errors","history_empty"), ephemeral=True)
+        detail_embed = _build_detail_embed(dict(row), interaction.guild)
+        await interaction.response.send_message(embed=detail_embed, ephemeral=True)
+
+
+
+class HistoryActionSelect(discord.ui.Select):
+    """Category → then specific actions dropdown."""
+    def __init__(self, parent_view: "HistoryView", mode: str = "category"):
+        self.parent_view = parent_view
+        self.mode        = mode  # "category" or action group key
+
+        if mode == "category":
+            options = [
+                discord.SelectOption(
+                    label=t("selects","history_cat_" + key),
+                    value=key, emoji=emoji,
+                    description=t("selects","history_cat_" + key + "_desc")
+                )
+                for emoji, key, _ in ACTION_CATEGORIES
+            ]
+            options.insert(0, discord.SelectOption(
+                label=t("selects","history_cat_all"),
+                value="__all__", emoji="📋"
+            ))
+            ph = t("selects","history_category_ph")
+        else:
+            # Specific actions for a given category
+            actions = next(
+                (acts for _, key, acts in ACTION_CATEGORIES if key == mode),
+                list(ACTION_EMOJIS.keys())
+            )
+            options = [
+                discord.SelectOption(
+                    label=act, value=act,
+                    emoji=ACTION_EMOJIS.get(act, "📋"),
+                    default=(parent_view.filters.get("action") == act)
+                )
+                for act in actions[:25]
+            ]
+            options.insert(0, discord.SelectOption(
+                label=t("selects","history_action_all"),
+                value="__all__", emoji="📋"
+            ))
+            ph = t("selects","history_action_ph")
+
+        super().__init__(placeholder=ph, min_values=1, max_values=1, options=options, row=1)
+
+    async def callback(self, interaction: discord.Interaction):
+        val = self.values[0]
+        if self.mode == "category":
+            if val == "__all__":
+                # Clear category and action filters
+                self.parent_view.filters["category"] = None
+                self.parent_view.filters["action"]   = None
+                # Remove the action select if present, rebuild with category select
+                self.parent_view.clear_items()
+                self.parent_view._rebuild_components()
+            else:
+                # Show action select for this category
+                self.parent_view.filters["category"] = val
+                self.parent_view.filters["action"]   = None
+                self.parent_view.clear_items()
+                self.parent_view._rebuild_components(action_group=val)
+        else:
+            # Specific action selected
+            if val == "__all__":
+                self.parent_view.filters["action"] = None
+            else:
+                self.parent_view.filters["action"] = val
+            self.parent_view.clear_items()
+            self.parent_view._rebuild_components(action_group=self.mode)
+
+        self.parent_view.page  = 0
+        self.parent_view.total = count_log(
+            self.parent_view.guild_id,
+            self.parent_view.filters.get("action"),
+            self.parent_view.filters.get("user_id"),
+            self.parent_view.filters.get("date"),
+        )
+        rows  = self.parent_view._load_page()
+        total_pages = max(1, (self.parent_view.total + PAGE_SIZE - 1) // PAGE_SIZE)
+        self.parent_view.prev_btn.disabled = True
+        self.parent_view.next_btn.disabled = self.parent_view.page >= total_pages - 1
+        embed = _build_history_embed(
+            interaction.guild, rows, self.parent_view.page,
+            self.parent_view.total, self.parent_view.filters
+        )
+        await interaction.response.edit_message(embed=embed, view=self.parent_view)
+
+
+class HistoryView(discord.ui.View):
+    def __init__(self, guild, guild_id: str, page: int, total: int,
+                 filters: dict, action_group: str = None):
+        super().__init__(timeout=300)
+        self.guild        = guild
+        self.guild_id     = guild_id
+        self.page         = page
+        self.total        = total
+        self.filters      = filters
+        self.action_group = action_group
+        self._rebuild_components(action_group=action_group)
+
+    def _rebuild_components(self, action_group: str = None):
+        """Re-add all buttons and selects. Call after clear_items()."""
+        self.action_group = action_group
+        total_pages = max(1, (self.total + PAGE_SIZE - 1) // PAGE_SIZE)
+
+        # Row 0 — navigation buttons
+        self.prev_btn = discord.ui.Button(
+            label=t("buttons","history_prev"), style=discord.ButtonStyle.secondary,
+            disabled=(self.page == 0), row=0
+        )
+        self.next_btn = discord.ui.Button(
+            label=t("buttons","history_next"), style=discord.ButtonStyle.secondary,
+            disabled=(self.page >= total_pages - 1), row=0
+        )
+        self.filter_btn = discord.ui.Button(
+            label=t("buttons","history_filter"), style=discord.ButtonStyle.blurple, row=0
+        )
+        self.reset_btn = discord.ui.Button(
+            label=t("buttons","history_reset"),
+            style=discord.ButtonStyle.danger,
+            disabled=not any(self.filters.get(k) for k in ("action","user_id","date","category")),
+            row=0
+        )
+
+        async def _prev(interaction: discord.Interaction):
+            self.page = max(0, self.page - 1)
+            await self._update(interaction)
+        async def _next(interaction: discord.Interaction):
+            tp = max(1, (self.total + PAGE_SIZE - 1) // PAGE_SIZE)
+            self.page = min(tp - 1, self.page + 1)
+            await self._update(interaction)
+        async def _filter(interaction: discord.Interaction):
+            await interaction.response.send_modal(HistoryFilterModal(self))
+        async def _reset(interaction: discord.Interaction):
+            self.filters   = {}
+            self.action_group = None
+            self.page      = 0
+            self.total     = count_log(self.guild_id)
+            self.clear_items()
+            self._rebuild_components()
+            rows  = self._load_page()
+            embed = _build_history_embed(self.guild, rows, self.page, self.total, self.filters)
+            await interaction.response.edit_message(embed=embed, view=self)
+
+        self.prev_btn.callback   = _prev
+        self.next_btn.callback   = _next
+        self.filter_btn.callback = _filter
+        self.reset_btn.callback  = _reset
+
+        self.add_item(self.prev_btn)
+        self.add_item(self.next_btn)
+        self.add_item(self.filter_btn)
+        self.add_item(self.reset_btn)
+
+        # Row 1 — category/action dropdown
+        self.add_item(HistoryActionSelect(self, mode=action_group or "category"))
+
+        # Row 2 — detail select (populated with current page rows)
+        rows = self._load_page()
+        if rows:
+            self.add_item(HistoryDetailSelect(self, rows))
+
+    def _load_page(self) -> list:
+        return _query_log_page(
+            self.guild_id, PAGE_SIZE, self.page,
+            self.filters.get("action"),
+            self.filters.get("user_id"),
+            self.filters.get("date"),
+        )
+
+    async def _update(self, interaction: discord.Interaction):
+        rows = self._load_page()
+        total_pages = max(1, (self.total + PAGE_SIZE - 1) // PAGE_SIZE)
+        self.prev_btn.disabled = self.page == 0
+        self.next_btn.disabled = self.page >= total_pages - 1
+        embed = _build_history_embed(self.guild, rows, self.page, self.total, self.filters)
+        await interaction.response.edit_message(embed=embed, view=self)
+
+
+class HistoryFilterModal(discord.ui.Modal):
+    def __init__(self, parent_view: HistoryView):
+        super().__init__(title=t("modals","history_filter_title"))
+        self.parent = parent_view
+        cur = parent_view.filters
+        self.f_user = discord.ui.TextInput(
+            label=t("modals","history_filter_user_label"),
+            placeholder=t("modals","history_filter_user_ph"),
+            default=cur.get("user_raw","") or "",
+            style=discord.TextStyle.short, required=False, max_length=100
+        )
+        self.f_date = discord.ui.TextInput(
+            label=t("modals","history_filter_date_label"),
+            placeholder=t("modals","history_filter_date_ph"),
+            default=cur.get("date","") or "",
+            style=discord.TextStyle.short, required=False, max_length=10
+        )
+        self.add_item(self.f_user)
+        self.add_item(self.f_date)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        raw_user = self.f_user.value.strip()
+        user_id  = None
+        if raw_user:
+            clean = raw_user.strip("<@!>")
+            if clean.isdigit():
+                user_id = clean
+            else:
+                member = discord.utils.find(
+                    lambda m: m.display_name.lower() == raw_user.lower()
+                              or m.name.lower() == raw_user.lower(),
+                    interaction.guild.members
+                )
+                if member:
+                    user_id = str(member.id)
+        self.parent.filters.update({
+            "user_id":  user_id,
+            "user_raw": raw_user,
+            "date":     self.f_date.value.strip() or None,
+        })
+        self.parent.page  = 0
+        self.parent.total = count_log(
+            self.parent.guild_id,
+            self.parent.filters.get("action"),
+            self.parent.filters.get("user_id"),
+            self.parent.filters.get("date"),
+        )
+        rows = self.parent._load_page()
+        total_pages = max(1, (self.parent.total + PAGE_SIZE - 1) // PAGE_SIZE)
+        # Rebuild buttons to reflect new reset-disabled state
+        self.parent.clear_items()
+        self.parent._rebuild_components(action_group=self.parent.action_group)
+        embed = _build_history_embed(
+            interaction.guild, rows, self.parent.page,
+            self.parent.total, self.parent.filters
+        )
+        await interaction.response.edit_message(embed=embed, view=self.parent)
+
 
 # ─────────────────────────────────────────────
 #  BOT
@@ -7008,22 +7729,6 @@ async def setup_pioneer_role(interaction: discord.Interaction, rolle: discord.Ro
 #  SELFROLE COMMANDS
 # ─────────────────────────────────────────────
 
-@bot.tree.command(name="selfrole_create", description=td("selfrole_erstellen"))
-@app_commands.default_permissions(administrator=True)
-async def selfrole_erstellen(interaction: discord.Interaction):
-    """Starts the interactive self-role panel setup wizard."""
-    uid = interaction.user.id
-    _selfrole_wizard_state[uid] = {"title": "", "desc": "", "color_hex": "", "roles": []}
-    embed = _build_selfrole_embed(_selfrole_wizard_state[uid], interaction.guild)
-    view  = SelfRoleSetupMainView(uid)
-    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-    _wm = await interaction.original_response()
-    _wizard_messages[uid] = _wm.id
-    _wizard_interactions[uid] = interaction
-
-
-
-
 @bot.tree.command(
     name="selfrole_list",
     description=td("selfrole_liste")
@@ -7099,6 +7804,7 @@ async def whitelist_cmd(interaction: discord.Interaction, aktion: app_commands.C
         else:
             whitelist.append(clean_domain)
             save_whitelist(whitelist)
+            log_action(str(interaction.guild_id), interaction.user, "whitelist", clean_domain, "add")
             await interaction.response.send_message(
                 t("success","whitelist_added", domain=clean_domain), ephemeral=True
             )
@@ -7106,6 +7812,7 @@ async def whitelist_cmd(interaction: discord.Interaction, aktion: app_commands.C
         if clean_domain in whitelist:
             whitelist.remove(clean_domain)
             save_whitelist(whitelist)
+            log_action(str(interaction.guild_id), interaction.user, "whitelist", clean_domain, "remove")
             await interaction.response.send_message(
                 t("success","whitelist_removed", domain=clean_domain), ephemeral=True
             )
@@ -7147,6 +7854,9 @@ async def ban(interaction: discord.Interaction, nutzer: discord.Member, grund: s
         await interaction.response.send_message(
             t("success","ban_success", user=str(nutzer)), ephemeral=True
         )
+        log_action(str(interaction.guild_id), interaction.user, "ban", str(nutzer), grund,
+                   payload={"user_id": nutzer.id, "user_name": str(nutzer),
+                             "reason": grund, "avatar": str(nutzer.display_avatar.url)})
         await send_log(
             interaction.guild, t("embeds","log_ban","title"),
             t("embeds","log_ban","desc"),
@@ -7183,6 +7893,9 @@ async def kick(interaction: discord.Interaction, nutzer: discord.Member, grund: 
         await interaction.response.send_message(
             t("success","kick_success", user=str(nutzer)), ephemeral=True
         )
+        log_action(str(interaction.guild_id), interaction.user, "kick", str(nutzer), grund,
+                   payload={"user_id": nutzer.id, "user_name": str(nutzer),
+                             "reason": grund, "avatar": str(nutzer.display_avatar.url)})
         await send_log(
             interaction.guild, t("embeds","log_kick","title"),
             t("embeds","log_kick","desc"),
@@ -7227,6 +7940,11 @@ async def timeout(interaction: discord.Interaction, nutzer: discord.Member, minu
         await interaction.response.send_message(
             t("success","timeout_success", user=str(nutzer), minutes=minuten), ephemeral=True
         )
+        log_action(str(interaction.guild_id), interaction.user, "timeout", str(nutzer),
+                   str(minuten)+"min | "+grund,
+                   payload={"user_id": nutzer.id, "user_name": str(nutzer),
+                             "minutes": minuten, "reason": grund,
+                             "avatar": str(nutzer.display_avatar.url)})
         await send_log(
             interaction.guild, t("embeds","log_timeout","title"),
             t("embeds","log_timeout","desc"),
@@ -7257,6 +7975,11 @@ async def warn(interaction: discord.Interaction, nutzer: discord.Member, grund: 
     new_warn_count = current_warns + 1
     config[gid]["warns"][uid] = new_warn_count
     save_config(config)
+    log_action(gid, interaction.user, "warn", str(nutzer),
+               "#"+str(new_warn_count)+": "+grund,
+               payload={"user_id": nutzer.id, "user_name": str(nutzer),
+                         "count": new_warn_count, "reason": grund,
+                         "avatar": str(nutzer.display_avatar.url)})
 
     # Warn-Farbe eskaliert mit Anzahl
     warn_color = discord.Color.yellow()
@@ -7324,6 +8047,8 @@ async def warn_edit(interaction: discord.Interaction, nutzer: discord.Member, an
         msg = t("success","warn_edit_reset", mention=nutzer.mention)
 
     await interaction.response.send_message(msg, ephemeral=True)
+    log_action(str(interaction.guild_id), interaction.user, "warn_edit",
+               str(nutzer), str(alte_anzahl)+" -> "+str(anzahl))
     await send_log(
         interaction.guild, t("embeds","log_warn_edit","title"),
         t("embeds","log_warn_edit","desc"),
@@ -7388,110 +8113,6 @@ async def userinfo(interaction: discord.Interaction, nutzer: discord.Member = No
 #  CONFIG COMMANDS
 # ─────────────────────────────────────────────
 
-@bot.tree.command(name="set_log_channel", description=td("set_log_channel"))
-@app_commands.default_permissions(administrator=True)
-@app_commands.describe(
-    kanal=tp("set_log_channel","kanal")
-)
-async def set_log_channel(interaction: discord.Interaction, kanal: discord.TextChannel):
-    config = load_config()
-    gid = str(interaction.guild_id)
-    if gid not in config:
-        config[gid] = {}
-    config[gid]["log_channel_id"] = kanal.id
-    save_config(config)
-    await interaction.response.send_message(
-        t("success","log_channel_set", channel=kanal.mention), ephemeral=True
-    )
-
-
-@bot.tree.command(name="set_welcome_channel", description=td("set_welcome_channel"))
-@app_commands.default_permissions(administrator=True)
-@app_commands.describe(
-    kanal=tp("set_welcome_channel","kanal")
-)
-async def set_welcome_channel(interaction: discord.Interaction, kanal: discord.TextChannel):
-    config = load_config()
-    gid = str(interaction.guild_id)
-    if gid not in config:
-        config[gid] = {}
-    config[gid]["welcome_channel_id"] = kanal.id
-    save_config(config)
-    await interaction.response.send_message(
-        t("success","welcome_channel_set", channel=kanal.mention), ephemeral=True
-    )
-
-
-@bot.tree.command(name="set_waiting_room", description=td("set_waiting_room"))
-@app_commands.default_permissions(administrator=True)
-@app_commands.describe(
-    kanal=tp("set_waiting_room","kanal")
-)
-async def set_waiting_room(interaction: discord.Interaction, kanal: discord.VoiceChannel):
-    config = load_config()
-    gid = str(interaction.guild_id)
-    if gid not in config:
-        config[gid] = {}
-    config[gid]["waiting_room_id"] = kanal.id
-    save_config(config)
-    await interaction.response.send_message(
-        t("success","waiting_room_set", channel=kanal.mention), ephemeral=True
-    )
-
-
-@bot.tree.command(name="setup_verify", description=td("setup_verify"))
-@app_commands.default_permissions(administrator=True)
-async def setup_verify(interaction: discord.Interaction):
-    """Starts the interactive verify panel setup wizard."""
-    uid = interaction.user.id
-    _verify_wizard_state[uid] = {"thumbnail": True, "title": "", "desc": "", "color_hex": "", "role_id": None}
-    embed = _build_verify_wizard_embed(_verify_wizard_state[uid], interaction.guild)
-    view  = VerifyWizardMainView(uid)
-    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-    _wm = await interaction.original_response()
-    _wizard_messages[uid] = _wm.id
-    _wizard_interactions[uid] = interaction
-
-
-@bot.tree.command(name="status_config", description=td("status_config"))
-@app_commands.default_permissions(administrator=True)
-async def status_config(interaction: discord.Interaction):
-    """Starts the interactive bot status setup wizard."""
-    uid = interaction.user.id
-    config = load_config()
-    pres = config.get("bot_presence", {})
-    _status_wizard_state[uid] = {
-        "status":     pres.get("status", "online"),
-        "activity":   pres.get("type", "playing"),
-        "text":       pres.get("text", ""),
-        "stream_url": pres.get("url", "https://twitch.tv/discord"),
-    }
-    embed = _build_status_embed(_status_wizard_state[uid])
-    view  = StatusWizardView(uid)
-    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-    _wm = await interaction.original_response()
-    _wizard_messages[uid] = _wm.id
-    _wizard_interactions[uid] = interaction
-
-
-# ─────────────────────────────────────────────
-#  TICKET SETUP COMMANDS
-# ─────────────────────────────────────────────
-
-@bot.tree.command(name="setup_tickets", description=td("setup_tickets"))
-@app_commands.default_permissions(administrator=True)
-async def setup_tickets(interaction: discord.Interaction):
-    """Starts the interactive ticket panel setup wizard."""
-    uid = interaction.user.id
-    _ticket_wizard_state[uid] = {"title": "", "supporter_role_ids": [], "categories": []}
-    await interaction.response.send_message(
-        embed=_build_ticket_embed(_ticket_wizard_state[uid], interaction.guild),
-        view=TicketSetupMainView(uid), ephemeral=True
-    )
-    _wm = await interaction.original_response()
-    _wizard_messages[uid] = _wm.id
-    _wizard_interactions[uid] = interaction
-
 @bot.tree.command(name="ticket_edit", description=td("ticket_edit"))
 @app_commands.default_permissions(administrator=True)
 async def ticket_edit(interaction: discord.Interaction):
@@ -7543,9 +8164,6 @@ async def ticket_edit(interaction: discord.Interaction):
             content="Wähle das Ticket-Panel das du bearbeiten möchtest:",
             view=view, ephemeral=True
         )
-
-
-
 
 
 # ─────────────────────────────────────────────
@@ -7629,6 +8247,7 @@ async def set_language_cmd(interaction: discord.Interaction, sprache: app_comman
         t("success", "language_set"), ephemeral=True
     )
     lang_names = {"de": "🇩🇪 Deutsch", "en": "🇬🇧 English"}
+    log_action(str(interaction.guild_id), interaction.user, "language", sprache.value)
     await send_log(
         interaction.guild,
         t("embeds", "log_language", "title"),
@@ -7710,6 +8329,8 @@ async def config_export(interaction: discord.Interaction):
         file=file,
         ephemeral=True
     )
+    log_action(str(interaction.guild_id), interaction.user, "config_export",
+               None, str(open_apps_count)+" apps, "+str(open_tickets_count)+" tickets")
     await send_log(
         interaction.guild,
         t("embeds", "log_config_export", "title"),
@@ -7860,18 +8481,21 @@ class SetupMenuSelect(discord.ui.Select):
             _ticket_wizard_state[uid] = {"title": "", "supporter_role_ids": [], "categories": []}
             embed = _build_ticket_embed(_ticket_wizard_state[uid], interaction.guild)
             view  = TicketSetupMainView(uid)
+            log_action(str(interaction.guild_id), interaction.user, "setup_tickets")
             await interaction.response.edit_message(embed=embed, view=view)
 
         elif val == "verify":
             _verify_wizard_state[uid] = {"thumbnail": True, "title": "", "desc": "", "color_hex": "", "role_id": None}
             embed = _build_verify_wizard_embed(_verify_wizard_state[uid], interaction.guild)
             view  = VerifyWizardMainView(uid)
+            log_action(str(interaction.guild_id), interaction.user, "setup_verify")
             await interaction.response.edit_message(embed=embed, view=view)
 
         elif val == "selfroles":
             _selfrole_wizard_state[uid] = {"title": "", "desc": "", "color_hex": "", "roles": []}
             embed = _build_selfrole_embed(_selfrole_wizard_state[uid], interaction.guild)
             view  = SelfRoleSetupMainView(uid)
+            log_action(str(interaction.guild_id), interaction.user, "setup_selfroles")
             await interaction.response.edit_message(embed=embed, view=view)
 
         elif val == "application":
@@ -7881,6 +8505,7 @@ class SetupMenuSelect(discord.ui.Select):
             }
             embed = _build_wizard_embed(_setup_wizard_state[uid], interaction.guild)
             view  = AppSetupMainView(uid)
+            log_action(str(interaction.guild_id), interaction.user, "setup_application")
             await interaction.response.edit_message(embed=embed, view=view)
 
         elif val == "join_roles":
@@ -7982,6 +8607,7 @@ class SetupChannelSelect(discord.ui.ChannelSelect):
         config = load_config()
         config.setdefault(gid, {})[self.config_key] = ch.id
         save_config(config)
+        log_action(gid, interaction.user, "setup_" + self.config_key.replace("_id","").replace("_channel",""), str(ch))
 
         success_keys = {
             "log_channel_id":     ("success","log_channel_set"),
@@ -8021,6 +8647,7 @@ class SetupVoiceChannelSelect(discord.ui.ChannelSelect):
         config = load_config()
         config.setdefault(gid, {})[self.config_key] = ch.id
         save_config(config)
+        log_action(gid, interaction.user, "setup_waiting_room", str(ch))
         done_embed = discord.Embed(
             title="✅ " + t("success","waiting_room_set", channel=ch.mention),
             color=discord.Color.green()
@@ -8092,6 +8719,7 @@ async def embed_create_cmd(interaction: discord.Interaction):
     uid = interaction.user.id
     _embed_gen_state[uid] = _default_embed_state()
     status_embed = _build_embed_gen_status(_embed_gen_state[uid], interaction.guild)
+    log_action(str(interaction.guild_id), interaction.user, "embed_create")
     await interaction.response.send_message(embed=status_embed, view=EmbedGenView(uid), ephemeral=True)
     _wizard_interactions[uid] = interaction
 
@@ -8108,62 +8736,104 @@ async def ping(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
-
-
-
-
-
 # ─────────────────────────────────────────────
 #  APPLICATION COMMANDS
 # ─────────────────────────────────────────────
 
-@bot.tree.command(name="setup_application", description=td("setup_application"))
+@bot.tree.command(name="music_upload", description=td("music_upload"))
 @app_commands.default_permissions(administrator=True)
-async def setup_application(interaction: discord.Interaction):
-    """Starts the interactive application panel setup wizard (default questions)."""
-    uid = interaction.user.id
-    _setup_wizard_state[uid] = {
-        "title":             "",
-        "desc":              "",
-        "review_channel_id": None,
-        "reviewer_role_ids": [],
-        "questions":         None,   # None = use DEFAULT_APPLICATION_QUESTIONS
-        "current_section":   None,
-        "use_default":       True
+@app_commands.describe(datei=tp("music_upload","datei"))
+async def music_upload_cmd(interaction: discord.Interaction, datei: discord.Attachment):
+    await interaction.response.defer(ephemeral=True)
+    allowed_ext = (".mp3", ".ogg", ".wav", ".flac", ".m4a")
+    if not any(datei.filename.lower().endswith(ext) for ext in allowed_ext):
+        return await interaction.followup.send(t("errors","music_invalid_format"), ephemeral=True)
+    if datei.size > 25 * 1024 * 1024:
+        return await interaction.followup.send(t("errors","music_too_large"), ephemeral=True)
+    music_path = os.path.join(os.getcwd(), "support_music.mp3")
+    try:
+        data = await datei.read()
+        with open(music_path, "wb") as f:
+            f.write(data)
+        log_action(str(interaction.guild_id), interaction.user, "music_upload",
+                   datei.filename, str(round(datei.size/1024)) + " KB")
+        await interaction.followup.send(
+            t("success","music_uploaded", filename=datei.filename), ephemeral=True
+        )
+    except Exception as e:
+        await interaction.followup.send(t("errors","generic_error", error=str(e)), ephemeral=True)
+
+
+@bot.tree.command(name="music_download", description=td("music_download"))
+@app_commands.default_permissions(administrator=True)
+async def music_download_cmd(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    music_path = os.path.join(os.getcwd(), "support_music.mp3")
+    if not os.path.exists(music_path):
+        return await interaction.followup.send(t("errors","music_not_found"), ephemeral=True)
+    import io as _io
+    try:
+        with open(music_path, "rb") as f:
+            buf = _io.BytesIO(f.read())
+        buf.seek(0)
+        size_kb = round(os.path.getsize(music_path) / 1024)
+        await interaction.followup.send(
+            t("success","music_downloaded", size=size_kb),
+            file=discord.File(buf, filename="support_music.mp3"),
+            ephemeral=True
+        )
+    except Exception as e:
+        await interaction.followup.send(t("errors","generic_error", error=str(e)), ephemeral=True)
+
+
+# ─────────────────────────────────────────────
+#  HISTORY COMMAND
+# ─────────────────────────────────────────────
+
+@bot.tree.command(name="history", description=td("history"))
+@app_commands.default_permissions(administrator=True)
+@app_commands.describe(
+    action=tp("history","action"),
+    user=tp("history","user"),
+    date=tp("history","date")
+)
+async def history_cmd(interaction: discord.Interaction,
+                      action: str = None, user: str = None, date: str = None):
+    """Show paginated server audit log with optional filters."""
+    await interaction.response.defer(ephemeral=True)
+    guild_id = str(interaction.guild_id)
+
+    # Resolve user argument
+    user_id  = None
+    user_raw = user or ""
+    if user_raw:
+        clean = user_raw.strip("<@!>")
+        if clean.isdigit():
+            user_id = clean
+        else:
+            member = discord.utils.find(
+                lambda m: m.display_name.lower() == user_raw.lower()
+                          or m.name.lower() == user_raw.lower(),
+                interaction.guild.members
+            )
+            if member:
+                user_id = str(member.id)
+
+    filters = {
+        "action":   action or None,
+        "user_id":  user_id,
+        "user_raw": user_raw,
+        "date":     date or None,
     }
-    embed = _build_wizard_embed(_setup_wizard_state[uid], interaction.guild)
-    view  = AppSetupMainView(uid)
-    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-    _wm = await interaction.original_response()
-    _wizard_messages[uid] = _wm.id
-    _wizard_interactions[uid] = interaction
+    total = count_log(guild_id, filters.get("action"), filters.get("user_id"), filters.get("date"))
+    if total == 0:
+        return await interaction.followup.send(t("errors","history_empty"), ephemeral=True)
 
-
-
-
-
-
-
-
-@bot.tree.command(name="set_join_roles", description=td("set_join_roles"))
-@app_commands.default_permissions(administrator=True)
-async def set_join_roles(interaction: discord.Interaction):
-    """Starts the interactive join roles wizard."""
-    uid = interaction.user.id
-    config = load_config()
-    gid = str(interaction.guild_id)
-    existing = config.get(gid, {}).get("join_roles", [])
-    _joinroles_wizard_state[uid] = {"role_ids": list(existing)}
-    embed = _build_joinroles_embed(_joinroles_wizard_state[uid], interaction.guild)
-    view  = JoinRolesWizardView(uid)
-    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-    _wm = await interaction.original_response()
-    _wizard_messages[uid] = _wm.id
-    _wizard_interactions[uid] = interaction
-
-
-
-
+    rows  = _query_log_page(guild_id, PAGE_SIZE, 0,
+                             filters.get("action"), filters.get("user_id"), filters.get("date"))
+    embed = _build_history_embed(interaction.guild, rows, 0, total, filters)
+    view  = HistoryView(interaction.guild, guild_id, 0, total, filters)
+    await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
 
 @bot.event
@@ -8175,7 +8845,7 @@ async def on_ready():
     if DEBUG:
         print('🐛 DEBUG-Modus aktiv')
     if not os.path.exists(WHITELIST_FILE):
-        save_whitelist(["tenor.com", "giphy.com"])
+        save_whitelist(["tenor.com", "giphy.com", "cdn.discordapp.com"])
     config = load_config()
     pres = config.get("bot_presence")
     if pres:

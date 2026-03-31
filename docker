@@ -1,0 +1,2 @@
+docker buildx build --platform linux/amd64,linux/arm64 -t pilzithegoat/bexi_bot:release_ .
+docker push pilzithegoat/bexi_bot:release_

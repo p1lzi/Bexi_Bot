@@ -5,6 +5,7 @@ __pycache__/
 
 # C extensions
 *.so
+audit_log.db
 
 # Distribution / packaging
 .Python

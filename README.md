@@ -1,20 +1,21 @@
 # 🇬🇧 English
 <div align="center">
 
-# 🤖 Util Bot
+# 🤖 Bexi Bot
 
-**A fully-featured Discord bot for roleplay servers and normal servers**
+**A fully-featured Discord bot for roleplay servers and communities**
 
-Ticket System · Applications · Moderation · Verification · Self-Roles · Multilingual
+Ticket System · Applications · Moderation · Verification · Self-Roles · Embed Generator · Audit Log · Multilingual
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![discord.py](https://img.shields.io/badge/discord.py-2.x-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discordpy.readthedocs.io)
+[![Version](https://img.shields.io/badge/Version-2.0.0-57F287?style=for-the-badge)](https://github.com/pilzithegoat/bexi_bot)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-ARM64%20%2F%20x86-2496ED?style=for-the-badge&logo=docker&logoColor=white)](Docker/)
 
 <br/>
 
-**🇬🇧 English** · [🇩🇪 Deutsch](#-Deutsch)
+**🇬🇧 English** · [🇩🇪 Deutsch](#-deutsch)
 
 </div>
 
@@ -30,7 +31,7 @@ Ticket System · Applications · Moderation · Verification · Self-Roles · Mul
 Dropdown panels with categories, private threads, Claim & Close
 
 **📋 Application System**
-Multi-step forms, thread-based review, Accept / Decline / Question
+Multi-step forms with sections, thread-based review, Accept / Decline / Question
 
 **🛡️ Moderation**
 Ban, Kick, Timeout, Warn — with DM & log channel
@@ -41,11 +42,20 @@ Configurable embed with color, thumbnail & role
 **🎭 Self-Roles**
 Dropdown with checkmarks — select multiple roles at once
 
-**🔗 Link Whitelist**
-Automatic deletion of non-whitelisted links
+**🎨 Embed Generator**
+Full embed builder: fields, images, link buttons OR dropdown menus
 
 </td>
 <td>
+
+**👤 Admin Panel**
+UserSelect dropdown → instant user info + Timeout / Warn / Kick / Ban + Chat management
+
+**📋 Audit Log**
+SQLite-based logging of all admin actions with `/history` (filter, pagination, detail view)
+
+**🔗 Link Whitelist**
+Automatic deletion of non-whitelisted links
 
 **👋 Welcome**
 Welcome embed with account age & member number
@@ -56,20 +66,11 @@ Automatic music in waiting room voice channel
 **🌐 Multilingual**
 Fully in 🇩🇪 German & 🇬🇧 English, configurable per server
 
-**🗑️ Delete Wizard**
-Delete all panel types via interactive dropdowns
-
-**⚙️ Status Wizard**
-Configure bot status & activity via dropdowns
-
-**🏆 Pioneer Role**
-Automatically assigned to the first 100 members
-
 </td>
 </tr>
 </table>
 
-> **All setup processes use visual wizards with dropdowns and modals — no manual ID input required.**
+> **All setup processes use visual wizards — a single `/setup` command with dropdown menus and modals. No manual ID input required.**
 
 ---
 
@@ -245,49 +246,36 @@ Use the invite link from [Add to Your Server](#-add-to-your-server) — replace 
 
 ## ⚙️ Initial Setup
 
-After the bot is online, run these commands in the recommended order:
+After the bot is online, use the unified setup wizard:
 
 ```
-/set_language          → Choose 🇩🇪 German or 🇬🇧 English
-/set_log_channel       → Channel for all moderation logs
-/set_welcome_channel   → Channel for welcome messages
-/setup_verify          → Create verification panel
-/setup_tickets         → Create ticket panel with categories
-/setup_application     → Create application panel   (optional)
-/selfrole_create       → Create self-role panel      (optional)
-/set_join_roles        → Auto-join roles             (optional)
-/set_waiting_room      → Support music channel       (optional)
+/setup    → Opens the setup wizard with all options in one dropdown:
+            • Ticket System
+            • Verification
+            • Self-Roles
+            • Application System
+            • Log Channel
+            • Welcome Channel
+            • Waiting Room (support music)
+            • Auto-Join Roles
+            • Bot Status
+            • Language
 ```
 
 ---
 
 ## 📋 Commands
 
-### 🎫 Tickets
+### ⚙️ Setup & Management
 
 | Command | Description | Permission |
 |---|---|---|
-| `/setup_tickets` | Start interactive ticket wizard | Administrator |
-| `/ticket_edit` | Edit existing panel (embed, categories, roles) | Administrator |
-
-### 📋 Applications
-
-| Command | Description | Permission |
-|---|---|---|
-| `/setup_application` | Start application panel wizard | Administrator |
-
-### 🎭 Self-Roles
-
-| Command | Description | Permission |
-|---|---|---|
-| `/selfrole_create` | Start self-role panel wizard | Administrator |
-| `/selfrole_list` | Show all active self-role panels | Administrator |
-
-### ✅ Verification
-
-| Command | Description | Permission |
-|---|---|---|
-| `/setup_verify` | Start verify panel wizard | Administrator |
+| `/setup` | **Universal setup wizard** — all setup options in one dropdown | Administrator |
+| `/edit` | Edit existing panels | Administrator |
+| `/delete` | Delete panels & configurations | Administrator |
+| `/ticket_edit` | Edit ticket panel (title / description / color) | Administrator |
+| `/setup_pioneer_role` | Assign pioneer role to first 100 members | Administrator |
+| `/set_language` | Switch language (🇩🇪 / 🇬🇧) | Administrator |
 
 ### 🛡️ Moderation
 
@@ -298,27 +286,32 @@ After the bot is online, run these commands in the recommended order:
 | `/timeout` | `user`, `minutes`, `reason` | Moderate Members |
 | `/warn` | `user`, `reason` | Moderate Members |
 | `/warn_edit` | `user`, `count` | Moderate Members |
-| `/userinfo` | `user` (optional) | Everyone |
+| `/userinfo` | `user` (optional) | Everyone / Admin for others |
+| `/whitelist` | `action`, `domain` | Administrator |
+| `/adminpanel` | — | Administrator |
 
-### 🔗 Whitelist
-
-| Command | Parameters | Description |
-|---|---|---|
-| `/whitelist` | `action`, `domain` | Manage link whitelist (add / remove / list) |
-
-### ⚙️ Server Settings
+### 📋 Logs & Config
 
 | Command | Description | Permission |
 |---|---|---|
-| `/set_language` | Switch language (🇩🇪 / 🇬🇧) | Administrator |
-| `/set_log_channel` | Set log channel | Administrator |
-| `/set_welcome_channel` | Set welcome channel | Administrator |
-| `/set_waiting_room` | Set support music channel | Administrator |
-| `/set_join_roles` | Auto-join roles wizard | Administrator |
-| `/status_config` | Configure bot status & activity | Administrator |
-| `/setup_pioneer_role` | Assign role to first 100 members | Administrator |
-| `/delete` | Delete panels via interactive wizard | Administrator |
-| `/ping` | Show bot latency | Everyone |
+| `/history` | Paginated audit log with filters (action, user, date) + detail view | Administrator |
+| `/config_export` | Export config as JSON (incl. open tickets & applications) | Administrator |
+| `/config_import` | Import config + 24h rollback button | Administrator |
+
+### 🎵 Music & Embed
+
+| Command | Description | Permission |
+|---|---|---|
+| `/music_upload` | Upload waiting room music (.mp3/.ogg/.wav/.flac/.m4a, max 25 MB) | Administrator |
+| `/music_download` | Download current waiting room music | Administrator |
+| `/embed_create` | Embed generator (fields, images, link buttons, dropdown) | Administrator |
+
+### ℹ️ General
+
+| Command | Description | Permission |
+|---|---|---|
+| `/info` | Bot info, live statistics & version | Everyone |
+| `/ping` | Bot latency | Everyone |
 
 ---
 
@@ -326,19 +319,19 @@ After the bot is online, run these commands in the recommended order:
 
 ### 🎫 Ticket System
 
-The wizard guides through all steps: title, supporter roles (dropdown), categories with emoji & description, embed styling (hex color, description, thumbnail), and a live preview before creating.
+The wizard guides through all steps: title, supporter roles (dropdown), categories with emoji & description, embed styling (hex color, description, thumbnail), live preview.
 
-When a user selects a category, a **private thread** is automatically created. Supporters can **claim** (take ownership) or **close** tickets with a reason. The creator receives a DM for every action.
-
-Use `/ticket_edit` to update any existing panel — changes apply immediately to the Discord message.
+Users select a category → a **private thread** is automatically created. Supporters can **claim** or **close** (with reason). The creator receives a DM on every action.
 
 ---
 
 ### 📋 Application System
 
-Applications are split into steps of 4 questions each. Minimum lengths are enforced natively in the input field. After submission, a **private thread** is created in the configured review channel. Reviewers can Accept, Decline, or ask a follow-up Question — the applicant only gets access to the thread when a question is asked.
+Multi-step (4 questions per step), minimum lengths enforced directly in the input field. After submission a **private thread** is created in the review channel. Applicants only get access when the team sends a follow-up question.
 
-**Customize the default questions** in `configs/default_application.json`:
+**Default questions** (`configs/default_application.json` / `configs/default_application_de.json`):
+
+The bot automatically loads the language-appropriate default questions based on the server language setting.
 
 ```json
 {
@@ -349,10 +342,7 @@ Applications are split into steps of 4 questions each. Minimum lengths are enfor
       "style": "short",
       "required": true,
       "min_length": 0,
-      "section": {
-        "name": "👤 Personal Info",
-        "desc": "Basic information about you"
-      }
+      "section": { "name": "👤 Personal Info", "desc": "Basic information" }
     }
   ]
 }
@@ -360,50 +350,82 @@ Applications are split into steps of 4 questions each. Minimum lengths are enfor
 
 | Field | Values | Description |
 |---|---|---|
-| `style` | `short` / `paragraph` | Single line or multiline input |
+| `style` | `short` / `paragraph` | Single line or multi-line input |
 | `min_length` | `0`–`1023` | Minimum characters (0 = no limit) |
 | `section` | `{name, desc}` / `null` | Groups questions under a heading |
 
 ---
 
-### 🎭 Self-Roles
+### 🎨 Embed Generator
 
-Users see a single dropdown menu listing all available roles. Roles they already have are marked with **✅** and pre-selected. Multiple roles can be toggled at once — checkmarks remain correct when the dropdown is reopened.
+Full embed builder with live preview:
+
+- ✏️ **Title, description & color** (hex)
+- 🖼️ **Images** (large bottom + thumbnail right)
+- 👤 **Author & footer** with icons
+- ➕ **Fields** — add, edit & delete individual fields via dropdown
+- 🔗 **Link Buttons** (up to 5) — label, URL, emoji
+- 📋 **Dropdown Menu** (up to 25 options) — as an alternative to buttons
+- ⏱️ **Timestamp** toggle
 
 ---
 
-### ⚙️ Status Wizard
+### 👤 Admin Panel
 
-Configure the bot's online presence without typing — select the status (Online / Idle / DnD / Invisible) and activity type (Playing / Streaming / Listening / Watching) via dropdowns, then set the display text via modal. Settings are restored automatically after a restart.
+Select a member via Discord's native **UserSelect** dropdown → userinfo is shown immediately. Then choose from: Timeout / Extend Timeout / Remove Timeout / Warn / Kick / Ban. Chat management: Lock / Unlock / Slowmode / Purge.
+
+All Admin Panel actions are logged in the SQLite audit log.
+
+---
+
+### 📋 Audit Log (`/history`)
+
+All admin actions are stored in a SQLite database (`configs/audit_log.db`):
+
+- **Category dropdown** → specific action filter
+- **🔍 Filter modal** — user (@mention / name / ID) and date / month
+- **◀ / ▶ Pagination** — 8 entries per page
+- **Detail dropdown** — full info including reconstructed embed (if `embed_sent`)
+- **✖️ Reset filters** button
+
+---
+
+### ⚙️ Config Export / Import
+
+Export includes: guild config, open applications, open ticket threads (member IDs for restore).
+
+Import: preview with panel counts → confirm → panels recreated → rollback button in log channel (24h, admins only). Rollback deletes newly created panels and restores the old snapshot.
 
 ---
 
 ## 📁 Config Files
 
-All files are in the `configs/` folder and created automatically on first run.
+All configs are in the `configs/` folder and created automatically on first start.
 
-| File | Content |
+| File | Contents |
 |---|---|
-| `config.json` | Server configs — panels, warn counts, channel IDs |
+| `config.json` | Server configurations — panels, warn counts, channel IDs |
 | `whitelist.json` | Allowed link domains |
 | `open_applications.json` | Open application threads (button persistence after restart) |
-| `default_application.json` | Default application form — edit freely |
+| `audit_log.db` | SQLite audit log database |
+| `default_application.json` | Default application form (English) — freely editable |
+| `default_application_de.json` | Default application form (German) — freely editable |
 
-> All buttons and panels remain fully functional after a bot restart — no reconfiguration needed.
+> All buttons and panels remain fully functional after a restart — no re-setup required.
 
 ---
 
 ## 🔒 Required Permissions
 
 ```
-✅ Manage Roles              Assign roles (Verify, Self-Roles, Join-Roles)
+✅ Manage Roles              Role assignment (Verify, Self-Roles, Join-Roles)
 ✅ Manage Channels           Create ticket channels
 ✅ Manage Threads            Manage ticket threads
 ✅ Create Private Threads    Application review threads
 ✅ Ban Members               /ban
 ✅ Kick Members              /kick
 ✅ Moderate Members          /timeout, /warn
-✅ Send Messages             General messaging
+✅ Send Messages             General
 ✅ Send Messages in Threads  Ticket threads
 ✅ Embed Links               Send embeds
 ✅ Manage Messages           Link whitelist
@@ -418,26 +440,34 @@ All files are in the `configs/` folder and created automatically on first run.
 This project is licensed under the [MIT License](LICENSE).
 
 ---
----
----
-# 🇬🇧 Deutsch
 
 <div align="center">
 
-# 🤖 Util Bot
+Made with ❤️ by **pilzithegoat**
 
-**Ein vollständiger Discord-Bot für Roleplay-Server**
+</div>
 
-Ticket-System · Bewerbungen · Moderation · Verifizierung · Self-Roles · Mehrsprachig
+---
+
+# 🇩🇪 Deutsch
+
+<div align="center">
+
+# 🤖 Bexi Bot
+
+**Ein vollwertiger Discord-Bot für Roleplay-Server und Communities**
+
+Ticket-System · Bewerbungen · Moderation · Verifizierung · Self-Roles · Embed-Generator · Audit-Log · Mehrsprachig
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![discord.py](https://img.shields.io/badge/discord.py-2.x-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discordpy.readthedocs.io)
+[![Version](https://img.shields.io/badge/Version-2.0.0-57F287?style=for-the-badge)](https://github.com/pilzithegoat/bexi_bot)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-ARM64%20%2F%20x86-2496ED?style=for-the-badge&logo=docker&logoColor=white)](Docker/)
 
 <br/>
 
-[🇬🇧 English](#-English) · **🇩🇪 Deutsch**
+[🇬🇧 English](#-english) · **🇩🇪 Deutsch**
 
 </div>
 
@@ -450,10 +480,10 @@ Ticket-System · Bewerbungen · Moderation · Verifizierung · Self-Roles · Meh
 <td>
 
 **🎫 Ticket-System**
-Dropdown-Panels mit Kategorien, private Threads, Claim & Close
+Dropdown-Panels mit Kategorien, privaten Threads, Claim & Close
 
 **📋 Bewerbungssystem**
-Mehrstufige Formulare, Thread-Review, Accept / Decline / Rückfrage
+Mehrstufige Formulare mit Sektionen, Thread-basiertes Review, Annehmen / Ablehnen / Rückfrage
 
 **🛡️ Moderation**
 Ban, Kick, Timeout, Warn — mit DM & Log-Kanal
@@ -464,35 +494,35 @@ Konfigurierbares Embed mit Farbe, Thumbnail & Rolle
 **🎭 Self-Roles**
 Dropdown mit Häkchen — mehrere Rollen gleichzeitig wählen
 
-**🔗 Link-Whitelist**
-Automatisches Löschen nicht erlaubter Links
+**🎨 Embed-Generator**
+Vollständiger Embed-Builder: Felder, Bilder, Link-Buttons ODER Dropdown-Menü
 
 </td>
 <td>
 
+**👤 Admin-Panel**
+UserSelect-Dropdown → sofortige Nutzer-Info + Timeout / Warn / Kick / Ban + Chat-Verwaltung
+
+**📋 Audit-Log**
+SQLite-basiertes Logging aller Admin-Aktionen mit `/history` (Filter, Pagination, Detail-Ansicht)
+
+**🔗 Link-Whitelist**
+Automatisches Löschen nicht erlaubter Links
+
 **👋 Willkommen**
-Begrüßungs-Embed mit Account-Alter & Mitglieder-Nummer
+Willkommens-Embed mit Account-Alter & Mitglieds-Nummer
 
 **🎵 Support-Musik**
 Automatische Musik im Warteraum-Sprachkanal
 
 **🌐 Mehrsprachig**
-Vollständig auf 🇩🇪 Deutsch & 🇬🇧 Englisch, pro Server
-
-**🗑️ Delete-Wizard**
-Alle Panels bequem über Dropdowns löschen
-
-**⚙️ Status-Wizard**
-Bot-Status & Aktivität per Dropdown konfigurieren
-
-**🏆 Pioneer-Rolle**
-Automatisch an die ersten 100 Mitglieder vergeben
+Vollständig auf 🇩🇪 Deutsch & 🇬🇧 Englisch, pro Server konfigurierbar
 
 </td>
 </tr>
 </table>
 
-> **Alle Einrichtungen funktionieren über visuelle Wizards mit Dropdowns und Modals — kein Eintippen von IDs nötig.**
+> **Alle Einrichtungsprozesse nutzen visuelle Wizards — ein einziger `/setup` Command mit Dropdown-Menüs und Modals. Keine manuelle ID-Eingabe erforderlich.**
 
 ---
 
@@ -504,20 +534,20 @@ Ersetze `YOUR_ID` mit der **Application ID** deines Bots aus dem [Discord Develo
 https://discord.com/oauth2/authorize?client_id=YOUR_ID&permissions=9175529923606&integration_type=0&scope=bot+applications.commands
 ```
 
-> Die Application ID findest du unter **General Information** im Developer Portal.
+> Die Application ID findet sich unter **General Information** im Developer Portal.
 
 ---
 
 ## 📖 Inhaltsverzeichnis
 
 - [Features](#-features-1)
-- [Bot hinzufügen](#-bot-zum-server-hinzufügen)
+- [Bot zum Server hinzufügen](#-bot-zum-server-hinzufügen)
 - [Voraussetzungen](#-voraussetzungen)
 - [Installation](#-installation-1)
   - [Methode 1: Python (lokal)](#methode-1-python-lokal)
   - [Methode 2: Docker (empfohlen)](#methode-2-docker-empfohlen)
   - [Methode 3: Raspberry Pi](#methode-3-raspberry-pi)
-- [Bot einrichten](#-discord-bot-einrichten)
+- [Discord Bot einrichten](#-discord-bot-einrichten)
 - [Ersteinrichtung](#-ersteinrichtung)
 - [Commands](#-commands-1)
 - [Features im Detail](#-features-im-detail)
@@ -529,7 +559,7 @@ https://discord.com/oauth2/authorize?client_id=YOUR_ID&permissions=9175529923606
 
 ## 📋 Voraussetzungen
 
-| Anforderung | Version | Anmerkung |
+| Anforderung | Version | Hinweis |
 |---|---|---|
 | Python | 3.11+ | Für lokale Installation |
 | Docker + Docker Compose | aktuell | Für Docker-Installation |
@@ -662,55 +692,42 @@ Unter **Bot** → **Privileged Gateway Intents** alle drei aktivieren:
 
 ### 4. Bot einladen
 
-Einlade-Link aus [Bot zum Server hinzufügen](#-bot-zum-server-hinzufügen) verwenden — `YOUR_ID` durch die **Application ID** ersetzen (zu finden unter **General Information**).
+Einlade-Link aus [Bot zum Server hinzufügen](#-bot-zum-server-hinzufügen) verwenden — `YOUR_ID` durch die **Application ID** ersetzen (unter **General Information**).
 
 ---
 
 ## ⚙️ Ersteinrichtung
 
-Nach dem Start empfiehlt sich folgende Reihenfolge:
+Nach dem Start den universellen Setup-Wizard verwenden:
 
 ```
-/set_language          → 🇩🇪 Deutsch oder 🇬🇧 English wählen
-/set_log_channel       → Kanal für alle Moderations-Logs
-/set_welcome_channel   → Kanal für Willkommensnachrichten
-/setup_verify          → Verifizierungs-Panel erstellen
-/setup_tickets         → Ticket-Panel mit Kategorien erstellen
-/setup_application     → Bewerbungs-Panel erstellen  (optional)
-/selfrole_create       → Self-Role-Panel erstellen    (optional)
-/set_join_roles        → Auto-Join-Rollen             (optional)
-/set_waiting_room      → Support-Musik-Kanal          (optional)
+/setup    → Öffnet den Setup-Wizard mit allen Optionen in einem Dropdown:
+            • Ticket-System
+            • Verifizierung
+            • Self-Roles
+            • Bewerbungssystem
+            • Log-Kanal
+            • Willkommens-Kanal
+            • Warteraum (Support-Musik)
+            • Auto-Join Rollen
+            • Bot-Status
+            • Sprache
 ```
 
 ---
 
 ## 📋 Commands
 
-### 🎫 Tickets
+### ⚙️ Setup & Verwaltung
 
 | Command | Beschreibung | Berechtigung |
 |---|---|---|
-| `/setup_tickets` | Interaktiven Ticket-Wizard starten | Administrator |
-| `/ticket_edit` | Bestehendes Panel bearbeiten | Administrator |
-
-### 📋 Bewerbungen
-
-| Command | Beschreibung | Berechtigung |
-|---|---|---|
-| `/setup_application` | Bewerbungs-Panel-Wizard starten | Administrator |
-
-### 🎭 Self-Roles
-
-| Command | Beschreibung | Berechtigung |
-|---|---|---|
-| `/selfrole_create` | Self-Role-Panel-Wizard starten | Administrator |
-| `/selfrole_list` | Alle aktiven Self-Role-Panels anzeigen | Administrator |
-
-### ✅ Verifizierung
-
-| Command | Beschreibung | Berechtigung |
-|---|---|---|
-| `/setup_verify` | Verify-Panel-Wizard starten | Administrator |
+| `/setup` | **Universeller Setup-Wizard** — alle Optionen in einem Dropdown | Administrator |
+| `/edit` | Bestehende Panels bearbeiten | Administrator |
+| `/delete` | Panels & Konfigurationen löschen | Administrator |
+| `/ticket_edit` | Ticket-Panel bearbeiten (Titel / Beschreibung / Farbe) | Administrator |
+| `/setup_pioneer_role` | Erste 100 Mitglieder mit Pionier-Rolle versehen | Administrator |
+| `/set_language` | Sprache umschalten (🇩🇪 / 🇬🇧) | Administrator |
 
 ### 🛡️ Moderation
 
@@ -721,26 +738,31 @@ Nach dem Start empfiehlt sich folgende Reihenfolge:
 | `/timeout` | `nutzer`, `minuten`, `grund` | Moderate Members |
 | `/warn` | `nutzer`, `grund` | Moderate Members |
 | `/warn_edit` | `nutzer`, `anzahl` | Moderate Members |
-| `/userinfo` | `nutzer` (optional) | Jeder |
+| `/userinfo` | `nutzer` (optional) | Jeder / Admin für andere |
+| `/whitelist` | `aktion`, `domain` | Administrator |
+| `/adminpanel` | — | Administrator |
 
-### 🔗 Whitelist
-
-| Command | Parameter | Beschreibung |
-|---|---|---|
-| `/whitelist` | `aktion`, `domain` | Link-Whitelist verwalten (hinzufügen / entfernen / anzeigen) |
-
-### ⚙️ Server-Einstellungen
+### 📋 Logs & Config
 
 | Command | Beschreibung | Berechtigung |
 |---|---|---|
-| `/set_language` | Sprache umschalten (🇩🇪 / 🇬🇧) | Administrator |
-| `/set_log_channel` | Log-Kanal festlegen | Administrator |
-| `/set_welcome_channel` | Willkommens-Kanal festlegen | Administrator |
-| `/set_waiting_room` | Warteraum für Support-Musik | Administrator |
-| `/set_join_roles` | Auto-Join-Rollen Wizard | Administrator |
-| `/status_config` | Bot-Status & Aktivität konfigurieren | Administrator |
-| `/setup_pioneer_role` | Erste 100 Mitglieder mit Rolle versehen | Administrator |
-| `/delete` | Panels aller Typen über Wizard löschen | Administrator |
+| `/history` | Paginierter Audit-Log mit Filtern (Aktion, Nutzer, Datum) + Detail-Ansicht | Administrator |
+| `/config_export` | Config als JSON exportieren (inkl. offene Tickets & Bewerbungen) | Administrator |
+| `/config_import` | Config importieren + 24h Rollback-Button | Administrator |
+
+### 🎵 Musik & Embed
+
+| Command | Beschreibung | Berechtigung |
+|---|---|---|
+| `/music_upload` | Warteraum-Musik hochladen (.mp3/.ogg/.wav/.flac/.m4a, max 25 MB) | Administrator |
+| `/music_download` | Aktuelle Warteraum-Musik herunterladen | Administrator |
+| `/embed_create` | Embed-Generator (Felder, Bilder, Link-Buttons, Dropdown) | Administrator |
+
+### ℹ️ Allgemein
+
+| Command | Beschreibung | Berechtigung |
+|---|---|---|
+| `/info` | Bot-Infos, Live-Statistiken & Version | Jeder |
 | `/ping` | Bot-Latenz anzeigen | Jeder |
 
 ---
@@ -751,31 +773,28 @@ Nach dem Start empfiehlt sich folgende Reihenfolge:
 
 Der Wizard führt durch alle Schritte: Titel, Supporter-Rollen (Dropdown), Kategorien mit Emoji & Beschreibung, Embed gestalten (Hex-Farbe, Beschreibung, Thumbnail), Live-Vorschau.
 
-Nutzer wählen eine Kategorie → **privater Thread** wird automatisch erstellt. Supporter können **claimen** (übernehmen) oder **schließen** (mit Begründung). Der Ersteller bekommt bei jeder Aktion eine DM.
-
-Mit `/ticket_edit` lassen sich bestehende Panels vollständig anpassen — Änderungen werden sofort auf die Discord-Nachricht übernommen.
+Nutzer wählen eine Kategorie → **privater Thread** wird automatisch erstellt. Supporter können **übernehmen** oder **schließen** (mit Begründung). Der Ersteller bekommt bei jeder Aktion eine DM.
 
 ---
 
 ### 📋 Bewerbungssystem
 
-Mehrstufig (4 Fragen pro Schritt), Mindestlängen werden direkt im Eingabefeld erzwungen. Nach dem Einreichen wird ein **privater Thread** im Review-Channel erstellt. Bewerber erhalten erst Zugang wenn das Team eine Rückfrage stellt.
+Mehrstufig (4 Fragen pro Schritt), Mindestlängen werden direkt im Eingabefeld erzwungen. Nach dem Einreichen wird ein **privater Thread** im Review-Channel erstellt. Bewerber erhalten erst Zugang, wenn das Team eine Rückfrage stellt.
 
-**Standard-Fragen anpassen** (`configs/default_application.json`):
+**Standard-Fragen** (`configs/default_application.json` / `configs/default_application_de.json`):
+
+Der Bot lädt automatisch die sprachgerechten Standardfragen basierend auf der eingestellten Server-Sprache.
 
 ```json
 {
   "questions": [
     {
-      "label": "Roblox Username",
+      "label": "Roblox Benutzername",
       "placeholder": "Dein Nutzername",
       "style": "short",
       "required": true,
       "min_length": 0,
-      "section": {
-        "name": "👤 Persönliche Daten",
-        "desc": "Grundlegende Informationen"
-      }
+      "section": { "name": "👤 Persönliche Daten", "desc": "Grundlegende Informationen" }
     }
   ]
 }
@@ -789,15 +808,45 @@ Mehrstufig (4 Fragen pro Schritt), Mindestlängen werden direkt im Eingabefeld e
 
 ---
 
-### 🎭 Self-Roles
+### 🎨 Embed-Generator
 
-Nutzer sehen ein einziges Dropdown mit allen verfügbaren Rollen. Bereits vorhandene Rollen sind mit **✅** vorausgewählt. Mehrere Rollen gleichzeitig an- und abhaken — Häkchen bleiben beim nächsten Öffnen korrekt gesetzt.
+Vollständiger Embed-Builder mit Live-Vorschau:
+
+- ✏️ **Titel, Beschreibung & Farbe** (Hex)
+- 🖼️ **Bilder** (groß unten + Thumbnail rechts)
+- 👤 **Author & Footer** mit Icons
+- ➕ **Felder** — einzeln hinzufügen, bearbeiten & löschen per Dropdown
+- 🔗 **Link-Buttons** (bis zu 5) — Beschriftung, URL, Emoji
+- 📋 **Dropdown-Menü** (bis zu 25 Optionen) — als Alternative zu Buttons
+- ⏱️ **Timestamp** Toggle
 
 ---
 
-### ⚙️ Status-Wizard
+### 👤 Admin-Panel
 
-Bot-Präsenz ohne Tippen konfigurieren: Online-Status (Online / Idle / DnD / Invisible) und Aktivitätstyp (Playing / Streaming / Listening / Watching) per Dropdown, Text per Modal. Einstellungen werden nach einem Neustart automatisch wiederhergestellt.
+Mitglied über Discords natives **UserSelect**-Dropdown auswählen → Nutzer-Info wird sofort angezeigt. Dann wählen: Timeout / Timeout verlängern / Timeout aufheben / Verwarnen / Kicken / Bannen. Chat-Verwaltung: Sperren / Entsperren / Slowmode / Nachrichten löschen.
+
+Alle Admin-Panel-Aktionen werden im SQLite-Audit-Log gespeichert.
+
+---
+
+### 📋 Audit-Log (`/history`)
+
+Alle Admin-Aktionen werden in einer SQLite-Datenbank gespeichert:
+
+- **Kategorie-Dropdown** → spezifischer Aktionsfilter
+- **🔍 Filter-Modal** — Nutzer (@mention / Name / ID) und Datum / Monat
+- **◀ / ▶ Pagination** — 8 Einträge pro Seite
+- **Detail-Dropdown** — vollständige Infos inkl. rekonstruiertem Embed (bei `embed_sent`)
+- **✖️ Filter zurücksetzen** Button
+
+---
+
+### ⚙️ Config Export / Import
+
+Export enthält: Guild-Config, offene Bewerbungen, offene Ticket-Threads (Mitglieds-IDs zur Wiederherstellung).
+
+Import: Vorschau mit Panel-Anzahl → bestätigen → Panels werden neu erstellt → Rollback-Button im Log-Kanal (24h, nur Admins). Rollback löscht neu erstellte Panels und stellt den alten Snapshot wieder her.
 
 ---
 
@@ -810,7 +859,9 @@ Alle Configs liegen im `configs/`-Ordner und werden beim ersten Start automatisc
 | `config.json` | Server-Konfigurationen — Panels, Warn-Counts, Kanal-IDs |
 | `whitelist.json` | Erlaubte Link-Domains |
 | `open_applications.json` | Offene Bewerbungs-Threads (Button-Persistenz nach Neustart) |
-| `default_application.json` | Standard-Bewerbungsformular — frei editierbar |
+| `audit_log.db` | SQLite Audit-Log Datenbank |
+| `default_application.json` | Standard-Bewerbungsformular (Englisch) — frei editierbar |
+| `default_application_de.json` | Standard-Bewerbungsformular (Deutsch) — frei editierbar |
 
 > Alle Buttons und Panels bleiben nach einem Neustart vollständig funktionsfähig — keine erneute Einrichtung nötig.
 
@@ -844,6 +895,6 @@ Dieses Projekt steht unter der [MIT License](LICENSE).
 
 <div align="center">
 
-Made with ❤️ by **p1lzi**
+Made with ❤️ by **pilzithegoat**
 
 </div>

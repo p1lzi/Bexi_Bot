@@ -1,0 +1,269 @@
+{
+    "_info": {
+        "description": "Standard Staff-Bewerbung — ERLC RP Server",
+        "version": "1.0",
+        "language": "de"
+    },
+    "panel": {
+        "title": "📋 Staff Bewerbung",
+        "description": "Möchtest du Teil unseres Teams werden?\n\nKlicke auf **Jetzt bewerben** und fülle das Formular aus. Du wirst Schritt für Schritt durch alle Fragen geführt.\n\n> ⚠️ Beantworte alle Fragen vollständig und ehrlich."
+    },
+    "questions": [
+        {
+            "label": "Roblox Benutzername",
+            "placeholder": "Dein Roblox Benutzername",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": {
+                "name": "👤  Persönliche Angaben",
+                "desc": "Grundlegende Informationen über dich"
+            }
+        },
+        {
+            "label": "Roblox Nutzer-ID",
+            "placeholder": "Deine Roblox Nutzer-ID (nur Zahlen)",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": null
+        },
+        {
+            "label": "Discord Name + Tag",
+            "placeholder": "z.B. benutzername oder benutzername#0000",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": null
+        },
+        {
+            "label": "Alter",
+            "placeholder": "Dein Alter",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": null
+        },
+        {
+            "label": "Zeitzone",
+            "placeholder": "z.B. UTC+1, MEZ, CEST",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": null
+        },
+        {
+            "label": "Land / Region",
+            "placeholder": "z.B. Deutschland, Österreich, Schweiz",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": null
+        },
+        {
+            "label": "Bisherige Staff-Erfahrung?",
+            "placeholder": "Ja/Nein — Falls ja: Server, Position, Grund des Ausscheidens",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 20,
+            "section": {
+                "name": "🏆  Erfahrung",
+                "desc": "Deine bisherige Moderations-Erfahrung"
+            }
+        },
+        {
+            "label": "ERLC Moderations-Erfahrung?",
+            "placeholder": "Ja/Nein — verwendete Tools, behandelte Situationen",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 20,
+            "section": null
+        },
+        {
+            "label": "Warum möchtest du im Staff sein?",
+            "placeholder": "Mindestens 5 Sätze",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 100,
+            "section": {
+                "name": "💬  Motivation",
+                "desc": "Erzähl uns, warum du dem Team beitreten möchtest"
+            }
+        },
+        {
+            "label": "Was macht dich zu einem guten Staff?",
+            "placeholder": "Mindestens 5 Sätze",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 100,
+            "section": null
+        },
+        {
+            "label": "Deine Stärken",
+            "placeholder": "Liste deine Stärken auf",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 30,
+            "section": null
+        },
+        {
+            "label": "Deine Schwächen",
+            "placeholder": "Liste deine Schwächen auf",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 30,
+            "section": null
+        },
+        {
+            "label": "Tägliche Aktivität (Stunden)",
+            "placeholder": "1-2h / 2-4h / 4-6h / 6+h",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": {
+                "name": "📅  Aktivität",
+                "desc": "Deine Verfügbarkeit und Online-Zeiten"
+            }
+        },
+        {
+            "label": "Wann bist du meistens online?",
+            "placeholder": "z.B. abends 18-22 Uhr (MEZ)",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": null
+        },
+        {
+            "label": "Tickets regelmäßig bearbeiten?",
+            "placeholder": "Ja / Nein",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": null
+        },
+        {
+            "label": "Spieler beleidigt dich im RP?",
+            "placeholder": "Beschreibe deine Reaktion",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 50,
+            "section": {
+                "name": "⚡  Situationsfragen",
+                "desc": "Wie würdest du in diesen Szenarien reagieren?"
+            }
+        },
+        {
+            "label": "Zwei Spieler streiten im Ticket?",
+            "placeholder": "Wie deeskalierst du die Situation?",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 50,
+            "section": null
+        },
+        {
+            "label": "Freund verstößt gegen Regeln?",
+            "placeholder": "Wie gehst du damit um?",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 50,
+            "section": null
+        },
+        {
+            "label": "Du wirst als unfair beschuldigt?",
+            "placeholder": "Wie reagierst du?",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 50,
+            "section": null
+        },
+        {
+            "label": "Unsicher ob Regel gebrochen wurde?",
+            "placeholder": "Welche Schritte unternimmst du?",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 50,
+            "section": null
+        },
+        {
+            "label": "Definiere: FRP / RDM / VDM",
+            "placeholder": "Erkläre jeden Begriff kurz",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 30,
+            "section": {
+                "name": "📖  Regelkenntnisse",
+                "desc": "Beweise, dass du die Serverregeln kennst"
+            }
+        },
+        {
+            "label": "Definiere: FearRP / Meta / CombLog",
+            "placeholder": "Erkläre jeden Begriff kurz",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 30,
+            "section": null
+        },
+        {
+            "label": "Was ist Staff-Missbrauch?",
+            "placeholder": "Deine Definition",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 30,
+            "section": null
+        },
+        {
+            "label": "Was darf Staff NIEMALS tun?",
+            "placeholder": "Auch im Off-Duty",
+            "style": "paragraph",
+            "required": true,
+            "min_length": 30,
+            "section": null
+        },
+        {
+            "label": "Funktionierendes Mikrofon? (Ja/Nein)",
+            "placeholder": "Ja / Nein",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": {
+                "name": "🔧  Technik",
+                "desc": "Technische Voraussetzungen für die Rolle"
+            }
+        },
+        {
+            "label": "Voice-Tickets? (Ja/Nein)",
+            "placeholder": "Ja / Nein",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": null
+        },
+        {
+            "label": "Beweise aufnehmen? (Ja/Nein)",
+            "placeholder": "Ja / Nein",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": null
+        },
+        {
+            "label": "Staff-Regeln & Kündigung akzeptiert?",
+            "placeholder": "Ja / Nein",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": {
+                "name": "✅  Zustimmung",
+                "desc": "Bestätige, dass du allen Bedingungen zustimmst"
+            }
+        },
+        {
+            "label": "Alle Angaben sind wahrheitsgemäß? (Ja/Nein)",
+            "placeholder": "Ja / Nein",
+            "style": "short",
+            "required": true,
+            "min_length": 0,
+            "section": null
+        }
+    ]
+}

@@ -443,7 +443,7 @@ This project is licensed under the [MIT License](LICENSE).
 
 <div align="center">
 
-Made with ❤️ by **pilzithegoat**
+Made with ❤️ by **p1lzi**
 
 </div>
 
@@ -895,6 +895,6 @@ Dieses Projekt steht unter der [MIT License](LICENSE).
 
 <div align="center">
 
-Made with ❤️ by **pilzithegoat**
+Made with ❤️ by **p1lzi**
 
 </div>

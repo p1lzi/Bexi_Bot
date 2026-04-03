@@ -212,6 +212,14 @@
                 "user": "Nur Aktionen dieses Nutzers (Name, Mention oder ID)",
                 "date": "Datum oder Monat filtern (z.B. 2026-03 oder 2026-03-15)"
             }
+        },
+        "info": {
+            "description": "Zeigt Informationen über den Bot an",
+            "params": {}
+        },
+        "help": {
+            "description": "Zeigt alle verfügbaren Commands und die Bedienung des Bots",
+            "params": {}
         }
     },
     "buttons": {
@@ -308,7 +316,13 @@
         "history_reset": "✖️ Filter zurücksetzen",
         "embed_gen_add_btn": "🔗 Button hinzufügen",
         "embed_gen_edit_btn": "✏️ Button bearbeiten",
-        "embed_gen_delete_btn": "🗑️ Button löschen"
+        "embed_gen_delete_btn": "🗑️ Button löschen",
+        "embed_gen_add_comp": "🔗 Komponente hinzufügen",
+        "embed_gen_comp_link_btns": "🔗 Link-Buttons",
+        "embed_gen_comp_dropdown": "📋 Dropdown-Menü",
+        "embed_gen_edit_dd_option": "✏️ Option bearbeiten",
+        "embed_gen_delete_dd_option": "🗑️ Option löschen",
+        "info_github": "GitHub"
     },
     "modals": {
         "ticket_close_title": "Ticket schließen",
@@ -479,7 +493,14 @@
         "embed_gen_btn_url_label": "URL (Link-Ziel)",
         "embed_gen_btn_url_ph": "https://discord.gg/...",
         "embed_gen_btn_emoji_label": "Emoji (optional)",
-        "embed_gen_btn_emoji_ph": "z.B. 🎮"
+        "embed_gen_btn_emoji_ph": "z.B. 🎮",
+        "embed_gen_dd_add_title": "Dropdown-Option hinzufügen",
+        "embed_gen_dd_edit_title": "Dropdown-Option bearbeiten",
+        "embed_gen_dd_label_label": "Bezeichnung",
+        "embed_gen_dd_label_ph": "z.B. Server beitreten",
+        "embed_gen_dd_desc_label": "Beschreibung (optional)",
+        "embed_gen_dd_desc_ph": "Kurze Beschreibung der Option...",
+        "embed_gen_dd_url_label": "URL (optional, bei Klick öffnen)"
     },
     "selects": {
         "ticket_placeholder": "📂 Wähle dein Anliegen...",
@@ -561,7 +582,10 @@
         "history_cat_music_desc": "Warteraum-Musik hochladen & herunterladen",
         "history_detail_ph": "🔍 Eintrag für Details auswählen...",
         "embed_gen_edit_btn_ph": "✏️ Welchen Button bearbeiten?",
-        "embed_gen_delete_btn_ph": "🗑️ Welchen Button löschen?"
+        "embed_gen_delete_btn_ph": "🗑️ Welchen Button löschen?",
+        "embed_gen_dd_placeholder": "Wähle eine Option...",
+        "embed_gen_edit_dd_ph": "✏️ Welche Option bearbeiten?",
+        "embed_gen_delete_dd_ph": "🗑️ Welche Option löschen?"
     },
     "errors": {
         "role_not_found": "❌ Diese Rolle existiert nicht mehr.",
@@ -641,7 +665,9 @@
         "music_not_found": "❌ Keine Musik-Datei vorhanden. Bitte zuerst eine Datei hochladen.",
         "history_empty": "ℹ️ Keine Einträge für diesen Server gefunden.",
         "embed_gen_max_buttons": "❌ Maximal 5 Buttons pro Embed erlaubt.",
-        "embed_gen_no_buttons": "❌ Keine Buttons vorhanden."
+        "embed_gen_no_buttons": "❌ Keine Buttons vorhanden.",
+        "embed_gen_max_dd_options": "❌ Maximal 25 Optionen pro Dropdown erlaubt.",
+        "embed_gen_no_dd_options": "❌ Keine Dropdown-Optionen vorhanden."
     },
     "success": {
         "log_channel_set": "✅ Log-Kanal wurde auf {channel} gesetzt.",
@@ -743,7 +769,9 @@
         "music_downloaded": "🎵 Aktuelle Warteraum-Musik ({size} KB):",
         "embed_gen_btn_deleted": "✅ Button gelöscht.",
         "embed_gen_pick_btn_edit": "✏️ Welchen Button möchtest du bearbeiten?",
-        "embed_gen_pick_btn_delete": "🗑️ Welchen Button möchtest du löschen?"
+        "embed_gen_pick_btn_delete": "🗑️ Welchen Button möchtest du löschen?",
+        "embed_gen_dd_option_deleted": "✅ Option gelöscht.",
+        "embed_gen_dd_selected": "Du hast **{value}** gewählt."
     },
     "embeds": {
         "shared": {
@@ -1106,7 +1134,12 @@
             "f_fields": "**Felder:**",
             "f_fields_list": "📋 Felder",
             "field_image_note": "Bild",
-            "f_buttons": "**Buttons:**"
+            "f_buttons": "**Buttons:**",
+            "comp_choose_title": "⚙️ Komponente auswählen",
+            "comp_choose_desc": "Möchtest du **Link-Buttons** (bis zu 5, klickbare Links) oder ein **Dropdown-Menü** (bis zu 25 Optionen) hinzufügen?",
+            "f_comp_type": "**Komponente:**",
+            "comp_type_btns": "🔗 Link-Buttons",
+            "comp_type_dd": "📋 Dropdown"
         },
         "config_import": {
             "title": "📤 Config Import"
@@ -1144,6 +1177,73 @@
             "detail_embed_link": "🔗 Nachricht",
             "detail_embed_jump": "Zur Nachricht springen",
             "detail_embed_preview": "📋 Embed-Info"
+        },
+        "info": {
+            "title": "🤖 Bexi Bot",
+            "desc": "Ein vielseitiger Discord-Bot mit Ticket-System, Moderation, Bewerbungen, Self-Roles und mehr.",
+            "f_version": "📋 Version",
+            "f_stats": "📊 Statistiken",
+            "f_panels": "⚙️ Panels",
+            "f_features": "✨ Features",
+            "version_val": "**Version:** `{version}`",
+            "author_val": "**Entwickler:** {author}",
+            "github_val": "**GitHub:** [Quellcode]({url})",
+            "stat_guilds": "🏠 Server: `{n}`",
+            "stat_members": "👥 Mitglieder: `{n}`",
+            "stat_latency": "📶 Latenz: `{ms}ms`",
+            "stat_log": "📋 Log-Einträge: `{n}`",
+            "panel_tickets": "🎫 Ticket-Panels: `{n}`",
+            "panel_selfroles": "🎭 Self-Role Panels: `{n}`",
+            "panel_verify": "✅ Verify-Panels: `{n}`",
+            "panel_apps": "📋 Bewerbungs-Panels: `{n}`",
+            "features_val": "🎫 Ticket-System mit Kategorien & Threads\n🛡️ Moderation (Ban, Kick, Timeout, Warn)\n✅ Verifizierungs-Panels\n🎭 Self-Role Panels\n📋 Bewerbungs-System\n🎨 Embed-Generator\n📋 Audit-Log (SQLite)\n🌐 Mehrsprachig (DE / EN)",
+            "footer": "Bexi Bot v{version} • Made with ❤️",
+            "f_version_github": "🏷️ Version (GitHub)",
+            "version_github_val": "**Version:** `{version}`"
+        },
+        "help": {
+            "user_title": "📖 Bexi Bot — Hilfe",
+            "user_desc": "Hier findest du eine Übersicht aller Funktionen, die dir auf diesem Server zur Verfügung stehen.",
+            "admin_title": "⚙️ Bexi Bot — Admin-Hilfe",
+            "admin_desc": "Übersicht aller Admin-Commands. Nutze `/setup` um alle Funktionen per Wizard einzurichten.",
+            "f_general": "📋 Allgemeine Commands",
+            "f_tickets": "🎫 Ticket-System",
+            "f_applications": "📋 Bewerbungen",
+            "f_selfroles": "🎭 Self-Roles",
+            "f_verify": "✅ Verifizierung",
+            "f_setup": "⚙️ Setup & Verwaltung",
+            "f_moderation": "🛡️ Moderation",
+            "f_config": "📦 Config & Tools",
+            "f_misc": "🎵 Musik & Extras",
+            "cmd_ping": "Aktuelle Latenz des Bots prüfen",
+            "cmd_info": "Bot-Statistiken und Version anzeigen",
+            "cmd_userinfo": "Eigene oder fremde Mitglieder-Infos anzeigen",
+            "cmd_help": "Dieses Hilfe-Menü anzeigen",
+            "cmd_setup": "Universeller Setup-Wizard — alles aus einem Menü konfigurieren",
+            "cmd_edit": "Bestehende Panels bearbeiten (Tickets, Self-Roles, Bewerbungen, Verify)",
+            "cmd_delete": "Panels und Konfigurationen löschen",
+            "cmd_ticket_edit": "Ticket-Panel bearbeiten (Titel, Beschreibung, Farbe)",
+            "cmd_ban": "Ein Mitglied permanent vom Server bannen",
+            "cmd_kick": "Ein Mitglied vom Server kicken",
+            "cmd_timeout": "Ein Mitglied für eine bestimmte Zeit in den Timeout versetzen",
+            "cmd_warn": "Ein Mitglied verwarnen und die Verwarnung speichern",
+            "cmd_warn_edit": "Verwarnungszähler eines Mitglieds bearbeiten oder zurücksetzen",
+            "cmd_adminpanel": "Admin-Panel öffnen (Nutzer- & Chat-Verwaltung)",
+            "cmd_config_export": "Server-Config als JSON-Datei exportieren",
+            "cmd_config_import": "Config importieren und alle Panels neu erstellen",
+            "cmd_history": "Server-Audit-Log mit Filtern anzeigen",
+            "cmd_whitelist": "Erlaubte Link-Domains verwalten",
+            "cmd_embed_create": "Den Embed-Generator öffnen",
+            "cmd_set_language": "Bot-Sprache ändern (🇩🇪 / 🇬🇧)",
+            "cmd_music_upload": "Neue Warteraum-Musik hochladen",
+            "cmd_music_download": "Aktuelle Warteraum-Musik herunterladen",
+            "cmd_pioneer": "Pionier-Rolle an die ersten 100 Mitglieder vergeben",
+            "tickets_user_desc": "Öffne ein Ticket über das Dropdown im Ticket-Kanal.\nEin privater Thread wird erstellt — schildere dein Anliegen und ein Supporter meldet sich.",
+            "applications_user_desc": "Klicke auf **Jetzt bewerben** in einem Bewerbungs-Panel.\nDu wirst Schritt für Schritt durch alle Fragen geführt.",
+            "selfroles_user_desc": "Wähle im Self-Roles Panel deine Rollen über das Dropdown aus.\nMehrere Rollen gleichzeitig möglich — ✅ markiert bereits vorhandene Rollen.",
+            "verify_user_desc": "Klicke im Verifizierungskanal auf den **Verifizieren**-Button, um Zugang zum Server zu erhalten.",
+            "footer_user": "{name} • Nutze /help jederzeit für Hilfe",
+            "footer_admin": "{name} • Admin-Hilfe — /setup zum Konfigurieren"
         }
     }
 }

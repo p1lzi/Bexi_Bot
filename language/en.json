@@ -212,6 +212,14 @@
                 "user": "Only show actions by this user (name, mention or ID)",
                 "date": "Filter by date or month (e.g. 2026-03 or 2026-03-15)"
             }
+        },
+        "info": {
+            "description": "Shows information about the bot",
+            "params": {}
+        },
+        "help": {
+            "description": "Shows all available commands and how to use the bot",
+            "params": {}
         }
     },
     "buttons": {
@@ -308,7 +316,13 @@
         "history_reset": "✖️ Clear Filters",
         "embed_gen_add_btn": "🔗 Add Button",
         "embed_gen_edit_btn": "✏️ Edit Button",
-        "embed_gen_delete_btn": "🗑️ Delete Button"
+        "embed_gen_delete_btn": "🗑️ Delete Button",
+        "embed_gen_add_comp": "🔗 Add Component",
+        "embed_gen_comp_link_btns": "🔗 Link Buttons",
+        "embed_gen_comp_dropdown": "📋 Dropdown Menu",
+        "embed_gen_edit_dd_option": "✏️ Edit Option",
+        "embed_gen_delete_dd_option": "🗑️ Delete Option",
+        "info_github": "GitHub"
     },
     "modals": {
         "ticket_close_title": "Close Ticket",
@@ -479,7 +493,14 @@
         "embed_gen_btn_url_label": "URL (Link Target)",
         "embed_gen_btn_url_ph": "https://discord.gg/...",
         "embed_gen_btn_emoji_label": "Emoji (optional)",
-        "embed_gen_btn_emoji_ph": "e.g. 🎮"
+        "embed_gen_btn_emoji_ph": "e.g. 🎮",
+        "embed_gen_dd_add_title": "Add Dropdown Option",
+        "embed_gen_dd_edit_title": "Edit Dropdown Option",
+        "embed_gen_dd_label_label": "Label",
+        "embed_gen_dd_label_ph": "e.g. Join Server",
+        "embed_gen_dd_desc_label": "Description (optional)",
+        "embed_gen_dd_desc_ph": "Short description of this option...",
+        "embed_gen_dd_url_label": "URL (optional, open on click)"
     },
     "selects": {
         "ticket_placeholder": "📂 Select your topic...",
@@ -561,7 +582,10 @@
         "history_cat_music_desc": "Upload & download waiting room music",
         "history_detail_ph": "🔍 Select entry for details...",
         "embed_gen_edit_btn_ph": "✏️ Which button to edit?",
-        "embed_gen_delete_btn_ph": "🗑️ Which button to delete?"
+        "embed_gen_delete_btn_ph": "🗑️ Which button to delete?",
+        "embed_gen_dd_placeholder": "Select an option...",
+        "embed_gen_edit_dd_ph": "✏️ Which option to edit?",
+        "embed_gen_delete_dd_ph": "🗑️ Which option to delete?"
     },
     "errors": {
         "role_not_found": "❌ This role no longer exists.",
@@ -641,7 +665,9 @@
         "music_not_found": "❌ No music file found. Please upload one first.",
         "history_empty": "ℹ️ No entries found for this server.",
         "embed_gen_max_buttons": "❌ Maximum 5 buttons per embed allowed.",
-        "embed_gen_no_buttons": "❌ No buttons available."
+        "embed_gen_no_buttons": "❌ No buttons available.",
+        "embed_gen_max_dd_options": "❌ Maximum 25 options per dropdown allowed.",
+        "embed_gen_no_dd_options": "❌ No dropdown options available."
     },
     "success": {
         "log_channel_set": "✅ Log channel set to {channel}.",
@@ -743,7 +769,9 @@
         "music_downloaded": "🎵 Current waiting room music ({size} KB):",
         "embed_gen_btn_deleted": "✅ Button deleted.",
         "embed_gen_pick_btn_edit": "✏️ Which button do you want to edit?",
-        "embed_gen_pick_btn_delete": "🗑️ Which button do you want to delete?"
+        "embed_gen_pick_btn_delete": "🗑️ Which button do you want to delete?",
+        "embed_gen_dd_option_deleted": "✅ Option deleted.",
+        "embed_gen_dd_selected": "You selected **{value}**."
     },
     "embeds": {
         "shared": {
@@ -1106,7 +1134,12 @@
             "f_fields": "**Fields:**",
             "f_fields_list": "📋 Fields",
             "field_image_note": "Image",
-            "f_buttons": "**Buttons:**"
+            "f_buttons": "**Buttons:**",
+            "comp_choose_title": "⚙️ Choose Component",
+            "comp_choose_desc": "Do you want to add **Link Buttons** (up to 5, clickable links) or a **Dropdown Menu** (up to 25 options)?",
+            "f_comp_type": "**Component:**",
+            "comp_type_btns": "🔗 Link Buttons",
+            "comp_type_dd": "📋 Dropdown"
         },
         "config_import": {
             "title": "📤 Config Import"
@@ -1144,6 +1177,73 @@
             "detail_embed_link": "🔗 Message",
             "detail_embed_jump": "Jump to Message",
             "detail_embed_preview": "📋 Embed Info"
+        },
+        "info": {
+            "title": "🤖 Bexi Bot",
+            "desc": "A versatile Discord bot with ticket system, moderation, applications, self-roles and more.",
+            "f_version": "📋 Version",
+            "f_stats": "📊 Statistics",
+            "f_panels": "⚙️ Panels",
+            "f_features": "✨ Features",
+            "version_val": "**Version:** `{version}`",
+            "author_val": "**Developer:** {author}",
+            "github_val": "**GitHub:** [Source Code]({url})",
+            "stat_guilds": "🏠 Servers: `{n}`",
+            "stat_members": "👥 Members: `{n}`",
+            "stat_latency": "📶 Latency: `{ms}ms`",
+            "stat_log": "📋 Log Entries: `{n}`",
+            "panel_tickets": "🎫 Ticket Panels: `{n}`",
+            "panel_selfroles": "🎭 Self-Role Panels: `{n}`",
+            "panel_verify": "✅ Verify Panels: `{n}`",
+            "panel_apps": "📋 Application Panels: `{n}`",
+            "features_val": "🎫 Ticket system with categories & threads\n🛡️ Moderation (Ban, Kick, Timeout, Warn)\n✅ Verification panels\n🎭 Self-role panels\n📋 Application system\n🎨 Embed generator\n📋 Audit log (SQLite)\n🌐 Multi-language (DE / EN)",
+            "footer": "Bexi Bot v{version} • Made with ❤️",
+            "f_version_github": "🏷️ Version (GitHub)",
+            "version_github_val": "**Version:** `{version}`"
+        },
+        "help": {
+            "user_title": "📖 Bexi Bot — Help",
+            "user_desc": "Here is an overview of all features available to you on this server.",
+            "admin_title": "⚙️ Bexi Bot — Admin Help",
+            "admin_desc": "Overview of all admin commands. Use `/setup` to configure all features via the wizard.",
+            "f_general": "📋 General Commands",
+            "f_tickets": "🎫 Ticket System",
+            "f_applications": "📋 Applications",
+            "f_selfroles": "🎭 Self-Roles",
+            "f_verify": "✅ Verification",
+            "f_setup": "⚙️ Setup & Management",
+            "f_moderation": "🛡️ Moderation",
+            "f_config": "📦 Config & Tools",
+            "f_misc": "🎵 Music & Extras",
+            "cmd_ping": "Check the bot's current latency",
+            "cmd_info": "Show bot statistics and version",
+            "cmd_userinfo": "Show your own or another member's info",
+            "cmd_help": "Show this help menu",
+            "cmd_setup": "Universal setup wizard — configure everything from one menu",
+            "cmd_edit": "Edit existing panels (Tickets, Self-Roles, Applications, Verify)",
+            "cmd_delete": "Delete panels and configurations",
+            "cmd_ticket_edit": "Edit a ticket panel (title, description, color)",
+            "cmd_ban": "Permanently ban a member from the server",
+            "cmd_kick": "Kick a member from the server",
+            "cmd_timeout": "Put a member in timeout for a set duration",
+            "cmd_warn": "Warn a member and log the warning",
+            "cmd_warn_edit": "Edit or reset a member's warning count",
+            "cmd_adminpanel": "Open the admin panel (User & Chat management)",
+            "cmd_config_export": "Export the server config as a JSON file",
+            "cmd_config_import": "Import a config and recreate all panels",
+            "cmd_history": "View the server audit log with filters",
+            "cmd_whitelist": "Manage allowed link domains",
+            "cmd_embed_create": "Open the embed generator",
+            "cmd_set_language": "Change the bot language (🇩🇪 / 🇬🇧)",
+            "cmd_music_upload": "Upload a new waiting room music file",
+            "cmd_music_download": "Download the current waiting room music",
+            "cmd_pioneer": "Assign a pioneer role to the first 100 members",
+            "tickets_user_desc": "Open a ticket by clicking the dropdown in the ticket channel.\nA private thread will be created — describe your issue and a supporter will respond.",
+            "applications_user_desc": "Click **Apply Now** on an application panel to start your application.\nYou will be guided step by step through all questions.",
+            "selfroles_user_desc": "Select your roles in the self-roles panel using the dropdown.\nYou can pick multiple roles at once — ✅ marks roles you already have.",
+            "verify_user_desc": "Click the **Verify** button in the verification channel to gain access to the server.",
+            "footer_user": "{name} • Use /help anytime for assistance",
+            "footer_admin": "{name} • Admin Help — use /setup to configure features"
         }
     }
 }

@@ -22,14 +22,19 @@ def _debug(msg: str):
         print(f"[DEBUG] {msg}")
 
 
-def _load_default_application() -> list:
-    """Load default application questions from configs/default_application.json."""
-    if os.path.exists(DEFAULT_APP_FILE):
-        try:
-            with open(DEFAULT_APP_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f).get('questions', [])
-        except (json.JSONDecodeError, OSError):
-            pass
+def _load_default_application(lang: str = None) -> list:
+    """Load default application questions — language-aware.
+    Tries configs/default_application_{lang}.json first, then falls back to default_application.json.
+    """
+    code = lang or _current_lang or "en"
+    lang_file = os.path.join(CONFIGS_DIR, f"default_application_{code}.json")
+    for path in [lang_file, DEFAULT_APP_FILE]:
+        if os.path.exists(path):
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    return json.load(f).get('questions', [])
+            except (json.JSONDecodeError, OSError):
+                pass
     return []
 
 
@@ -42,6 +47,11 @@ except ImportError:
 
 # --- SETUP DATEIEN ---
 TOKEN        = os.getenv('DISCORD_TOKEN')
+BOT_VERSION  = "2.0.0"           # local fallback — real value fetched from GitHub
+BOT_AUTHOR   = "p1lzi"
+BOT_GITHUB   = "https://github.com/p1lzi/Bexi_Bot"
+GITHUB_VERSION_URL = "https://raw.githubusercontent.com/p1lzi/Bexi_Bot/main/version.txt"
+_cached_version: str = BOT_VERSION
 DEBUG        = os.getenv('DEBUG', 'false').lower() in ('1', 'true', 'yes')
 DEFAULT_LANG = os.getenv('DEFAULT_LANG', 'en').lower().strip()
 CONFIGS_DIR      = 'configs'
@@ -5493,7 +5503,9 @@ class EditAppQuestionSelect(discord.ui.Select):
     def __init__(self, user_id: int):
         self.user_id = user_id
         panel     = _edit_state.get(user_id, {}).get("panel", {})
-        questions = panel.get("questions") or DEFAULT_APPLICATION_QUESTIONS
+        # Load language-appropriate default questions if panel uses defaults
+        guild_lang = load_config().get(str(interaction.guild_id), {}).get("language", "en")
+        questions = panel.get("questions") or _load_default_application(guild_lang)
         options   = []
         for i, q in enumerate(questions[:25]):
             label_str = q["label"][:90]
@@ -6427,7 +6439,15 @@ def _build_embed_gen_status(state: dict, guild) -> discord.Embed:
         t("embeds","embed_gen","f_thumbnail")   + " " + ("✅" if state.get("thumbnail_url") else "—"),
         t("embeds","embed_gen","f_timestamp")   + " " + ("✅" if state.get("timestamp") else "—"),
         t("embeds","embed_gen","f_fields")      + " " + str(len(state.get("fields", []))),
-        t("embeds","embed_gen","f_buttons")     + " " + str(len(state.get("buttons", []))),
+        t("embeds","embed_gen","f_comp_type")   + " " + (
+            t("embeds","embed_gen","comp_type_btns") if state.get("component_type") == "buttons"
+            else t("embeds","embed_gen","comp_type_dd") if state.get("component_type") == "dropdown"
+            else t("embeds","wizard","not_set")
+        ),
+        t("embeds","embed_gen","f_buttons")     + " " + str(
+            len(state.get("buttons", [])) if state.get("component_type") == "buttons"
+            else len(state.get("dropdown_options", []))
+        ),
     ]
     embed.add_field(name=t("embeds","embed_gen","f_settings"), value="\n".join(lines), inline=False)
 
@@ -6678,6 +6698,42 @@ class EmbedGenButtonSelect(discord.ui.Select):
             await _refresh_embed_gen(interaction, self.user_id)
 
 
+
+class EmbedGenDropdownOptionSelect(discord.ui.Select):
+    """Select a dropdown option to edit or delete."""
+    def __init__(self, user_id: int, action: str):
+        self.user_id = user_id
+        self.action  = action
+        opts = _embed_gen_state.get(user_id, {}).get("dropdown_options", [])
+        options = [
+            discord.SelectOption(
+                label=o.get("label","?")[:90], value=str(i),
+                emoji=o.get("emoji") or None,
+                description=o.get("description","")[:50] if o.get("description") else None
+            )
+            for i, o in enumerate(opts[:25])
+        ]
+        if not options:
+            options = [discord.SelectOption(label="—", value="__none__")]
+        ph_key = "embed_gen_edit_dd_ph" if action == "edit" else "embed_gen_delete_dd_ph"
+        super().__init__(placeholder=t("selects", ph_key), min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.user_id:
+            return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        if self.values[0] == "__none__":
+            return await interaction.response.edit_message(content=t("errors","embed_gen_no_dd_options"), view=None)
+        idx = int(self.values[0])
+        if self.action == "edit":
+            await interaction.response.send_modal(EmbedGenAddDropdownOptionModal(self.user_id, edit_idx=idx))
+        else:
+            opts = _embed_gen_state[self.user_id].get("dropdown_options", [])
+            if idx < len(opts):
+                opts.pop(idx)
+            await interaction.response.edit_message(content=t("success","embed_gen_dd_option_deleted"), view=None)
+            await _refresh_embed_gen(interaction, self.user_id)
+
+
 class EmbedGenSendModal(discord.ui.Modal):
     def __init__(self, user_id: int):
         super().__init__(title=t("modals","embed_gen_send_title"))
@@ -6706,7 +6762,41 @@ class EmbedGenSendModal(discord.ui.Modal):
 
 
 def _build_button_view(state: dict) -> discord.ui.View:
-    """Build a View with link buttons from state."""
+    """Build a View with link buttons OR a select dropdown from state."""
+    comp_type = state.get("component_type", "buttons")
+
+    if comp_type == "dropdown":
+        opts = state.get("dropdown_options", [])
+        if not opts:
+            return None
+        options = []
+        for o in opts[:25]:
+            options.append(discord.SelectOption(
+                label=o.get("label","Option")[:100],
+                value=o.get("label","Option")[:100],
+                description=o.get("description","")[:100] if o.get("description") else None,
+                emoji=o.get("emoji") or None,
+            ))
+        if not options:
+            return None
+        select = discord.ui.Select(
+            placeholder=state.get("dropdown_placeholder") or t("selects","embed_gen_dd_placeholder"),
+            min_values=1, max_values=1, options=options
+        )
+        async def _noop(interaction: discord.Interaction):
+            url = next((o.get("url") for o in opts if o.get("label") == select.values[0]), None)
+            if url:
+                await interaction.response.send_message(url, ephemeral=True)
+            else:
+                await interaction.response.send_message(
+                    t("success","embed_gen_dd_selected", value=select.values[0]), ephemeral=True
+                )
+        select.callback = _noop
+        v = discord.ui.View(timeout=None)
+        v.add_item(select)
+        return v
+
+    # Link buttons
     btns = state.get("buttons", [])
     if not btns:
         return None
@@ -6744,33 +6834,134 @@ async def _send_embed_with_field_images(channel, state: dict,
 
 # ── Main View ─────────────────────────────────────────────────────────────────
 
+class EmbedGenComponentTypeView(discord.ui.View):
+    """Choose: link buttons or select dropdown."""
+    def __init__(self, user_id: int):
+        super().__init__(timeout=120)
+        self.user_id = user_id
+        self.link_btn.label     = t("buttons","embed_gen_comp_link_btns")
+        self.dropdown_btn.label = t("buttons","embed_gen_comp_dropdown")
+        self.back_btn.label     = t("buttons","delete_wizard_back")
+
+    def _check(self, i): return i.user.id == self.user_id
+
+    @discord.ui.button(label="🔗", style=discord.ButtonStyle.blurple, row=0)
+    async def link_btn(self, interaction, button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        _embed_gen_state[self.user_id]["component_type"] = "buttons"
+        await interaction.response.send_modal(EmbedGenAddButtonModal(self.user_id))
+
+    @discord.ui.button(label="📋", style=discord.ButtonStyle.secondary, row=0)
+    async def dropdown_btn(self, interaction, button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        _embed_gen_state[self.user_id]["component_type"] = "dropdown"
+        await interaction.response.send_modal(EmbedGenAddDropdownOptionModal(self.user_id))
+
+    @discord.ui.button(label="←", style=discord.ButtonStyle.secondary, row=0)
+    async def back_btn(self, interaction, button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        await interaction.response.defer(ephemeral=True)
+        orig = _wizard_interactions.get(self.user_id)
+        if orig:
+            state = _embed_gen_state.get(self.user_id, _default_embed_state())
+            try:
+                await orig.edit_original_response(
+                    embed=_build_embed_gen_status(state, interaction.guild),
+                    view=EmbedGenView(self.user_id)
+                )
+            except Exception:
+                pass
+
+
+class EmbedGenAddDropdownOptionModal(discord.ui.Modal):
+    def __init__(self, user_id: int, edit_idx: int = -1):
+        title_key = "embed_gen_dd_edit_title" if edit_idx >= 0 else "embed_gen_dd_add_title"
+        super().__init__(title=t("modals", title_key))
+        self.user_id  = user_id
+        self.edit_idx = edit_idx
+        existing = {}
+        if edit_idx >= 0:
+            opts = _embed_gen_state.get(user_id, {}).get("dropdown_options", [])
+            existing = opts[edit_idx] if edit_idx < len(opts) else {}
+        self.f_label = discord.ui.TextInput(
+            label=t("modals","embed_gen_dd_label_label"), placeholder=t("modals","embed_gen_dd_label_ph"),
+            default=existing.get("label",""), style=discord.TextStyle.short, required=True, max_length=100
+        )
+        self.f_desc = discord.ui.TextInput(
+            label=t("modals","embed_gen_dd_desc_label"), placeholder=t("modals","embed_gen_dd_desc_ph"),
+            default=existing.get("description",""), style=discord.TextStyle.short, required=False, max_length=100
+        )
+        self.f_emoji = discord.ui.TextInput(
+            label=t("modals","embed_gen_btn_emoji_label"), placeholder=t("modals","embed_gen_btn_emoji_ph"),
+            default=existing.get("emoji",""), style=discord.TextStyle.short, required=False, max_length=10
+        )
+        self.add_item(self.f_label)
+        self.add_item(self.f_desc)
+        self.add_item(self.f_emoji)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        uid  = self.user_id
+        opts = _embed_gen_state[uid].setdefault("dropdown_options", [])
+        entry = {
+            "label":       self.f_label.value.strip()[:100],
+            "description": self.f_desc.value.strip()[:100] or None,
+            "emoji":       self.f_emoji.value.strip() or None,
+        }
+        if self.edit_idx >= 0 and self.edit_idx < len(opts):
+            opts[self.edit_idx] = entry
+        else:
+            if len(opts) >= 25:
+                return await interaction.response.send_message(t("errors","embed_gen_max_dd_options"), ephemeral=True)
+            opts.append(entry)
+        _embed_gen_state[uid]["component_type"] = "dropdown"
+        await interaction.response.defer(ephemeral=True)
+        await _refresh_embed_gen(interaction, uid)
+
+
 class EmbedGenView(discord.ui.View):
     def __init__(self, user_id: int):
         super().__init__(timeout=600)
-        self.user_id = user_id
-        state = _embed_gen_state.get(user_id, {})
-        has_fields = bool(state.get("fields"))
-
+        self.user_id   = user_id
+        state          = _embed_gen_state.get(user_id, {})
+        has_fields     = bool(state.get("fields"))
+        comp_type      = state.get("component_type")
+        has_comps      = bool(
+            state.get("buttons") if comp_type == "buttons"
+            else state.get("dropdown_options") if comp_type == "dropdown"
+            else False
+        )
+        # Row 0 labels
         self.base_btn.label         = t("buttons","embed_gen_base")
         self.media_btn.label        = t("buttons","embed_gen_media")
         self.authorfooter_btn.label = t("buttons","embed_gen_authorfooter")
+        self.timestamp_btn.label    = (t("buttons","embed_gen_timestamp_off")
+                                       if state.get("timestamp")
+                                       else t("buttons","embed_gen_timestamp_on"))
+        # Row 1 labels
         self.add_field_btn.label    = t("buttons","embed_gen_add_field")
         self.edit_field_btn.label   = t("buttons","embed_gen_edit_field")
         self.delete_field_btn.label = t("buttons","embed_gen_delete_field")
-        self.timestamp_btn.label    = t("buttons","embed_gen_timestamp_off") if state.get("timestamp") else t("buttons","embed_gen_timestamp_on")
+        self.edit_field_btn.disabled   = not has_fields
+        self.delete_field_btn.disabled = not has_fields
+        # Row 2 labels
+        self.add_comp_btn.label    = t("buttons","embed_gen_add_comp")
+        self.edit_comp_btn.label   = (t("buttons","embed_gen_edit_btn")
+                                      if comp_type != "dropdown"
+                                      else t("buttons","embed_gen_edit_dd_option"))
+        self.delete_comp_btn.label = (t("buttons","embed_gen_delete_btn")
+                                      if comp_type != "dropdown"
+                                      else t("buttons","embed_gen_delete_dd_option"))
+        self.edit_comp_btn.disabled   = not has_comps
+        self.delete_comp_btn.disabled = not has_comps
+        # Row 3 labels
         self.preview_btn.label      = t("buttons","wizard_preview")
         self.send_channel_btn.label = t("buttons","embed_gen_send_channel")
         self.send_here_btn.label    = t("buttons","embed_gen_send_here")
         self.cancel_btn.label       = t("buttons","wizard_cancel")
 
-        has_btns = bool(state.get("buttons"))
-        self.edit_field_btn.disabled   = not has_fields
-        self.delete_field_btn.disabled = not has_fields
-        self.edit_btn_btn.disabled     = not has_btns
-        self.delete_btn_btn.disabled   = not has_btns
-
     def _check(self, i): return i.user.id == self.user_id
 
+    # ── Row 0 ─────────────────────────────────────────────────────────────────
     @discord.ui.button(label="✏️", style=discord.ButtonStyle.blurple, row=0)
     async def base_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
@@ -6786,26 +6977,7 @@ class EmbedGenView(discord.ui.View):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         await interaction.response.send_modal(EmbedGenAuthorFooterModal(self.user_id))
 
-    @discord.ui.button(label="➕", style=discord.ButtonStyle.secondary, row=1)
-    async def add_field_btn(self, interaction, button):
-        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
-        await interaction.response.send_modal(EmbedGenAddFieldModal(self.user_id))
-
-    @discord.ui.button(label="✏️f", style=discord.ButtonStyle.secondary, row=1)
-    async def edit_field_btn(self, interaction, button):
-        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
-        view = discord.ui.View(timeout=120)
-        view.add_item(EmbedGenFieldSelect(self.user_id, "edit"))
-        await interaction.response.send_message(content=t("success","embed_gen_pick_field_edit"), view=view, ephemeral=True)
-
-    @discord.ui.button(label="🗑️f", style=discord.ButtonStyle.danger, row=1)
-    async def delete_field_btn(self, interaction, button):
-        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
-        view = discord.ui.View(timeout=120)
-        view.add_item(EmbedGenFieldSelect(self.user_id, "delete"))
-        await interaction.response.send_message(content=t("success","embed_gen_pick_field_delete"), view=view, ephemeral=True)
-
-    @discord.ui.button(label="⏱️", style=discord.ButtonStyle.secondary, row=1)
+    @discord.ui.button(label="⏱️", style=discord.ButtonStyle.secondary, row=0)
     async def timestamp_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         state = _embed_gen_state.get(self.user_id, {})
@@ -6813,50 +6985,99 @@ class EmbedGenView(discord.ui.View):
         await interaction.response.defer(ephemeral=True)
         await _refresh_embed_gen(interaction, self.user_id)
 
-    @discord.ui.button(label="👁️", style=discord.ButtonStyle.secondary, row=2)
+    # ── Row 1 ─────────────────────────────────────────────────────────────────
+    @discord.ui.button(label="➕", style=discord.ButtonStyle.secondary, row=1)
+    async def add_field_btn(self, interaction, button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        await interaction.response.send_modal(EmbedGenAddFieldModal(self.user_id))
+
+    @discord.ui.button(label="✏️", style=discord.ButtonStyle.secondary, row=1)
+    async def edit_field_btn(self, interaction, button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        v = discord.ui.View(timeout=120)
+        v.add_item(EmbedGenFieldSelect(self.user_id, "edit"))
+        await interaction.response.send_message(content=t("success","embed_gen_pick_field_edit"), view=v, ephemeral=True)
+
+    @discord.ui.button(label="🗑️", style=discord.ButtonStyle.danger, row=1)
+    async def delete_field_btn(self, interaction, button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        v = discord.ui.View(timeout=120)
+        v.add_item(EmbedGenFieldSelect(self.user_id, "delete"))
+        await interaction.response.send_message(content=t("success","embed_gen_pick_field_delete"), view=v, ephemeral=True)
+
+    # ── Row 2 — Components ────────────────────────────────────────────────────
+    @discord.ui.button(label="🔗", style=discord.ButtonStyle.blurple, row=2)
+    async def add_comp_btn(self, interaction, button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        state     = _embed_gen_state.get(self.user_id, {})
+        comp_type = state.get("component_type")
+        if comp_type == "buttons":
+            await interaction.response.send_modal(EmbedGenAddButtonModal(self.user_id))
+        elif comp_type == "dropdown":
+            await interaction.response.send_modal(EmbedGenAddDropdownOptionModal(self.user_id))
+        else:
+            comp_embed = discord.Embed(
+                title=t("embeds","embed_gen","comp_choose_title"),
+                description=t("embeds","embed_gen","comp_choose_desc"),
+                color=discord.Color.blurple()
+            )
+            await interaction.response.send_message(
+                embed=comp_embed, view=EmbedGenComponentTypeView(self.user_id), ephemeral=True
+            )
+
+    @discord.ui.button(label="✏️", style=discord.ButtonStyle.secondary, row=2)
+    async def edit_comp_btn(self, interaction, button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        state     = _embed_gen_state.get(self.user_id, {})
+        comp_type = state.get("component_type", "buttons")
+        v = discord.ui.View(timeout=120)
+        v.add_item(EmbedGenDropdownOptionSelect(self.user_id, "edit") if comp_type == "dropdown"
+                   else EmbedGenButtonSelect(self.user_id, "edit"))
+        await interaction.response.send_message(content=t("success","embed_gen_pick_btn_edit"), view=v, ephemeral=True)
+
+    @discord.ui.button(label="🗑️", style=discord.ButtonStyle.danger, row=2)
+    async def delete_comp_btn(self, interaction, button):
+        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        state     = _embed_gen_state.get(self.user_id, {})
+        comp_type = state.get("component_type", "buttons")
+        v = discord.ui.View(timeout=120)
+        v.add_item(EmbedGenDropdownOptionSelect(self.user_id, "delete") if comp_type == "dropdown"
+                   else EmbedGenButtonSelect(self.user_id, "delete"))
+        await interaction.response.send_message(content=t("success","embed_gen_pick_btn_delete"), view=v, ephemeral=True)
+
+    # ── Row 3 — Send/Preview/Cancel ───────────────────────────────────────────
+    @discord.ui.button(label="👁️", style=discord.ButtonStyle.secondary, row=3)
     async def preview_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         state = _embed_gen_state.get(self.user_id, _default_embed_state())
         try:
-            preview = _build_preview_embed(state)
-            await interaction.response.send_message(content=t("success","wizard_preview_note_embed"), embed=preview, ephemeral=True)
+            preview  = _build_preview_embed(state)
+            btn_view = _build_button_view(state)
+            await interaction.response.send_message(
+                content=t("success","wizard_preview_note_embed"),
+                embed=preview, view=btn_view, ephemeral=True
+            )
         except Exception as e:
             await interaction.response.send_message(t("errors","generic_error", error=str(e)), ephemeral=True)
 
-    @discord.ui.button(label="📤", style=discord.ButtonStyle.green, row=2)
+    @discord.ui.button(label="📤", style=discord.ButtonStyle.green, row=3)
     async def send_channel_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         await interaction.response.send_modal(EmbedGenSendModal(self.user_id))
 
-    @discord.ui.button(label="📨", style=discord.ButtonStyle.green, row=2)
+    @discord.ui.button(label="📨", style=discord.ButtonStyle.green, row=3)
     async def send_here_btn(self, interaction, button):
         if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
         state = _embed_gen_state.pop(self.user_id, _default_embed_state())
         try:
             await _send_embed_with_field_images(interaction.channel, state,
                 guild_id=str(interaction.guild_id), actor=interaction.user)
-            await interaction.response.edit_message(content=t("success","embed_gen_sent", channel=interaction.channel.mention), embed=None, view=None)
+            await interaction.response.edit_message(
+                content=t("success","embed_gen_sent", channel=interaction.channel.mention),
+                embed=None, view=None
+            )
         except Exception as e:
             await interaction.response.send_message(t("errors","generic_error", error=str(e)), ephemeral=True)
-
-    @discord.ui.button(label="🔗", style=discord.ButtonStyle.secondary, row=3)
-    async def add_btn_btn(self, interaction, button):
-        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
-        await interaction.response.send_modal(EmbedGenAddButtonModal(self.user_id))
-
-    @discord.ui.button(label="✏️b", style=discord.ButtonStyle.secondary, row=3)
-    async def edit_btn_btn(self, interaction, button):
-        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
-        view = discord.ui.View(timeout=120)
-        view.add_item(EmbedGenButtonSelect(self.user_id, "edit"))
-        await interaction.response.send_message(content=t("success","embed_gen_pick_btn_edit"), view=view, ephemeral=True)
-
-    @discord.ui.button(label="🗑️b", style=discord.ButtonStyle.danger, row=3)
-    async def delete_btn_btn(self, interaction, button):
-        if not self._check(interaction): return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
-        view = discord.ui.View(timeout=120)
-        view.add_item(EmbedGenButtonSelect(self.user_id, "delete"))
-        await interaction.response.send_message(content=t("success","embed_gen_pick_btn_delete"), view=view, ephemeral=True)
 
     @discord.ui.button(label="✖️", style=discord.ButtonStyle.secondary, row=3)
     async def cancel_btn(self, interaction, button):
@@ -7240,6 +7461,7 @@ class HistoryDetailSelect(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         if self.values[0] == "__none__":
             return await interaction.response.send_message(t("errors","history_empty"), ephemeral=True)
+        import json as _json2
         entry_id = int(self.values[0])
         with _db_lock:
             conn = _db_conn()
@@ -7247,8 +7469,26 @@ class HistoryDetailSelect(discord.ui.Select):
             conn.close()
         if not row:
             return await interaction.response.send_message(t("errors","history_empty"), ephemeral=True)
-        detail_embed = _build_detail_embed(dict(row), interaction.guild)
-        await interaction.response.send_message(embed=detail_embed, ephemeral=True)
+        row = dict(row)
+        detail_embed = _build_detail_embed(row, interaction.guild)
+
+        # For embed_sent: reconstruct and send the original embed as a second embed
+        extra_embeds = []
+        extra_view   = None
+        if row.get("action") == "embed_sent" and row.get("payload"):
+            try:
+                payload = _json2.loads(row["payload"])
+                reconstructed = _build_preview_embed(payload)
+                extra_embeds.append(reconstructed)
+                extra_view = _build_button_view(payload)
+            except Exception:
+                pass
+
+        await interaction.response.send_message(
+            embeds=[detail_embed] + extra_embeds,
+            view=extra_view,
+            ephemeral=True
+        )
 
 
 
@@ -8724,6 +8964,75 @@ async def embed_create_cmd(interaction: discord.Interaction):
     _wizard_interactions[uid] = interaction
 
 
+@bot.tree.command(name="info", description=td("info"))
+async def info_cmd(interaction: discord.Interaction):
+    """Shows bot info, live statistics and current version fetched from GitHub."""
+    await interaction.response.defer(ephemeral=True)
+
+    # Fetch live version from GitHub (falls back to cached on error)
+    live_version = await fetch_bot_version()
+
+    guild_count  = len(bot.guilds)
+    member_count = sum(g.member_count or 0 for g in bot.guilds)
+    latency_ms   = round(bot.latency * 1000)
+    config       = load_config()
+    ticket_panels = selfrole_panels = verify_panels = app_panels = 0
+    for gid, data in config.items():
+        if not isinstance(data, dict): continue
+        ticket_panels   += len(data.get("ticket_panels", []))
+        selfrole_panels += len(data.get("selfrole_panels", []))
+        verify_panels   += len(data.get("verify_panels", []))
+        app_panels      += len(data.get("application_panels", []))
+    try:
+        with _db_lock:
+            conn      = _db_conn()
+            log_count = conn.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
+            conn.close()
+    except Exception:
+        log_count = 0
+
+    color = discord.Color.from_rgb(88, 101, 242)
+    embed = discord.Embed(
+        title=t("embeds","info","title"),
+        description=t("embeds","info","desc"),
+        color=color,
+        timestamp=now_timestamp()
+    )
+    if bot.user and bot.user.avatar:
+        embed.set_thumbnail(url=bot.user.avatar.url)
+
+    # Version field — uses live_version from GitHub
+    v1 = t("embeds","info","version_val", version=live_version)
+    v2 = t("embeds","info","author_val",  author=BOT_AUTHOR)
+    v3 = t("embeds","info","github_val",  url=BOT_GITHUB)
+    embed.add_field(name=t("embeds","info","f_version"), value=v1+"\n"+v2+"\n"+v3, inline=True)
+
+    s1 = t("embeds","info","stat_guilds",  n=guild_count)
+    s2 = t("embeds","info","stat_members", n=member_count)
+    s3 = t("embeds","info","stat_latency", ms=latency_ms)
+    s4 = t("embeds","info","stat_log",     n=log_count)
+    embed.add_field(name=t("embeds","info","f_stats"), value=s1+"\n"+s2+"\n"+s3+"\n"+s4, inline=True)
+
+    p1 = t("embeds","info","panel_tickets",   n=ticket_panels)
+    p2 = t("embeds","info","panel_selfroles", n=selfrole_panels)
+    p3 = t("embeds","info","panel_verify",    n=verify_panels)
+    p4 = t("embeds","info","panel_apps",      n=app_panels)
+    embed.add_field(name=t("embeds","info","f_panels"), value=p1+"\n"+p2+"\n"+p3+"\n"+p4, inline=True)
+    embed.add_field(name=t("embeds","info","f_features"), value=t("embeds","info","features_val"), inline=False)
+    embed.set_footer(
+        text=t("embeds","info","footer", version=live_version),
+        icon_url=bot.user.avatar.url if bot.user and bot.user.avatar else None
+    )
+    view = discord.ui.View(timeout=None)
+    view.add_item(discord.ui.Button(
+        label=t("buttons","info_github"),
+        url=BOT_GITHUB,
+        style=discord.ButtonStyle.link,
+        emoji="\U0001f517"
+    ))
+    await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+
+
 @bot.tree.command(name="ping", description=td("ping"))
 async def ping(interaction: discord.Interaction):
     latency = round(bot.latency * 1000)
@@ -8836,6 +9145,166 @@ async def history_cmd(interaction: discord.Interaction,
     await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
 
+# ─────────────────────────────────────────────
+#  GITHUB VERSION FETCH
+# ─────────────────────────────────────────────
+
+async def fetch_bot_version() -> str:
+    """Fetch the current bot version from GitHub version.txt.
+    Falls back silently to the locally cached value on any error."""
+    global _cached_version
+    try:
+        import aiohttp
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                GITHUB_VERSION_URL,
+                timeout=aiohttp.ClientTimeout(total=5)
+            ) as resp:
+                if resp.status == 200:
+                    ver = (await resp.text()).strip()
+                    if ver:
+                        _cached_version = ver
+    except Exception:
+        pass  # silently fall back to cached / default
+    return _cached_version
+
+
+# ─────────────────────────────────────────────
+#  HELP EMBED BUILDERS
+# ─────────────────────────────────────────────
+
+def _build_user_help_embed(guild) -> discord.Embed:
+    """Help embed shown to regular (non-admin) users."""
+    embed = discord.Embed(
+        title=t("embeds", "help", "user_title"),
+        description=t("embeds", "help", "user_desc"),
+        color=discord.Color.from_rgb(88, 101, 242),
+        timestamp=now_timestamp()
+    )
+    embed.add_field(
+        name=t("embeds", "help", "f_general"),
+        value=(
+            "`/ping`  —  " + t("embeds", "help", "cmd_ping") + "\n"
+            + "`/info`  —  " + t("embeds", "help", "cmd_info") + "\n"
+            + "`/userinfo`  —  " + t("embeds", "help", "cmd_userinfo") + "\n"
+            + "`/help`  —  " + t("embeds", "help", "cmd_help")
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name=t("embeds", "help", "f_tickets"),
+        value=t("embeds", "help", "tickets_user_desc"),
+        inline=False
+    )
+    embed.add_field(
+        name=t("embeds", "help", "f_applications"),
+        value=t("embeds", "help", "applications_user_desc"),
+        inline=False
+    )
+    embed.add_field(
+        name=t("embeds", "help", "f_selfroles"),
+        value=t("embeds", "help", "selfroles_user_desc"),
+        inline=False
+    )
+    embed.add_field(
+        name=t("embeds", "help", "f_verify"),
+        value=t("embeds", "help", "verify_user_desc"),
+        inline=False
+    )
+    if guild and guild.icon:
+        embed.set_footer(
+            text=t("embeds", "help", "footer_user", name=guild.name),
+            icon_url=guild.icon.url
+        )
+    else:
+        embed.set_footer(text=t("embeds", "help", "footer_user", name="Bexi Bot"))
+    return embed
+
+
+def _build_admin_help_embed(guild) -> discord.Embed:
+    """Help embed shown to administrators."""
+    embed = discord.Embed(
+        title=t("embeds", "help", "admin_title"),
+        description=t("embeds", "help", "admin_desc"),
+        color=discord.Color.gold(),
+        timestamp=now_timestamp()
+    )
+    embed.add_field(
+        name=t("embeds", "help", "f_setup"),
+        value=(
+            "`/setup`  —  " + t("embeds", "help", "cmd_setup") + "\n"
+            + "`/edit`  —  " + t("embeds", "help", "cmd_edit") + "\n"
+            + "`/delete`  —  " + t("embeds", "help", "cmd_delete") + "\n"
+            + "`/ticket_edit`  —  " + t("embeds", "help", "cmd_ticket_edit")
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name=t("embeds", "help", "f_moderation"),
+        value=(
+            "`/ban`  —  " + t("embeds", "help", "cmd_ban") + "\n"
+            + "`/kick`  —  " + t("embeds", "help", "cmd_kick") + "\n"
+            + "`/timeout`  —  " + t("embeds", "help", "cmd_timeout") + "\n"
+            + "`/warn`  —  " + t("embeds", "help", "cmd_warn") + "\n"
+            + "`/warn_edit`  —  " + t("embeds", "help", "cmd_warn_edit") + "\n"
+            + "`/adminpanel`  —  " + t("embeds", "help", "cmd_adminpanel")
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name=t("embeds", "help", "f_config"),
+        value=(
+            "`/config_export`  —  " + t("embeds", "help", "cmd_config_export") + "\n"
+            + "`/config_import`  —  " + t("embeds", "help", "cmd_config_import") + "\n"
+            + "`/history`  —  " + t("embeds", "help", "cmd_history") + "\n"
+            + "`/whitelist`  —  " + t("embeds", "help", "cmd_whitelist") + "\n"
+            + "`/embed_create`  —  " + t("embeds", "help", "cmd_embed_create") + "\n"
+            + "`/set_language`  —  " + t("embeds", "help", "cmd_set_language")
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name=t("embeds", "help", "f_misc"),
+        value=(
+            "`/music_upload`  —  " + t("embeds", "help", "cmd_music_upload") + "\n"
+            + "`/music_download`  —  " + t("embeds", "help", "cmd_music_download") + "\n"
+            + "`/setup_pioneer_role`  —  " + t("embeds", "help", "cmd_pioneer") + "\n"
+            + "`/userinfo`  —  " + t("embeds", "help", "cmd_userinfo")
+        ),
+        inline=False
+    )
+    if guild and guild.icon:
+        embed.set_footer(
+            text=t("embeds", "help", "footer_admin", name=guild.name),
+            icon_url=guild.icon.url
+        )
+    else:
+        embed.set_footer(text=t("embeds", "help", "footer_admin", name="Bexi Bot"))
+    return embed
+
+
+# ─────────────────────────────────────────────
+#  /HELP COMMAND
+# ─────────────────────────────────────────────
+
+@bot.tree.command(name="help", description=td("help"))
+async def help_cmd(interaction: discord.Interaction):
+    """Role-aware help: admins see all admin commands, users see feature usage guide."""
+    await interaction.response.defer(ephemeral=True)
+
+    is_admin = (
+        interaction.user.guild_permissions.administrator
+        if interaction.guild
+        else False
+    )
+    embed = (
+        _build_admin_help_embed(interaction.guild)
+        if is_admin
+        else _build_user_help_embed(interaction.guild)
+    )
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+
 @bot.event
 async def on_ready():
     global DEFAULT_APPLICATION_QUESTIONS
@@ -8845,7 +9314,7 @@ async def on_ready():
     if DEBUG:
         print('🐛 DEBUG-Modus aktiv')
     if not os.path.exists(WHITELIST_FILE):
-        save_whitelist(["tenor.com", "giphy.com", "cdn.discordapp.com"])
+        save_whitelist(["tenor.com", "giphy.com"])
     config = load_config()
     pres = config.get("bot_presence")
     if pres:

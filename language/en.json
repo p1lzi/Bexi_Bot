@@ -216,6 +216,10 @@
         "info": {
             "description": "Shows information about the bot",
             "params": {}
+        },
+        "help": {
+            "description": "Shows all available commands and how to use the bot",
+            "params": {}
         }
     },
     "buttons": {
@@ -1193,7 +1197,53 @@
             "panel_verify": "✅ Verify Panels: `{n}`",
             "panel_apps": "📋 Application Panels: `{n}`",
             "features_val": "🎫 Ticket system with categories & threads\n🛡️ Moderation (Ban, Kick, Timeout, Warn)\n✅ Verification panels\n🎭 Self-role panels\n📋 Application system\n🎨 Embed generator\n📋 Audit log (SQLite)\n🌐 Multi-language (DE / EN)",
-            "footer": "Bexi Bot v{version} • Made with ❤️"
+            "footer": "Bexi Bot v{version} • Made with ❤️",
+            "f_version_github": "🏷️ Version (GitHub)",
+            "version_github_val": "**Version:** `{version}`"
+        },
+        "help": {
+            "user_title": "📖 Bexi Bot — Help",
+            "user_desc": "Here is an overview of all features available to you on this server.",
+            "admin_title": "⚙️ Bexi Bot — Admin Help",
+            "admin_desc": "Overview of all admin commands. Use `/setup` to configure all features via the wizard.",
+            "f_general": "📋 General Commands",
+            "f_tickets": "🎫 Ticket System",
+            "f_applications": "📋 Applications",
+            "f_selfroles": "🎭 Self-Roles",
+            "f_verify": "✅ Verification",
+            "f_setup": "⚙️ Setup & Management",
+            "f_moderation": "🛡️ Moderation",
+            "f_config": "📦 Config & Tools",
+            "f_misc": "🎵 Music & Extras",
+            "cmd_ping": "Check the bot's current latency",
+            "cmd_info": "Show bot statistics and version",
+            "cmd_userinfo": "Show your own or another member's info",
+            "cmd_help": "Show this help menu",
+            "cmd_setup": "Universal setup wizard — configure everything from one menu",
+            "cmd_edit": "Edit existing panels (Tickets, Self-Roles, Applications, Verify)",
+            "cmd_delete": "Delete panels and configurations",
+            "cmd_ticket_edit": "Edit a ticket panel (title, description, color)",
+            "cmd_ban": "Permanently ban a member from the server",
+            "cmd_kick": "Kick a member from the server",
+            "cmd_timeout": "Put a member in timeout for a set duration",
+            "cmd_warn": "Warn a member and log the warning",
+            "cmd_warn_edit": "Edit or reset a member's warning count",
+            "cmd_adminpanel": "Open the admin panel (User & Chat management)",
+            "cmd_config_export": "Export the server config as a JSON file",
+            "cmd_config_import": "Import a config and recreate all panels",
+            "cmd_history": "View the server audit log with filters",
+            "cmd_whitelist": "Manage allowed link domains",
+            "cmd_embed_create": "Open the embed generator",
+            "cmd_set_language": "Change the bot language (🇩🇪 / 🇬🇧)",
+            "cmd_music_upload": "Upload a new waiting room music file",
+            "cmd_music_download": "Download the current waiting room music",
+            "cmd_pioneer": "Assign a pioneer role to the first 100 members",
+            "tickets_user_desc": "Open a ticket by clicking the dropdown in the ticket channel.\nA private thread will be created — describe your issue and a supporter will respond.",
+            "applications_user_desc": "Click **Apply Now** on an application panel to start your application.\nYou will be guided step by step through all questions.",
+            "selfroles_user_desc": "Select your roles in the self-roles panel using the dropdown.\nYou can pick multiple roles at once — ✅ marks roles you already have.",
+            "verify_user_desc": "Click the **Verify** button in the verification channel to gain access to the server.",
+            "footer_user": "{name} • Use /help anytime for assistance",
+            "footer_admin": "{name} • Admin Help — use /setup to configure features"
         }
     }
 }

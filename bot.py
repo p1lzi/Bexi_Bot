@@ -47,9 +47,11 @@ except ImportError:
 
 # --- SETUP DATEIEN ---
 TOKEN        = os.getenv('DISCORD_TOKEN')
-BOT_VERSION = "2.0.0"
-BOT_AUTHOR  = "pilzithegoat"
-BOT_GITHUB  = "https://github.com/pilzithegoat/bexi_bot"
+BOT_VERSION  = "2.0.0"           # local fallback — real value fetched from GitHub
+BOT_AUTHOR   = "p1lzi"
+BOT_GITHUB   = "https://github.com/p1lzi/Bexi_Bot"
+GITHUB_VERSION_URL = "https://raw.githubusercontent.com/p1lzi/Bexi_Bot/main/version.txt"
+_cached_version: str = BOT_VERSION
 DEBUG        = os.getenv('DEBUG', 'false').lower() in ('1', 'true', 'yes')
 DEFAULT_LANG = os.getenv('DEFAULT_LANG', 'en').lower().strip()
 CONFIGS_DIR      = 'configs'
@@ -8964,6 +8966,12 @@ async def embed_create_cmd(interaction: discord.Interaction):
 
 @bot.tree.command(name="info", description=td("info"))
 async def info_cmd(interaction: discord.Interaction):
+    """Shows bot info, live statistics and current version fetched from GitHub."""
+    await interaction.response.defer(ephemeral=True)
+
+    # Fetch live version from GitHub (falls back to cached on error)
+    live_version = await fetch_bot_version()
+
     guild_count  = len(bot.guilds)
     member_count = sum(g.member_count or 0 for g in bot.guilds)
     latency_ms   = round(bot.latency * 1000)
@@ -8982,6 +8990,7 @@ async def info_cmd(interaction: discord.Interaction):
             conn.close()
     except Exception:
         log_count = 0
+
     color = discord.Color.from_rgb(88, 101, 242)
     embed = discord.Embed(
         title=t("embeds","info","title"),
@@ -8991,15 +9000,19 @@ async def info_cmd(interaction: discord.Interaction):
     )
     if bot.user and bot.user.avatar:
         embed.set_thumbnail(url=bot.user.avatar.url)
-    v1 = t("embeds","info","version_val", version=BOT_VERSION)
+
+    # Version field — uses live_version from GitHub
+    v1 = t("embeds","info","version_val", version=live_version)
     v2 = t("embeds","info","author_val",  author=BOT_AUTHOR)
     v3 = t("embeds","info","github_val",  url=BOT_GITHUB)
     embed.add_field(name=t("embeds","info","f_version"), value=v1+"\n"+v2+"\n"+v3, inline=True)
+
     s1 = t("embeds","info","stat_guilds",  n=guild_count)
     s2 = t("embeds","info","stat_members", n=member_count)
     s3 = t("embeds","info","stat_latency", ms=latency_ms)
     s4 = t("embeds","info","stat_log",     n=log_count)
     embed.add_field(name=t("embeds","info","f_stats"), value=s1+"\n"+s2+"\n"+s3+"\n"+s4, inline=True)
+
     p1 = t("embeds","info","panel_tickets",   n=ticket_panels)
     p2 = t("embeds","info","panel_selfroles", n=selfrole_panels)
     p3 = t("embeds","info","panel_verify",    n=verify_panels)
@@ -9007,7 +9020,7 @@ async def info_cmd(interaction: discord.Interaction):
     embed.add_field(name=t("embeds","info","f_panels"), value=p1+"\n"+p2+"\n"+p3+"\n"+p4, inline=True)
     embed.add_field(name=t("embeds","info","f_features"), value=t("embeds","info","features_val"), inline=False)
     embed.set_footer(
-        text=t("embeds","info","footer", version=BOT_VERSION),
+        text=t("embeds","info","footer", version=live_version),
         icon_url=bot.user.avatar.url if bot.user and bot.user.avatar else None
     )
     view = discord.ui.View(timeout=None)
@@ -9017,7 +9030,7 @@ async def info_cmd(interaction: discord.Interaction):
         style=discord.ButtonStyle.link,
         emoji="\U0001f517"
     ))
-    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+    await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
 
 @bot.tree.command(name="ping", description=td("ping"))
@@ -9130,6 +9143,166 @@ async def history_cmd(interaction: discord.Interaction,
     embed = _build_history_embed(interaction.guild, rows, 0, total, filters)
     view  = HistoryView(interaction.guild, guild_id, 0, total, filters)
     await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+
+
+# ─────────────────────────────────────────────
+#  GITHUB VERSION FETCH
+# ─────────────────────────────────────────────
+
+async def fetch_bot_version() -> str:
+    """Fetch the current bot version from GitHub version.txt.
+    Falls back silently to the locally cached value on any error."""
+    global _cached_version
+    try:
+        import aiohttp
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                GITHUB_VERSION_URL,
+                timeout=aiohttp.ClientTimeout(total=5)
+            ) as resp:
+                if resp.status == 200:
+                    ver = (await resp.text()).strip()
+                    if ver:
+                        _cached_version = ver
+    except Exception:
+        pass  # silently fall back to cached / default
+    return _cached_version
+
+
+# ─────────────────────────────────────────────
+#  HELP EMBED BUILDERS
+# ─────────────────────────────────────────────
+
+def _build_user_help_embed(guild) -> discord.Embed:
+    """Help embed shown to regular (non-admin) users."""
+    embed = discord.Embed(
+        title=t("embeds", "help", "user_title"),
+        description=t("embeds", "help", "user_desc"),
+        color=discord.Color.from_rgb(88, 101, 242),
+        timestamp=now_timestamp()
+    )
+    embed.add_field(
+        name=t("embeds", "help", "f_general"),
+        value=(
+            "`/ping`  —  " + t("embeds", "help", "cmd_ping") + "\n"
+            + "`/info`  —  " + t("embeds", "help", "cmd_info") + "\n"
+            + "`/userinfo`  —  " + t("embeds", "help", "cmd_userinfo") + "\n"
+            + "`/help`  —  " + t("embeds", "help", "cmd_help")
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name=t("embeds", "help", "f_tickets"),
+        value=t("embeds", "help", "tickets_user_desc"),
+        inline=False
+    )
+    embed.add_field(
+        name=t("embeds", "help", "f_applications"),
+        value=t("embeds", "help", "applications_user_desc"),
+        inline=False
+    )
+    embed.add_field(
+        name=t("embeds", "help", "f_selfroles"),
+        value=t("embeds", "help", "selfroles_user_desc"),
+        inline=False
+    )
+    embed.add_field(
+        name=t("embeds", "help", "f_verify"),
+        value=t("embeds", "help", "verify_user_desc"),
+        inline=False
+    )
+    if guild and guild.icon:
+        embed.set_footer(
+            text=t("embeds", "help", "footer_user", name=guild.name),
+            icon_url=guild.icon.url
+        )
+    else:
+        embed.set_footer(text=t("embeds", "help", "footer_user", name="Bexi Bot"))
+    return embed
+
+
+def _build_admin_help_embed(guild) -> discord.Embed:
+    """Help embed shown to administrators."""
+    embed = discord.Embed(
+        title=t("embeds", "help", "admin_title"),
+        description=t("embeds", "help", "admin_desc"),
+        color=discord.Color.gold(),
+        timestamp=now_timestamp()
+    )
+    embed.add_field(
+        name=t("embeds", "help", "f_setup"),
+        value=(
+            "`/setup`  —  " + t("embeds", "help", "cmd_setup") + "\n"
+            + "`/edit`  —  " + t("embeds", "help", "cmd_edit") + "\n"
+            + "`/delete`  —  " + t("embeds", "help", "cmd_delete") + "\n"
+            + "`/ticket_edit`  —  " + t("embeds", "help", "cmd_ticket_edit")
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name=t("embeds", "help", "f_moderation"),
+        value=(
+            "`/ban`  —  " + t("embeds", "help", "cmd_ban") + "\n"
+            + "`/kick`  —  " + t("embeds", "help", "cmd_kick") + "\n"
+            + "`/timeout`  —  " + t("embeds", "help", "cmd_timeout") + "\n"
+            + "`/warn`  —  " + t("embeds", "help", "cmd_warn") + "\n"
+            + "`/warn_edit`  —  " + t("embeds", "help", "cmd_warn_edit") + "\n"
+            + "`/adminpanel`  —  " + t("embeds", "help", "cmd_adminpanel")
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name=t("embeds", "help", "f_config"),
+        value=(
+            "`/config_export`  —  " + t("embeds", "help", "cmd_config_export") + "\n"
+            + "`/config_import`  —  " + t("embeds", "help", "cmd_config_import") + "\n"
+            + "`/history`  —  " + t("embeds", "help", "cmd_history") + "\n"
+            + "`/whitelist`  —  " + t("embeds", "help", "cmd_whitelist") + "\n"
+            + "`/embed_create`  —  " + t("embeds", "help", "cmd_embed_create") + "\n"
+            + "`/set_language`  —  " + t("embeds", "help", "cmd_set_language")
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name=t("embeds", "help", "f_misc"),
+        value=(
+            "`/music_upload`  —  " + t("embeds", "help", "cmd_music_upload") + "\n"
+            + "`/music_download`  —  " + t("embeds", "help", "cmd_music_download") + "\n"
+            + "`/setup_pioneer_role`  —  " + t("embeds", "help", "cmd_pioneer") + "\n"
+            + "`/userinfo`  —  " + t("embeds", "help", "cmd_userinfo")
+        ),
+        inline=False
+    )
+    if guild and guild.icon:
+        embed.set_footer(
+            text=t("embeds", "help", "footer_admin", name=guild.name),
+            icon_url=guild.icon.url
+        )
+    else:
+        embed.set_footer(text=t("embeds", "help", "footer_admin", name="Bexi Bot"))
+    return embed
+
+
+# ─────────────────────────────────────────────
+#  /HELP COMMAND
+# ─────────────────────────────────────────────
+
+@bot.tree.command(name="help", description=td("help"))
+async def help_cmd(interaction: discord.Interaction):
+    """Role-aware help: admins see all admin commands, users see feature usage guide."""
+    await interaction.response.defer(ephemeral=True)
+
+    is_admin = (
+        interaction.user.guild_permissions.administrator
+        if interaction.guild
+        else False
+    )
+    embed = (
+        _build_admin_help_embed(interaction.guild)
+        if is_admin
+        else _build_user_help_embed(interaction.guild)
+    )
+    await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 @bot.event

@@ -47,11 +47,9 @@ except ImportError:
 
 # --- SETUP DATEIEN ---
 TOKEN        = os.getenv('DISCORD_TOKEN')
-BOT_VERSION  = "2.0.0"           # local fallback — real value fetched from GitHub
-BOT_AUTHOR   = "p1lzi"
-BOT_GITHUB   = "https://github.com/p1lzi/Bexi_Bot"
-GITHUB_VERSION_URL = "https://raw.githubusercontent.com/p1lzi/Bexi_Bot/main/version.txt"
-_cached_version: str = BOT_VERSION
+BOT_VERSION = "2.0.0"
+BOT_AUTHOR  = "p1lzi"
+BOT_GITHUB  = "https://github.com/p1lzi/bexi_bot"
 DEBUG        = os.getenv('DEBUG', 'false').lower() in ('1', 'true', 'yes')
 DEFAULT_LANG = os.getenv('DEFAULT_LANG', 'en').lower().strip()
 CONFIGS_DIR      = 'configs'
@@ -1265,22 +1263,29 @@ class AppSetupMainView(discord.ui.View):
             text=t("embeds", "application", "panel_footer", name=interaction.guild.name)
         )
         # Show questions as fields grouped by section
-        last_sec = None
-        shown = 0
+        # Discord hard-limit: 25 fields per embed. We cap display at 22 question-fields
+        # (leaving headroom for up to 3 section-header fields) and show a "…and N more" tail.
+        last_sec    = None
+        shown       = 0
+        field_count = 0  # tracks actual embed fields added (sections + questions)
+        MAX_FIELDS  = 23
         for q in questions:
-            if shown >= 20:
+            sec_raw  = q.get("section")
+            sec_name = sec_raw.get("name", "") if isinstance(sec_raw, dict) else (sec_raw or "")
+            sec_desc = sec_raw.get("desc", "") if isinstance(sec_raw, dict) else ""
+            # Adding a section header uses 1 extra field — pre-check
+            would_add = 1 + (1 if sec_name and sec_name != last_sec else 0)
+            if field_count + would_add > MAX_FIELDS:
                 preview_embed.add_field(
                     name="...",
                     value=t("embeds", "wizard", "q_more", n=len(questions) - shown),
                     inline=False
                 )
                 break
-            sec_raw  = q.get("section")
-            sec_name = sec_raw.get("name", "") if isinstance(sec_raw, dict) else (sec_raw or "")
-            sec_desc = sec_raw.get("desc", "") if isinstance(sec_raw, dict) else ""
             if sec_name and sec_name != last_sec:
-                sep_val  = "*" + sec_desc + "*" if sec_desc else "​"
+                sep_val = "*" + sec_desc + "*" if sec_desc else "​"
                 preview_embed.add_field(name="━━━  " + sec_name + "  ━━━", value=sep_val, inline=False)
+                field_count += 1
                 last_sec = sec_name
             min_l = q.get("min_length", 0)
             meta  = (" *(min. " + str(min_l) + " chars)*") if min_l else ""
@@ -1290,6 +1295,7 @@ class AppSetupMainView(discord.ui.View):
                 value="> " + ph[:80],
                 inline=False
             )
+            field_count += 1
             shown += 1
         await interaction.response.send_message(
             content=t("success", "wizard_preview_note_application"),
@@ -4577,6 +4583,192 @@ def _save_panel(guild_id: str, panel_type: str, panel_idx: int, panel: dict):
 
 # ── Type selector ─────────────────────────────────────────────────────────────
 
+# ─────────────────────────────────────────────
+#  EMBED EDIT — helper + select + view
+# ─────────────────────────────────────────────
+
+def _embed_state_from_discord_embed(msg: discord.Message) -> dict:
+    """Reconstruct an _embed_gen_state dict from a live Discord message."""
+    state = _default_embed_state()
+    if not msg.embeds:
+        return state
+    e = msg.embeds[0]
+    state["title"]       = e.title or ""
+    state["description"] = e.description or ""
+    if e.color:
+        state["color"] = format(e.color.value, "06x")
+    if e.author:
+        state["author_name"] = e.author.name or ""
+        state["author_icon"] = str(e.author.icon_url) if e.author.icon_url else ""
+    if e.footer:
+        state["footer_text"] = e.footer.text or ""
+        state["footer_icon"] = str(e.footer.icon_url) if e.footer.icon_url else ""
+    if e.image:
+        state["image_url"] = str(e.image.url) if e.image.url else ""
+    if e.thumbnail:
+        state["thumbnail_url"] = str(e.thumbnail.url) if e.thumbnail.url else ""
+    state["timestamp"] = e.timestamp is not None
+    state["fields"] = [
+        {"name": f.name, "value": f.value, "inline": f.inline}
+        for f in e.fields
+    ]
+    state["buttons"] = []
+    for row in msg.components:
+        children = row.children if hasattr(row, "children") else [row]
+        for comp in children:
+            if isinstance(comp, discord.Button) and comp.url:
+                state["buttons"].append({
+                    "label": comp.label or "",
+                    "url":   comp.url,
+                    "emoji": str(comp.emoji) if comp.emoji else None,
+                })
+    return state
+
+
+class EditEmbedSelect(discord.ui.Select):
+    """Select which previously sent embed to re-edit (loaded from audit log)."""
+    def __init__(self, user_id: int, guild_id: str, embed_rows: list):
+        self.user_id    = user_id
+        self.guild_id   = guild_id
+        self.embed_rows = embed_rows
+
+        options = []
+        for row in embed_rows[:25]:
+            import json as _json
+            payload = {}
+            try:
+                payload = _json.loads(row.get("payload") or "{}")
+            except Exception:
+                pass
+            title  = payload.get("title") or row.get("detail") or t("embeds", "delete_wizard", "untitled")
+            ch_id  = payload.get("sent_channel_id")
+            ts     = row.get("timestamp", "")[:10]
+            label  = (title[:70] + "  " + ts).strip()[:100]
+            desc   = ("<#" + str(ch_id) + ">") if ch_id else ""
+            options.append(discord.SelectOption(
+                label=label,
+                value=str(row["id"]),
+                emoji="🎨",
+                description=desc[:100] or None
+            ))
+
+        if not options:
+            options = [discord.SelectOption(label="—", value="__none__")]
+
+        super().__init__(
+            placeholder=t("selects", "embed_edit_pick_ph"),
+            min_values=1, max_values=1,
+            options=options
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.user_id:
+            return await interaction.response.send_message(
+                t("errors", "application_not_yours"), ephemeral=True
+            )
+        if self.values[0] == "__none__":
+            return await interaction.response.edit_message(
+                content=t("errors", "embed_edit_none_found"), view=None
+            )
+
+        import json as _json
+        row_id = int(self.values[0])
+        row    = next((r for r in self.embed_rows if r["id"] == row_id), None)
+        if not row:
+            return await interaction.response.edit_message(
+                content=t("errors", "panel_not_found"), view=None
+            )
+
+        payload = {}
+        try:
+            payload = _json.loads(row.get("payload") or "{}")
+        except Exception:
+            pass
+
+        ch_id  = payload.get("sent_channel_id")
+        msg_id = payload.get("message_id")
+        if not ch_id or not msg_id:
+            return await interaction.response.edit_message(
+                content=t("errors", "embed_edit_msg_not_found"), view=None
+            )
+
+        try:
+            ch  = (interaction.guild.get_channel(int(ch_id))
+                   or await interaction.guild.fetch_channel(int(ch_id)))
+            msg = await ch.fetch_message(int(msg_id))
+        except Exception:
+            return await interaction.response.edit_message(
+                content=t("errors", "embed_edit_msg_not_found"), view=None
+            )
+
+        uid   = self.user_id
+        state = _embed_state_from_discord_embed(msg)
+        state["_edit_ch_id"]  = int(ch_id)
+        state["_edit_msg_id"] = int(msg_id)
+        _embed_gen_state[uid]    = state
+        _wizard_interactions[uid] = interaction
+
+        status_embed = _build_embed_gen_status(state, interaction.guild)
+        await interaction.response.edit_message(
+            content=t("success", "embed_edit_loaded"),
+            embed=status_embed,
+            view=EmbedGenEditView(uid)
+        )
+
+
+class EmbedGenEditView(EmbedGenView):
+    """EmbedGenView variant that saves back to the original Discord message."""
+
+    def __init__(self, user_id: int):
+        super().__init__(user_id)
+        self.send_channel_btn.label = t("buttons", "embed_edit_save")
+        self.send_here_btn.label    = t("buttons", "embed_edit_discard")
+
+    @discord.ui.button(label="💾 Save", style=discord.ButtonStyle.green, row=2)
+    async def send_channel_btn(self, interaction: discord.Interaction, button: discord.ui.Button):  # type: ignore[override]
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        state  = _embed_gen_state.get(self.user_id, _default_embed_state())
+        ch_id  = state.get("_edit_ch_id")
+        msg_id = state.get("_edit_msg_id")
+        if not ch_id or not msg_id:
+            return await interaction.response.send_message(
+                t("errors","embed_edit_msg_not_found"), ephemeral=True
+            )
+        try:
+            ch  = (interaction.guild.get_channel(int(ch_id))
+                   or await interaction.guild.fetch_channel(int(ch_id)))
+            msg = await ch.fetch_message(int(msg_id))
+        except Exception:
+            return await interaction.response.send_message(
+                t("errors","embed_edit_msg_not_found"), ephemeral=True
+            )
+        clean     = {k: v for k, v in state.items() if not k.startswith("_edit_")}
+        new_embed = _build_preview_embed(clean)
+        btn_view  = _build_button_view(clean)
+        try:
+            await msg.edit(embed=new_embed, view=btn_view)
+        except Exception as exc:
+            return await interaction.response.send_message(
+                t("errors","generic_error", error=str(exc)), ephemeral=True
+            )
+        _embed_gen_state.pop(self.user_id, None)
+        await interaction.response.edit_message(
+            content=t("success","embed_edit_saved"),
+            embed=None, view=None
+        )
+
+    @discord.ui.button(label="📨 Discard", style=discord.ButtonStyle.secondary, row=2)
+    async def send_here_btn(self, interaction: discord.Interaction, button: discord.ui.Button):  # type: ignore[override]
+        if not self._check(interaction):
+            return await interaction.response.send_message(t("errors","application_not_yours"), ephemeral=True)
+        _embed_gen_state.pop(self.user_id, None)
+        await interaction.response.edit_message(
+            content=t("errors","application_cancelled"),
+            embed=None, view=None
+        )
+
+
 class EditTypeSelect(discord.ui.Select):
     def __init__(self, user_id: int, guild_id: str):
         self.user_id  = user_id
@@ -4610,6 +4802,18 @@ class EditTypeSelect(discord.ui.Select):
                 description=t("selects", "edit_panels_count", n=len(gdata["verify_panels"]))
             ))
 
+        # Sent embeds from audit log
+        try:
+            _sent_embeds = query_log(guild_id, limit=25, action_filter="embed_sent")
+        except Exception:
+            _sent_embeds = []
+        if _sent_embeds:
+            options.append(discord.SelectOption(
+                label=t("selects", "edit_embeds"),
+                value="embed_panels", emoji="🎨",
+                description=t("selects", "edit_embeds_count", n=len(_sent_embeds))
+            ))
+
         if not options:
             options.append(discord.SelectOption(label=t("selects", "delete_nothing"), value="__none__"))
 
@@ -4629,6 +4833,22 @@ class EditTypeSelect(discord.ui.Select):
             return await interaction.response.edit_message(
                 content=t("errors", "panel_not_found"), view=None
             )
+
+        # Special branch: embed editing (loaded from audit log, not config)
+        if panel_type == "embed_panels":
+            embed_rows = query_log(str(interaction.guild_id), limit=25, action_filter="embed_sent")
+            if not embed_rows:
+                return await interaction.response.edit_message(
+                    content=t("errors", "embed_edit_none_found"), view=None
+                )
+            view = discord.ui.View(timeout=120)
+            view.add_item(EditEmbedSelect(interaction.user.id, str(interaction.guild_id), embed_rows))
+            await interaction.response.edit_message(
+                content=t("success", "embed_edit_pick"),
+                embed=None, view=view
+            )
+            return
+
         panels = _get_panels(self.guild_id, panel_type)
         if not panels:
             return await interaction.response.edit_message(
@@ -5503,9 +5723,9 @@ class EditAppQuestionSelect(discord.ui.Select):
     def __init__(self, user_id: int):
         self.user_id = user_id
         panel     = _edit_state.get(user_id, {}).get("panel", {})
-        # Load language-appropriate default questions if panel uses defaults
-        guild_lang = load_config().get(str(interaction.guild_id), {}).get("language", "en")
-        questions = panel.get("questions") or _load_default_application(guild_lang)
+        # Use panel questions; fall back to the already-loaded default questions
+        # (DEFAULT_APPLICATION_QUESTIONS is populated from the correct language file at startup)
+        questions = panel.get("questions") or DEFAULT_APPLICATION_QUESTIONS
         options   = []
         for i, q in enumerate(questions[:25]):
             label_str = q["label"][:90]
@@ -8966,12 +9186,6 @@ async def embed_create_cmd(interaction: discord.Interaction):
 
 @bot.tree.command(name="info", description=td("info"))
 async def info_cmd(interaction: discord.Interaction):
-    """Shows bot info, live statistics and current version fetched from GitHub."""
-    await interaction.response.defer(ephemeral=True)
-
-    # Fetch live version from GitHub (falls back to cached on error)
-    live_version = await fetch_bot_version()
-
     guild_count  = len(bot.guilds)
     member_count = sum(g.member_count or 0 for g in bot.guilds)
     latency_ms   = round(bot.latency * 1000)
@@ -8990,7 +9204,6 @@ async def info_cmd(interaction: discord.Interaction):
             conn.close()
     except Exception:
         log_count = 0
-
     color = discord.Color.from_rgb(88, 101, 242)
     embed = discord.Embed(
         title=t("embeds","info","title"),
@@ -9000,19 +9213,15 @@ async def info_cmd(interaction: discord.Interaction):
     )
     if bot.user and bot.user.avatar:
         embed.set_thumbnail(url=bot.user.avatar.url)
-
-    # Version field — uses live_version from GitHub
-    v1 = t("embeds","info","version_val", version=live_version)
+    v1 = t("embeds","info","version_val", version=BOT_VERSION)
     v2 = t("embeds","info","author_val",  author=BOT_AUTHOR)
     v3 = t("embeds","info","github_val",  url=BOT_GITHUB)
     embed.add_field(name=t("embeds","info","f_version"), value=v1+"\n"+v2+"\n"+v3, inline=True)
-
     s1 = t("embeds","info","stat_guilds",  n=guild_count)
     s2 = t("embeds","info","stat_members", n=member_count)
     s3 = t("embeds","info","stat_latency", ms=latency_ms)
     s4 = t("embeds","info","stat_log",     n=log_count)
     embed.add_field(name=t("embeds","info","f_stats"), value=s1+"\n"+s2+"\n"+s3+"\n"+s4, inline=True)
-
     p1 = t("embeds","info","panel_tickets",   n=ticket_panels)
     p2 = t("embeds","info","panel_selfroles", n=selfrole_panels)
     p3 = t("embeds","info","panel_verify",    n=verify_panels)
@@ -9020,7 +9229,7 @@ async def info_cmd(interaction: discord.Interaction):
     embed.add_field(name=t("embeds","info","f_panels"), value=p1+"\n"+p2+"\n"+p3+"\n"+p4, inline=True)
     embed.add_field(name=t("embeds","info","f_features"), value=t("embeds","info","features_val"), inline=False)
     embed.set_footer(
-        text=t("embeds","info","footer", version=live_version),
+        text=t("embeds","info","footer", version=BOT_VERSION),
         icon_url=bot.user.avatar.url if bot.user and bot.user.avatar else None
     )
     view = discord.ui.View(timeout=None)
@@ -9030,7 +9239,7 @@ async def info_cmd(interaction: discord.Interaction):
         style=discord.ButtonStyle.link,
         emoji="\U0001f517"
     ))
-    await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
 
 @bot.tree.command(name="ping", description=td("ping"))
@@ -9143,166 +9352,6 @@ async def history_cmd(interaction: discord.Interaction,
     embed = _build_history_embed(interaction.guild, rows, 0, total, filters)
     view  = HistoryView(interaction.guild, guild_id, 0, total, filters)
     await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-
-
-# ─────────────────────────────────────────────
-#  GITHUB VERSION FETCH
-# ─────────────────────────────────────────────
-
-async def fetch_bot_version() -> str:
-    """Fetch the current bot version from GitHub version.txt.
-    Falls back silently to the locally cached value on any error."""
-    global _cached_version
-    try:
-        import aiohttp
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                GITHUB_VERSION_URL,
-                timeout=aiohttp.ClientTimeout(total=5)
-            ) as resp:
-                if resp.status == 200:
-                    ver = (await resp.text()).strip()
-                    if ver:
-                        _cached_version = ver
-    except Exception:
-        pass  # silently fall back to cached / default
-    return _cached_version
-
-
-# ─────────────────────────────────────────────
-#  HELP EMBED BUILDERS
-# ─────────────────────────────────────────────
-
-def _build_user_help_embed(guild) -> discord.Embed:
-    """Help embed shown to regular (non-admin) users."""
-    embed = discord.Embed(
-        title=t("embeds", "help", "user_title"),
-        description=t("embeds", "help", "user_desc"),
-        color=discord.Color.from_rgb(88, 101, 242),
-        timestamp=now_timestamp()
-    )
-    embed.add_field(
-        name=t("embeds", "help", "f_general"),
-        value=(
-            "`/ping`  —  " + t("embeds", "help", "cmd_ping") + "\n"
-            + "`/info`  —  " + t("embeds", "help", "cmd_info") + "\n"
-            + "`/userinfo`  —  " + t("embeds", "help", "cmd_userinfo") + "\n"
-            + "`/help`  —  " + t("embeds", "help", "cmd_help")
-        ),
-        inline=False
-    )
-    embed.add_field(
-        name=t("embeds", "help", "f_tickets"),
-        value=t("embeds", "help", "tickets_user_desc"),
-        inline=False
-    )
-    embed.add_field(
-        name=t("embeds", "help", "f_applications"),
-        value=t("embeds", "help", "applications_user_desc"),
-        inline=False
-    )
-    embed.add_field(
-        name=t("embeds", "help", "f_selfroles"),
-        value=t("embeds", "help", "selfroles_user_desc"),
-        inline=False
-    )
-    embed.add_field(
-        name=t("embeds", "help", "f_verify"),
-        value=t("embeds", "help", "verify_user_desc"),
-        inline=False
-    )
-    if guild and guild.icon:
-        embed.set_footer(
-            text=t("embeds", "help", "footer_user", name=guild.name),
-            icon_url=guild.icon.url
-        )
-    else:
-        embed.set_footer(text=t("embeds", "help", "footer_user", name="Bexi Bot"))
-    return embed
-
-
-def _build_admin_help_embed(guild) -> discord.Embed:
-    """Help embed shown to administrators."""
-    embed = discord.Embed(
-        title=t("embeds", "help", "admin_title"),
-        description=t("embeds", "help", "admin_desc"),
-        color=discord.Color.gold(),
-        timestamp=now_timestamp()
-    )
-    embed.add_field(
-        name=t("embeds", "help", "f_setup"),
-        value=(
-            "`/setup`  —  " + t("embeds", "help", "cmd_setup") + "\n"
-            + "`/edit`  —  " + t("embeds", "help", "cmd_edit") + "\n"
-            + "`/delete`  —  " + t("embeds", "help", "cmd_delete") + "\n"
-            + "`/ticket_edit`  —  " + t("embeds", "help", "cmd_ticket_edit")
-        ),
-        inline=False
-    )
-    embed.add_field(
-        name=t("embeds", "help", "f_moderation"),
-        value=(
-            "`/ban`  —  " + t("embeds", "help", "cmd_ban") + "\n"
-            + "`/kick`  —  " + t("embeds", "help", "cmd_kick") + "\n"
-            + "`/timeout`  —  " + t("embeds", "help", "cmd_timeout") + "\n"
-            + "`/warn`  —  " + t("embeds", "help", "cmd_warn") + "\n"
-            + "`/warn_edit`  —  " + t("embeds", "help", "cmd_warn_edit") + "\n"
-            + "`/adminpanel`  —  " + t("embeds", "help", "cmd_adminpanel")
-        ),
-        inline=False
-    )
-    embed.add_field(
-        name=t("embeds", "help", "f_config"),
-        value=(
-            "`/config_export`  —  " + t("embeds", "help", "cmd_config_export") + "\n"
-            + "`/config_import`  —  " + t("embeds", "help", "cmd_config_import") + "\n"
-            + "`/history`  —  " + t("embeds", "help", "cmd_history") + "\n"
-            + "`/whitelist`  —  " + t("embeds", "help", "cmd_whitelist") + "\n"
-            + "`/embed_create`  —  " + t("embeds", "help", "cmd_embed_create") + "\n"
-            + "`/set_language`  —  " + t("embeds", "help", "cmd_set_language")
-        ),
-        inline=False
-    )
-    embed.add_field(
-        name=t("embeds", "help", "f_misc"),
-        value=(
-            "`/music_upload`  —  " + t("embeds", "help", "cmd_music_upload") + "\n"
-            + "`/music_download`  —  " + t("embeds", "help", "cmd_music_download") + "\n"
-            + "`/setup_pioneer_role`  —  " + t("embeds", "help", "cmd_pioneer") + "\n"
-            + "`/userinfo`  —  " + t("embeds", "help", "cmd_userinfo")
-        ),
-        inline=False
-    )
-    if guild and guild.icon:
-        embed.set_footer(
-            text=t("embeds", "help", "footer_admin", name=guild.name),
-            icon_url=guild.icon.url
-        )
-    else:
-        embed.set_footer(text=t("embeds", "help", "footer_admin", name="Bexi Bot"))
-    return embed
-
-
-# ─────────────────────────────────────────────
-#  /HELP COMMAND
-# ─────────────────────────────────────────────
-
-@bot.tree.command(name="help", description=td("help"))
-async def help_cmd(interaction: discord.Interaction):
-    """Role-aware help: admins see all admin commands, users see feature usage guide."""
-    await interaction.response.defer(ephemeral=True)
-
-    is_admin = (
-        interaction.user.guild_permissions.administrator
-        if interaction.guild
-        else False
-    )
-    embed = (
-        _build_admin_help_embed(interaction.guild)
-        if is_admin
-        else _build_user_help_embed(interaction.guild)
-    )
-    await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 @bot.event

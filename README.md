@@ -9,7 +9,7 @@ Ticket System · Applications · Moderation · Verification · Self-Roles · Emb
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![discord.py](https://img.shields.io/badge/discord.py-2.x-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discordpy.readthedocs.io)
-[![Version](https://img.shields.io/badge/Version-2.0.0-57F287?style=for-the-badge)](https://github.com/pilzithegoat/bexi_bot)
+[![Version](https://img.shields.io/badge/Version-2.0.1-57F287?style=for-the-badge)](https://github.com/pilzithegoat/bexi_bot)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-ARM64%20%2F%20x86-2496ED?style=for-the-badge&logo=docker&logoColor=white)](Docker/)
 
